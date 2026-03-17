@@ -1,85 +1,87 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const assessmentSchema = z.object({
-  lionScore: z.number().int().min(0),
-  bearScore: z.number().int().min(0),
-  wolfScore: z.number().int().min(0),
-  dolphinScore: z.number().int().min(0),
-});
-
-function getWinningChronotype(scores: {
-  lionScore: number;
-  bearScore: number;
-  wolfScore: number;
-  dolphinScore: number;
-}) {
-  const entries = [
-    { type: "Lion", score: scores.lionScore },
-    { type: "Bear", score: scores.bearScore },
-    { type: "Wolf", score: scores.wolfScore },
-    { type: "Dolphin", score: scores.dolphinScore },
-  ];
-
-  entries.sort((a, b) => b.score - a.score);
-  return entries[0].type;
-}
+import { calculateChronotype } from "@/lib/chronotype";
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    console.log("ASSESSMENT SESSION:", session);
 
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { success: false, message: "Unauthorized." },
+        { error: "Unauthorized: no session or email" },
         { status: 401 }
       );
     }
 
     const body = await req.json();
-    const parsed = assessmentSchema.safeParse(body);
+    console.log("ASSESSMENT BODY:", body);
 
-    if (!parsed.success) {
+    const answers = body?.answers;
+    console.log("ASSESSMENT ANSWERS:", answers);
+
+    if (!answers || typeof answers !== "object") {
       return NextResponse.json(
-        { success: false, message: "Invalid assessment payload." },
+        { error: "Invalid assessment answers" },
         { status: 400 }
       );
     }
 
-    const { lionScore, bearScore, wolfScore, dolphinScore } = parsed.data;
-    const chronotype = getWinningChronotype(parsed.data);
-
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: session.user.id },
-        data: { chronotype },
-      });
-
-      return tx.chronotypeResult.create({
-        data: {
-          userId: session.user.id,
-          chronotype,
-          lionScore,
-          bearScore,
-          wolfScore,
-          dolphinScore,
-        },
-      });
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        email: true,
+        chronotype: true,
+      },
     });
+
+    console.log("ASSESSMENT USER:", user);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found in database" },
+        { status: 404 }
+      );
+    }
+
+    const { chronotype, scores } = calculateChronotype(answers);
+    console.log("ASSESSMENT RESULT:", { chronotype, scores });
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          chronotype,
+        },
+      }),
+      prisma.chronotypeResult.create({
+        data: {
+          userId: user.id,
+          chronotype,
+          lionScore: scores.lionScore,
+          bearScore: scores.bearScore,
+          wolfScore: scores.wolfScore,
+          dolphinScore: scores.dolphinScore,
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: "Assessment submitted successfully.",
       chronotype,
-      resultId: result.id,
+      scores,
     });
   } catch (error) {
-    console.error("ASSESSMENT_SUBMIT_ERROR", error);
+    console.error("ASSESSMENT SUBMIT ERROR:", error);
+
     return NextResponse.json(
-      { success: false, message: "Something went wrong." },
+      {
+        error: "Failed to submit assessment",
+        detail: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

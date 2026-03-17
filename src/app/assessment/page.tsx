@@ -179,13 +179,12 @@ const questions: Question[] = [
 export default function AssessmentPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentQuestion = questions[currentIndex];
   const total = questions.length;
   const progress = ((currentIndex + 1) / total) * 100;
   const currentAnswer = answers[currentQuestion.id];
-
   const canGoNext = Boolean(currentAnswer);
 
   const answeredCount = useMemo(
@@ -206,18 +205,55 @@ export default function AssessmentPage() {
     }
   }
 
-  function handleNext() {
-    if (!canGoNext) return;
+  async function handleNext() {
+    if (!canGoNext || isSubmitting) return;
 
     if (currentIndex < total - 1) {
       setCurrentIndex((prev) => prev + 1);
       return;
     }
 
-    setSubmitted(true);
+    try {
+      setIsSubmitting(true);
 
-    // TODO: sau này thay bằng submit API thật
-    // router.push("/result");
+      const res = await fetch("/api/assessment/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ answers }),
+      });
+
+      let data: unknown = null;
+
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        console.error("FULL ERROR:", {
+          status: res.status,
+          data,
+        });
+      
+        if (typeof data === "object" && data !== null && "error" in data) {
+          alert((data as any).error);
+        } else {
+          alert("Failed to submit assessment");
+        }
+      
+        return;
+      }
+
+      window.location.href = "/result";
+    } catch (error) {
+      console.error("SUBMIT ERROR:", error);
+      alert("Something went wrong while submitting your assessment.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -225,7 +261,6 @@ export default function AssessmentPage() {
       <Navbar variant="guest" />
 
       <section className="relative overflow-hidden px-6 pt-12 pb-16 md:pt-16 md:pb-24">
-        {/* ambient glow */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute left-[-8%] top-[8%] h-[280px] w-[280px] rounded-full bg-purple-100/30 blur-[110px]" />
           <div className="absolute right-[-6%] top-[10%] h-[230px] w-[230px] rounded-full bg-blue-100/25 blur-[100px]" />
@@ -233,7 +268,6 @@ export default function AssessmentPage() {
         </div>
 
         <div className="mx-auto max-w-5xl">
-          {/* Header */}
           <div className="mx-auto max-w-[760px] text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-purple-50 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#7C5CFA] shadow-sm">
               <Sparkles className="h-3 w-3" />
@@ -251,7 +285,6 @@ export default function AssessmentPage() {
             </p>
           </div>
 
-          {/* Progress */}
           <div className="mx-auto mt-10 max-w-3xl rounded-[28px] border border-white bg-white/72 p-5 shadow-[0_14px_32px_rgba(36,31,61,0.05)] backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -276,7 +309,6 @@ export default function AssessmentPage() {
             </div>
           </div>
 
-          {/* Question Card */}
           <div className="mx-auto mt-8 max-w-3xl rounded-[34px] border border-white bg-white/76 p-4 shadow-[0_18px_48px_rgba(36,31,61,0.06)] backdrop-blur-xl md:p-5">
             <div className="rounded-[28px] border border-white/70 bg-[linear-gradient(135deg,#F8F4FF_0%,#F4F7FF_52%,#FFF8F1_100%)] p-6 md:p-8">
               <div className="mb-6 flex items-start justify-between gap-4">
@@ -346,14 +378,13 @@ export default function AssessmentPage() {
                 })}
               </div>
 
-              {/* Actions */}
               <div className="mt-8 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
                   onClick={handleBack}
-                  disabled={currentIndex === 0}
+                  disabled={currentIndex === 0 || isSubmitting}
                   className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition-all ${
-                    currentIndex === 0
+                    currentIndex === 0 || isSubmitting
                       ? "cursor-not-allowed text-slate-300"
                       : "text-[#615C7A] hover:text-[#1A152E]"
                   }`}
@@ -365,55 +396,33 @@ export default function AssessmentPage() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={!canGoNext || submitted}
+                  disabled={!canGoNext || isSubmitting}
                   className={`group inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-black transition-all ${
-                    !canGoNext || submitted
+                    !canGoNext || isSubmitting
                       ? "cursor-not-allowed bg-slate-200 text-slate-400"
                       : "bg-[#1A152E] text-white shadow-lg shadow-purple-200/50 hover:scale-[1.02]"
                   }`}
                 >
-                  {currentIndex === total - 1 ? "Finish assessment" : "Continue"}
+                  {isSubmitting
+                    ? "Submitting..."
+                    : currentIndex === total - 1
+                    ? "Finish assessment"
+                    : "Continue"}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* After submit preview */}
-          {submitted && (
-            <div className="mx-auto mt-8 max-w-3xl rounded-[30px] border border-white bg-white/76 p-6 shadow-[0_14px_32px_rgba(36,31,61,0.05)] backdrop-blur-xl">
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                Assessment complete
-              </div>
-
-              <p className="text-[14px] leading-7 text-[#615C7A] md:text-[15px]">
-                Nice. Your answers are ready to be turned into a chronotype and
-                rhythm profile. The next step is to send this data to your
-                result page or API endpoint.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Link href="/result" className="cf-btn-primary">
-                  Go to result page
-                </Link>
-
-                <Link href="/dashboard" className="cf-btn-secondary">
-                  Skip to dashboard
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* helper note */}
           <div className="mx-auto mt-10 max-w-3xl rounded-[28px] border border-white bg-white/70 p-5 shadow-sm">
             <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
               Good next upgrades
             </div>
             <ul className="space-y-2 text-[14px] leading-7 text-[#615C7A]">
-              <li>• connect answers to real submit API</li>
-              <li>• add answer persistence when user refreshes</li>
-              <li>• add animated step transition between questions</li>
-              <li>• calculate chronotype score directly from responses</li>
+              <li>• add route protection if only logged-in users may submit</li>
+              <li>• save unfinished progress for later resume</li>
+              <li>• animate transitions between questions</li>
+              <li>• map scoring with weighted answers in more detail</li>
             </ul>
           </div>
         </div>
