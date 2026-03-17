@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum TaskType {
+  DEEP_WORK
+  STUDY
+  CREATIVE
+  ADMIN
+  ROUTINE
+  PERSONAL
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  FULFILLED
+}
+
+model User {
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  passwordHash      String?
+  studentId         String?
+  role              UserRole           @default(USER)
+  chronotype        String?
+  targetSleepTime   String?
+  targetWakeTime    String?
+  image             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  chronotypeResults ChronotypeResult[]
+  tasks             Task[]
+  weeklyInsights    WeeklyInsight[]
+  orders            Order[]
+}
+
+model ChronotypeResult {
+  id          String   @id @default(cuid())
+  userId      String
+  chronotype  String
+  lionScore   Int
+  bearScore   Int
+  wolfScore   Int
+  dolphinScore Int
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  type          TaskType
+  priority      Priority
+  duration      String
+  deadline      String?
+  scheduledTime String
+  explanation   String
+  completed     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model WeeklyInsight {
+  id              String   @id @default(cuid())
+  userId          String
+  weekLabel       String
+  alignmentScore  Int
+  completedCount  Int
+  totalCount      Int
+  deepWorkCount   Int
+  recommendation  String
+  summary         String
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@unique([userId, weekLabel])
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  category    String
+  readTime    String
+  color       String?
+  intro       String
+  body        Json
+  status      ContentStatus @default(DRAFT)
+  featured    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Product {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  badge            String?
+  price            String
+  shortDescription String
+  features         Json
+  shippingNote     String?
+  usageFlow        Json
+  status           ContentStatus @default(PUBLISHED)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  orders Order[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  productId   String
+  quantity    Int         @default(1)
+  totalAmount String
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
