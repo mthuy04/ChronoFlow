@@ -107,7 +107,8 @@ export async function POST(req: Request) {
     });
 
     if (isLocalAvatarPath(user.image)) {
-      const oldAbsolutePath = path.join(process.cwd(), "public", user.image);
+      // ĐÃ SỬA DÒNG NÀY: Thêm fallback fallback chuỗi rỗng
+      const oldAbsolutePath = path.join(process.cwd(), "public", user.image || "");
       unlink(oldAbsolutePath).catch(() => {
         // ignore delete errors for old file
       });

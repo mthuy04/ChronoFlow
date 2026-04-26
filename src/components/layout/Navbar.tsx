@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useMemo, useState } from "react";
 
-type NavbarVariant = "guest" | "user" | "admin";
+type NavbarVariant = "guest" | "user" | "admin" | string;
 
 type SessionUserLike = {
   name?: string | null;
@@ -15,7 +15,13 @@ type SessionUserLike = {
   role?: string | null;
 };
 
-export default function Navbar() {
+// ĐÃ SỬA: Thêm interface NavbarProps
+interface NavbarProps {
+  variant?: NavbarVariant;
+}
+
+// ĐÃ SỬA: Khai báo component nhận props
+export default function Navbar({ variant: propVariant }: NavbarProps) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,10 +30,11 @@ export default function Navbar() {
   const sessionUser = (session?.user ?? null) as SessionUserLike | null;
 
   const variant: NavbarVariant = useMemo(() => {
+    if (propVariant) return propVariant; // Ưu tiên variant truyền vào từ prop
     if (status === "loading") return "guest";
     if (!sessionUser) return "guest";
     return sessionUser.role === "ADMIN" ? "admin" : "user";
-  }, [sessionUser, status]);
+  }, [sessionUser, status, propVariant]);
 
   const guestLinks = [
     { href: "/", label: "Trang chủ" },

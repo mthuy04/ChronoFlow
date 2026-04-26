@@ -398,13 +398,15 @@ export default async function ResultPage() {
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <InfoListCard
               title="Likely strengths"
-              items={meta.strengths}
+              // ĐÃ SỬA: Chuyển readonly array thành mutable array
+              items={[...meta.strengths]}
               kicker="What may feel natural"
               accent="from-[#F3F2FF] to-[#E9E6FF]"
             />
             <InfoListCard
               title="Things to watch"
-              items={meta.cautions}
+              // ĐÃ SỬA: Chuyển readonly array thành mutable array
+              items={[...meta.cautions]}
               kicker="What may create friction"
               accent="from-[#FFF8F0] to-[#FCEFE2]"
             />

@@ -77,18 +77,20 @@ export default function TaskDetailDrawer({
     [chronotype]
   );
 
-  if (!open || !task) return null;
+  // ĐÃ SỬA: Đảm bảo task và task.id tồn tại trước khi render drawer
+  if (!open || !task || !task.id) return null;
 
   async function handleToggleComplete() {
+    // TypeScript giờ đã biết task và task.id chắc chắn không null
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/tasks/${task.id}`, {
+      const response = await fetch(`/api/tasks/${task!.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          completed: !task.completed,
+          completed: !task!.completed,
         }),
       });
 
@@ -97,8 +99,8 @@ export default function TaskDetailDrawer({
       if (!response.ok) throw new Error(data?.error || "Không thể cập nhật task.");
 
       await onUpdated({
-        ...task,
-        completed: !task.completed,
+        ...task!,
+        completed: !task!.completed,
       });
     } catch {
       // giữ im để tránh spam UI
@@ -113,7 +115,7 @@ export default function TaskDetailDrawer({
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/tasks/${task.id}`, {
+      const response = await fetch(`/api/tasks/${task!.id}`, {
         method: "DELETE",
       });
 
@@ -121,7 +123,7 @@ export default function TaskDetailDrawer({
         throw new Error("Không thể xoá task.");
       }
 
-      await onDeleted(task.id);
+      await onDeleted(task!.id!);
       onClose();
     } catch {
       // noop
@@ -133,7 +135,7 @@ export default function TaskDetailDrawer({
   async function handleMoveToBacklog() {
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/tasks/${task.id}`, {
+      const response = await fetch(`/api/tasks/${task!.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -148,7 +150,7 @@ export default function TaskDetailDrawer({
       if (!response.ok) throw new Error(data?.error || "Không thể chuyển task.");
 
       await onUpdated({
-        ...task,
+        ...task!,
         scheduledTime: "BACKLOG",
       });
       onClose();

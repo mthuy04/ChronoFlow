@@ -383,7 +383,7 @@ export default function LearnPage() {
                     whileHover={{ y: -12, scale: 1.02 }}
                     className="absolute left-1/2 top-3 z-30 w-[220px] -translate-x-1/2 rounded-[38px] shadow-[0_45px_90px_rgba(26,21,40,0.28)] sm:w-[245px]"
                   >
-                    <PhoneFrame featured>
+                    <PhoneFrame >
                       <LearnCorePhone />
                     </PhoneFrame>
                   </motion.div>
