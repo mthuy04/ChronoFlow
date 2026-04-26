@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, Suspense } from "react"; // ĐÃ THÊM: Suspense
+import { useState, Suspense } from "react"; // Đã thêm Suspense
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Header from "@/components/layout/Navbar";
@@ -19,7 +19,7 @@ import {
   Brain,
 } from "lucide-react";
 
-// ĐÃ SỬA: Tách logic Form ra component riêng để bọc Suspense
+// --- COMPONENT CHỨA LOGIC FORM (ĐỂ BỌC TRONG SUSPENSE) ---
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -149,6 +149,7 @@ function LoginFormContent() {
   );
 }
 
+// --- COMPONENT TRANG CHÍNH ---
 export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#F4F2FA] text-[#1A1528] selection:bg-[#6F59FF]/20">
@@ -187,9 +188,9 @@ export default function LoginPage() {
                   </MiniPill>
                 </div>
 
-                {/* ĐÃ SỬA: Bọc nội dung Form vào Suspense */}
-                <Suspense fallback={<div className="flex justify-center p-8 text-[#6B6287]">Đang tải biểu mẫu...</div>}>
-                   <LoginFormContent />
+                {/* --- ĐÃ SỬA: Bọc LoginForm trong Suspense --- */}
+                <Suspense fallback={<div className="flex justify-center p-8 text-[#6B6287] font-medium">Đang chuẩn bị biểu mẫu...</div>}>
+                  <LoginFormContent />
                 </Suspense>
               </div>
 
@@ -271,7 +272,7 @@ export default function LoginPage() {
   );
 }
 
-// Giữ nguyên các sub-component bên dưới...
+// --- GIỮ NGUYÊN CÁC SUB-COMPONENT HỖ TRỢ ---
 function InputRow({
   icon,
   type,
@@ -320,13 +321,7 @@ function AuthBackground() {
   );
 }
 
-function MiniPill({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function MiniPill({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-2 text-[12px] font-semibold text-[#4F4A68] shadow-sm">
       <span className="text-[#6F59FF]">{icon}</span>
@@ -335,91 +330,35 @@ function MiniPill({
   );
 }
 
-function FloatPill({
-  icon,
-  label,
-  tint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  tint: "purple" | "blue";
-}) {
-  const bg =
-    tint === "purple"
-      ? "from-[#6F59FF] to-[#8E7BFF]"
-      : "from-[#4DA8FF] to-[#7DC7FF]";
-
+function FloatPill({ icon, label, tint }: { icon: React.ReactNode; label: string; tint: "purple" | "blue" }) {
+  const bg = tint === "purple" ? "from-[#6F59FF] to-[#8E7BFF]" : "from-[#4DA8FF] to-[#7DC7FF]";
   return (
     <div className="flex items-center gap-2 rounded-full border border-white bg-white/90 px-3 py-2 text-[11px] font-bold text-[#1A1528] shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md">
-      <div
-        className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br text-white ${bg}`}
-      >
-        {icon}
-      </div>
+      <div className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br text-white ${bg}`}>{icon}</div>
       {label}
     </div>
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
     <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3F0FF]">
-        {icon}
-      </div>
+      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3F0FF]">{icon}</div>
       <h3 className="text-[15px] font-[900] text-[#1A1528]">{title}</h3>
       <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">{description}</p>
     </div>
   );
 }
 
-function MockRow({
-  title,
-  meta,
-  done = false,
-  active = false,
-}: {
-  title: string;
-  meta: string;
-  done?: boolean;
-  active?: boolean;
-}) {
+function MockRow({ title, meta, done = false, active = false }: { title: string; meta: string; done?: boolean; active?: boolean }) {
   return (
-    <div
-      className={`rounded-2xl p-3 transition-all ${
-        active
-          ? "border-2 border-[#6F59FF] bg-white shadow-[0_10px_20px_rgba(111,89,255,0.1)]"
-          : "border border-transparent bg-white/80"
-      }`}
-    >
+    <div className={`rounded-2xl p-3 transition-all ${active ? "border-2 border-[#6F59FF] bg-white shadow-[0_10px_20px_rgba(111,89,255,0.1)]" : "border border-transparent bg-white/80"}`}>
       <div className="flex items-start gap-3">
-        <div
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${
-            done
-              ? "bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-white"
-              : active
-              ? "border-2 border-[#6F59FF] bg-[#F3F0FF]"
-              : "border-2 border-gray-200 bg-white"
-          }`}
-        >
+        <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${done ? "bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-white" : active ? "border-2 border-[#6F59FF] bg-[#F3F0FF]" : "border-2 border-gray-200 bg-white"}`}>
           {done && <CheckCircle2 className="h-3 w-3" />}
         </div>
         <div>
-          <div
-            className={`text-[13px] font-[900] ${
-              active ? "text-[#6F59FF]" : "text-[#1A1528]"
-            }`}
-          >
-            {title}
-          </div>
+          <div className={`text-[13px] font-[900] ${active ? "text-[#6F59FF]" : "text-[#1A1528]"}`}>{title}</div>
           <div className="text-[11px] font-medium text-gray-500">{meta}</div>
         </div>
       </div>
@@ -427,18 +366,10 @@ function MockRow({
   );
 }
 
-function SmallStat({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
+function SmallStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="rounded-[20px] border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur-md">
-      <div className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-[28px] font-[900] leading-none text-transparent">
-        {value}
-      </div>
+      <div className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-[28px] font-[900] leading-none text-transparent">{value}</div>
       <div className="mt-1 text-[12px] font-medium text-[#6B6287]">{label}</div>
     </div>
   );
