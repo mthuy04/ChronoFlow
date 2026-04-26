@@ -61,7 +61,7 @@ async function getAuthorizedUserAndTask(taskId: string, email: string) {
 
 export async function PATCH(
   req: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -73,9 +73,10 @@ export async function PATCH(
       );
     }
 
-    const { id } = await context.params;
+    // Đã sửa: Lấy trực tiếp taskId từ params
+    const { taskId } = await params;
 
-    if (!id) {
+    if (!taskId) {
       return NextResponse.json(
         { error: "Task id is required." },
         { status: 400 }
@@ -83,7 +84,8 @@ export async function PATCH(
     }
 
     const body = (await req.json()) as UpdateTaskBody;
-    const { user, task } = await getAuthorizedUserAndTask(id, session.user.email);
+    // Đã sửa: truyền taskId vào hàm getAuthorizedUserAndTask
+    const { user, task } = await getAuthorizedUserAndTask(taskId, session.user.email);
 
     if (!user) {
       return NextResponse.json(
@@ -210,7 +212,7 @@ export async function PATCH(
 
 export async function DELETE(
   _req: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ taskId: string }> } // Đã sửa: đồng bộ params với thư mục [taskId]
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -222,16 +224,18 @@ export async function DELETE(
       );
     }
 
-    const { id } = await context.params;
+    // Đã sửa: Lấy trực tiếp taskId từ params
+    const { taskId } = await params;
 
-    if (!id) {
+    if (!taskId) {
       return NextResponse.json(
         { error: "Task id is required." },
         { status: 400 }
       );
     }
 
-    const { user, task } = await getAuthorizedUserAndTask(id, session.user.email);
+    // Đã sửa: truyền taskId vào hàm getAuthorizedUserAndTask
+    const { user, task } = await getAuthorizedUserAndTask(taskId, session.user.email);
 
     if (!user) {
       return NextResponse.json(
