@@ -1,130 +1,58 @@
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import PlannerBoard from "@/components/planner/PlannerBoard";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import PlannerClient from "@/components/planner/PlannerClient";
 
-const chronotypePlannerMeta = {
-  LION: {
-    name: "Lion",
-    accent: "#C98C42",
-    gradient: "from-[#FFF9F0] via-[#FFF4DE] to-[#FDF2E9]",
-    intro:
-      "Your rhythm tends to favor earlier focus. Protect your strongest hours first, then let the day soften naturally.",
-    blocks: [
-      {
-        label: "Deep work",
-        time: "7:00 AM – 10:00 AM",
-        text: "Best for concentrated study, writing, analysis, and demanding thinking.",
-      },
-      {
-        label: "Lighter work",
-        time: "1:00 PM – 4:00 PM",
-        text: "Good for admin, communication, follow-up, and routine maintenance.",
-      },
-      {
-        label: "Recovery",
-        time: "Evening",
-        text: "Slow down earlier so tomorrow’s clarity stays strong.",
-      },
-    ],
-  },
-  BEAR: {
-    name: "Bear",
-    accent: "#6C58F2",
-    gradient: "from-[#F8F7FF] via-[#F1EBFF] to-[#E9E4FF]",
-    intro:
-      "Your rhythm is more balanced across the day. The key is pacing well and respecting softer afternoon energy.",
-    blocks: [
-      {
-        label: "Deep work",
-        time: "9:00 AM – 12:00 PM",
-        text: "A reliable zone for focused tasks, study blocks, and higher-priority work.",
-      },
-      {
-        label: "Lighter work",
-        time: "2:00 PM – 4:00 PM",
-        text: "Use this period for meetings, admin, planning, or collaborative work.",
-      },
-      {
-        label: "Recovery",
-        time: "Late afternoon / evening",
-        text: "Do not treat the afternoon dip as failure. Adjust task intensity instead.",
-      },
-    ],
-  },
-  WOLF: {
-    name: "Wolf",
-    accent: "#5B46FF",
-    gradient: "from-[#F5F5FF] via-[#ECEBFF] to-[#E2E1FF]",
-    intro:
-      "Your rhythm often rises later than conventional schedules expect. Plan around that instead of fighting it.",
-    blocks: [
-      {
-        label: "Deep work",
-        time: "7:00 PM – 10:00 PM",
-        text: "Strong for late-day focus, writing, creative work, and difficult thinking.",
-      },
-      {
-        label: "Lighter work",
-        time: "9:00 AM – 12:00 PM",
-        text: "Use earlier hours for lower-pressure tasks, setup, and communication.",
-      },
-      {
-        label: "Recovery",
-        time: "Late night boundary",
-        text: "Protect sleep while still using your evening momentum intelligently.",
-      },
-    ],
-  },
-  DOLPHIN: {
-    name: "Dolphin",
-    accent: "#8A7AF0",
-    gradient: "from-[#F9F8FF] via-[#F3EFFF] to-[#EBE6FF]",
-    intro:
-      "Your rhythm may feel less predictable. Flexible pacing and smaller protected focus windows matter more than rigid templates.",
-    blocks: [
-      {
-        label: "Deep work",
-        time: "Use your clearest windows",
-        text: "Protect the moments where focus appears instead of forcing the same slot every day.",
-      },
-      {
-        label: "Lighter work",
-        time: "Default low-pressure periods",
-        text: "Keep routine tasks ready for moments when your energy feels softer.",
-      },
-      {
-        label: "Recovery",
-        time: "Throughout the day",
-        text: "Gentler pacing and stronger sleep hygiene may matter more than strict schedules.",
-      },
-    ],
-  },
-} as const;
+type Chronotype = "LION" | "BEAR" | "WOLF" | "DOLPHIN";
+
+function normalizeChronotype(value: string | null | undefined): Chronotype {
+  const key = String(value || "BEAR").toUpperCase();
+  if (key.includes("LION")) return "LION";
+  if (key.includes("WOLF")) return "WOLF";
+  if (key.includes("DOLPHIN")) return "DOLPHIN";
+  return "BEAR";
+}
 
 export default async function PlannerPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
     return (
-      <main className="min-h-screen bg-[#FCFBFF] text-[#1A152E] overflow-x-hidden">
-        <Navbar variant="guest" />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <h1 className="text-3xl font-black text-[#1A152E]">
-            Sign in required
-          </h1>
-          <p className="mt-4 text-[#615C7A]">
-            You need to sign in before opening your planner.
-          </p>
-          <div className="mt-8">
-            <Link href="/auth/login" className="cf-btn-primary">
-              Sign in
-            </Link>
+      <main className="min-h-screen overflow-x-hidden bg-[#F7F4FB] text-[#241F3D]">
+        <Navbar />
+        <section className="px-6 py-24">
+          <div className="mx-auto max-w-3xl rounded-[32px] border border-white/80 bg-white/90 p-10 text-center shadow-[0_20px_60px_rgba(97,76,197,0.08)] backdrop-blur-xl">
+            <div className="mb-4 inline-flex rounded-full border border-[#E9E5FF] bg-[#F7F4FF] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
+              ChronoFlow Planner
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-[#241F3D] md:text-5xl">
+              Bạn cần đăng nhập để mở planner
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-8 text-[#615C7A]">
+              Đăng nhập để xem lịch theo chronotype, thêm task, theo dõi focus
+              block và sắp xếp planner theo nhịp sinh học của bạn.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/auth/login?callbackUrl=/planner"
+                className="inline-flex min-h-[46px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] px-6 text-[14px] font-semibold text-white shadow-[0_12px_28px_rgba(108,92,255,0.22)] transition hover:-translate-y-0.5"
+              >
+                Đăng nhập
+              </Link>
+
+              <Link
+                href="/assessment"
+                className="inline-flex min-h-[46px] items-center justify-center rounded-full border border-[rgba(124,115,150,0.12)] bg-white px-6 text-[14px] font-semibold text-[#241F3D] transition hover:bg-[#fafafe]"
+              >
+                Làm bài đánh giá trước
+              </Link>
+            </div>
           </div>
-        </div>
+        </section>
         <Footer />
       </main>
     );
@@ -134,10 +62,14 @@ export default async function PlannerPage() {
     where: { email: session.user.email },
     include: {
       tasks: {
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
       },
       weeklyInsights: {
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
         take: 1,
       },
     },
@@ -145,47 +77,79 @@ export default async function PlannerPage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-[#FCFBFF] text-[#1A152E] overflow-x-hidden">
-        <Navbar variant="user" />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <h1 className="text-3xl font-black text-[#1A152E]">
-            User not found
-          </h1>
-          <p className="mt-4 text-[#615C7A]">
-            Your account could not be loaded from the database.
-          </p>
-        </div>
+      <main className="min-h-screen overflow-x-hidden bg-[#F7F4FB] text-[#241F3D]">
+        <Navbar />
+        <section className="px-6 py-24">
+          <div className="mx-auto max-w-3xl rounded-[32px] border border-white/80 bg-white/90 p-10 text-center shadow-[0_20px_60px_rgba(97,76,197,0.08)] backdrop-blur-xl">
+            <h1 className="text-3xl font-black tracking-tight text-[#241F3D]">
+              Không tìm thấy tài khoản
+            </h1>
+            <p className="mt-4 text-[15px] leading-8 text-[#615C7A]">
+              Tài khoản của bạn chưa load được từ database. Hãy thử đăng nhập lại.
+            </p>
+          </div>
+        </section>
         <Footer />
       </main>
     );
   }
 
-  const chronotypeKey =
-    (user.chronotype as keyof typeof chronotypePlannerMeta) || "BEAR";
+  const latestInsight =
+    user.weeklyInsights[0] == null
+      ? null
+      : {
+          id: user.weeklyInsights[0].id,
+          weekLabel: user.weeklyInsights[0].weekLabel,
+          alignmentScore: user.weeklyInsights[0].alignmentScore,
+          completedCount: user.weeklyInsights[0].completedCount,
+          totalCount: user.weeklyInsights[0].totalCount,
+          deepWorkCount: user.weeklyInsights[0].deepWorkCount,
+          recommendation: user.weeklyInsights[0].recommendation,
+          summary: user.weeklyInsights[0].summary,
+          createdAt: user.weeklyInsights[0].createdAt.toISOString(),
+        };
 
-  const plannerMeta = chronotypePlannerMeta[chronotypeKey];
-  const latestInsight = user.weeklyInsights[0] ?? null;
-  const pendingTasks = user.tasks.filter((task) => !task.completed);
-  const completedTasks = user.tasks.filter((task) => task.completed);
+  const chronotype = normalizeChronotype(user.chronotype);
+
+  const tasks = user.tasks.map((task) => ({
+    id: task.id,
+    name: task.name,
+    type: task.type,
+    priority: task.priority,
+    duration: task.duration,
+    deadline: task.deadline,
+    scheduledTime: task.scheduledTime,
+    explanation: task.explanation,
+    completed: task.completed,
+    createdAt: task.createdAt.toISOString(),
+    updatedAt: task.updatedAt.toISOString(),
+  }));
 
   return (
-    <main className="min-h-screen bg-[#FCFBFF] text-[#1A152E] overflow-x-hidden">
-      <Navbar variant="user" />
+    <main className="min-h-screen overflow-x-hidden bg-[#F7F4FB] text-[#241F3D]">
+      <Navbar />
 
-      <section className="relative overflow-hidden px-6 pt-14 pb-16 md:pt-18 md:pb-24">
+      <section className="relative overflow-hidden px-4 pb-16 pt-4 md:px-6 lg:px-8">
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-[-8%] top-[8%] h-[280px] w-[280px] rounded-full bg-purple-100/30 blur-[110px]" />
-          <div className="absolute right-[-6%] top-[10%] h-[230px] w-[230px] rounded-full bg-blue-100/25 blur-[100px]" />
-          <div className="absolute bottom-[-10%] left-[28%] h-[220px] w-[220px] rounded-full bg-orange-100/20 blur-[90px]" />
+          <div className="absolute left-[-8%] top-[8%] h-[280px] w-[280px] rounded-full bg-purple-100/35 blur-[110px]" />
+          <div className="absolute right-[-6%] top-[10%] h-[230px] w-[230px] rounded-full bg-blue-100/30 blur-[100px]" />
+          <div className="absolute bottom-[-10%] left-[30%] h-[240px] w-[240px] rounded-full bg-fuchsia-100/20 blur-[90px]" />
+          <div
+            className="absolute inset-0 opacity-25"
+            style={{
+              backgroundImage:
+                "radial-gradient(#CFC7E8 1px, transparent 1px)",
+              backgroundSize: "26px 26px",
+            }}
+          />
         </div>
 
-        <div className="mx-auto max-w-6xl">
-          <PlannerClient
-            plannerMeta={plannerMeta}
+        <div className="mx-auto max-w-[1280px]">
+          <PlannerBoard
+            userName={user.name}
+            chronotype={chronotype}
+            initialTasks={tasks}
             latestInsight={latestInsight}
-            tasks={user.tasks}
-            pendingTasksCount={pendingTasks.length}
-            completedTasksCount={completedTasks.length}
           />
         </div>
       </section>

@@ -1,6 +1,5 @@
 import type { Task } from "@/types/task";
 import type { Chronotype } from "@/types/chronotype";
-import { getChronotypeWindows } from "./planner";
 
 export interface WeeklyInsight {
   alignmentScore: number;
@@ -9,6 +8,40 @@ export interface WeeklyInsight {
   deepWorkCount: number;
   recommendation: string;
   summary: string;
+}
+
+function getChronotypeWindows(chronotype: Chronotype | string | null) {
+  const key = String(chronotype || "Bear").toUpperCase();
+
+  if (key.includes("LION") || key.includes("SƯ")) {
+    return {
+      peak: "07:00 - 10:00",
+      medium: "13:00 - 16:00",
+      recovery: "Buổi tối",
+    };
+  }
+
+  if (key.includes("WOLF") || key.includes("SÓI")) {
+    return {
+      peak: "19:00 - 22:00",
+      medium: "09:00 - 12:00",
+      recovery: "Cuối đêm",
+    };
+  }
+
+  if (key.includes("DOLPHIN") || key.includes("CÁ")) {
+    return {
+      peak: "10:00 - 11:30",
+      medium: "13:30 - 15:00",
+      recovery: "Xen kẽ trong ngày",
+    };
+  }
+
+  return {
+    peak: "09:00 - 12:00",
+    medium: "14:00 - 16:00",
+    recovery: "Cuối chiều / tối",
+  };
 }
 
 export function calculateAlignmentScore(tasks: Task[]): number {

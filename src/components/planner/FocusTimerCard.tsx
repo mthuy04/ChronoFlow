@@ -34,23 +34,21 @@ export default function FocusTimerCard({
   }, [initialSeconds]);
 
   useEffect(() => {
-    if (!isRunning) return;
-    if (secondsLeft <= 0) {
-      setIsRunning(false);
-      return;
-    }
+    if (!isRunning || secondsLeft <= 0) return;
 
-    const timer = window.setInterval(() => {
+    const interval = window.setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
-          window.clearInterval(timer);
+          window.clearInterval(interval);
+          setIsRunning(false);
           return 0;
         }
+
         return prev - 1;
       });
     }, 1000);
 
-    return () => window.clearInterval(timer);
+    return () => window.clearInterval(interval);
   }, [isRunning, secondsLeft]);
 
   const progressPercent =
@@ -67,11 +65,11 @@ export default function FocusTimerCard({
             <h3 className="mt-2 text-[1.15rem] font-black tracking-tight text-[#1A152E]">
               {title}
             </h3>
-            {subtitle && (
+            {subtitle ? (
               <p className="mt-1 text-[13px] leading-6 text-[#615C7A]">
                 {subtitle}
               </p>
-            )}
+            ) : null}
           </div>
 
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white shadow-sm">
@@ -81,13 +79,14 @@ export default function FocusTimerCard({
 
         <div className="rounded-[20px] border border-white/80 bg-white/88 px-5 py-6 text-center shadow-sm">
           <div
-            className="text-[2.3rem] font-[900] tracking-tight md:text-[2.8rem]"
+            className="text-[2.3rem] font-black tracking-tight md:text-[2.8rem]"
             style={{ color: accent }}
           >
             {formatTime(secondsLeft)}
           </div>
+
           <div className="mt-2 text-[12px] font-medium uppercase tracking-[0.14em] text-slate-400">
-            {isRunning ? "In focus session" : "Ready to begin"}
+            {isRunning ? "Đang focus" : "Sẵn sàng bắt đầu"}
           </div>
 
           <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F1ECFF]">
@@ -113,7 +112,7 @@ export default function FocusTimerCard({
             }`}
           >
             {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {isRunning ? "Pause" : "Play"}
+            {isRunning ? "Tạm dừng" : "Bắt đầu"}
           </button>
 
           <button

@@ -1,48 +1,37 @@
-import { Clock3 } from "lucide-react";
+import { MoonStar } from "lucide-react";
 import ArticlePageShell from "@/components/learn/ArticlePageShell";
 
-export default function RhythmBasedPlanningPage() {
+export default function SleepCircadianOverviewPage() {
   return (
     <ArticlePageShell
-      eyebrow="Practical guide"
-      icon={<Clock3 className="h-3 w-3" />}
-      title="How to plan your day with rhythm"
-      intro="Rhythm-based planning means placing different kinds of work into the parts of the day that fit them best, instead of forcing the same level of intensity all day long."
+      eyebrow="Tóm tắt nguồn ngoài"
+      icon={<MoonStar className="h-3 w-3" />}
+      title="Tổng quan về giấc ngủ và nhịp sinh học"
+      intro="Thời điểm ngủ và nhịp sinh học liên quan chặt chẽ với nhau. Nếu muốn hiểu vì sao có lúc bạn tỉnh táo hơn và có lúc bị hụt năng lượng, đây là một trong những nền tảng quan trọng nhất."
       sections={[
         {
-          title: "Start with task types",
+          title: "Vì sao thời điểm ngủ quan trọng",
           content: [
-            "Not every task asks for the same kind of energy. Deep work, meetings, admin, creative thinking, exercise, and recovery all make different demands on the brain and body.",
-            "A strong planning system should recognize those differences instead of treating everything as one generic to-do list.",
+            "Giấc ngủ không chỉ là ngủ bao lâu. Thời điểm ngủ cũng có thể tạo khác biệt. Một người có thể ngủ đủ giờ nhưng vẫn thấy lệch nhịp nếu thời gian ngủ của họ thường xuyên xung đột với nhịp tự nhiên hoặc yêu cầu hằng ngày.",
+            "Đó là lý do ChronoFlow không nên chỉ hỏi người dùng ngủ bao nhiêu, mà còn nên quan tâm đến lúc nào họ tự nhiên thấy tỉnh hay buồn ngủ hơn.",
           ],
         },
         {
-          title: "Match energy to task",
+          title: "Điều này có nghĩa gì với sản phẩm",
           content: [
-            "High-focus windows are often better used for writing, analysis, studying, problem-solving, or concentrated creation. Lower-energy periods may be better for admin, lighter communication, or routine maintenance tasks.",
-            "That does not mean lower-energy periods are useless. It means they may be better suited for different kinds of work.",
-          ],
-        },
-        {
-          title: "Protect recovery too",
-          content: [
-            "Recovery is not outside performance. Sleep, decompression, and task pacing are part of what makes focus possible in the first place.",
-            "ChronoFlow treats recovery as a planning decision, not as something that only happens after productivity is finished.",
+            "Product có thể dùng những câu hỏi liên quan đến giấc ngủ để làm insight về nhịp trở nên thực tế hơn. Chỉ cần những prompt đơn giản về giờ ngủ, giờ dậy và cảm giác minh mẫn cũng có thể giúp user thấy rõ timing của mình hơn.",
+            "Về lâu dài, hệ thống cũng có thể nhắc người dùng rằng hồi phục ảnh hưởng trực tiếp đến hiệu suất ngày hôm sau, thay vì xem giấc ngủ là một chủ đề tách biệt khỏi việc lập kế hoạch.",
           ],
         },
       ]}
-      takeaway="The value of rhythm-based planning is not perfection. It is building a day that feels more realistic, more repeatable, and less punishing."
-      nextHref="/learn/sleep-and-circadian-overview"
-      nextLabel="Continue: Sleep and circadian overview"
+      takeaway="Thời điểm ngủ không phải chuyện bên lề. Nó là một trong những nền tảng định hình cách năng lượng và sự chú ý vận hành trong ngày."
+      nextHref="/learn/chronotype-and-sleep-education"
+      nextLabel="Tiếp theo: Chronotype và giáo dục về giấc ngủ"
       resources={[
         {
-          label: "Sleep and heart health overview",
+          label: "Nguồn gốc về sleep overview",
           href: "https://www.nhlbi.nih.gov/health/sleep",
           external: true,
-        },
-        {
-          label: "Back to learning hub",
-          href: "/learn",
         },
       ]}
     />

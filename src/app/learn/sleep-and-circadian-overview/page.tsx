@@ -1,36 +1,36 @@
-import { MoonStar } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import ArticlePageShell from "@/components/learn/ArticlePageShell";
 
-export default function SleepCircadianOverviewPage() {
+export default function ChronotypeSleepEducationPage() {
   return (
     <ArticlePageShell
-      eyebrow="External guide summary"
-      icon={<MoonStar className="h-3 w-3" />}
-      title="Sleep and circadian overview"
-      intro="Sleep timing and circadian rhythm are closely linked. If users want to understand why they feel more awake at some times and more drained at others, this is one of the most useful foundations."
+      eyebrow="Tóm tắt nguồn ngoài"
+      icon={<BookOpen className="h-3 w-3" />}
+      title="Chronotype và giáo dục về giấc ngủ"
+      intro="Một trang kiến thức tốt nên giúp người dùng hiểu timing của mình mà không khiến họ cảm thấy bị đóng khung. Điều đó đặc biệt quan trọng với ChronoFlow, vì sản phẩm này nên thực tế và hữu ích hơn là quá cứng nhắc."
       sections={[
         {
-          title: "Why sleep timing matters",
+          title: "Một trang kiến thức tốt nên làm gì",
           content: [
-            "Sleep is not only about duration. Timing can matter too. A person may sleep for many hours and still feel misaligned if the timing of that sleep regularly clashes with their natural rhythm or daily demands.",
-            "This is one reason ChronoFlow should not only ask how much users sleep, but also when they feel naturally alert or sleepy.",
+            "Một trang giải thích tốt cần giảm bối rối, không thêm jargon. Người đọc nên rời trang với cảm giác hiểu rõ hơn vì sao họ khác nhau ở các thời điểm khác nhau trong ngày và họ có thể dùng khác biệt đó để lên kế hoạch như thế nào.",
+            "Điều đó có nghĩa là ChronoFlow nên giải thích khái niệm đơn giản, nối chúng với quyết định hằng ngày và tránh tạo cảm giác như một bài test tính cách khoác áo khoa học.",
           ],
         },
         {
-          title: "What this means for the product",
+          title: "Giữ tone như thế nào cho đúng",
           content: [
-            "The product can use sleep-related questions to make rhythm insights more realistic. Even simple prompts about bedtime, wake patterns, and mental sharpness can give users a clearer picture of their timing.",
-            "Later on, the system could also remind users that recovery habits influence the next day’s performance rather than treating sleep as separate from planning.",
+            "Tone nên bình tĩnh, thực tế và có cảm giác dựa trên khoa học, nhưng không nên overclaim. Nó cũng không nên khiến người dùng cảm thấy họ có vấn đề chỉ vì nhịp của họ ít ổn định hoặc khác với điều thường được xem là bình thường.",
+            "Đó là lý do các trang như thế này quan trọng. Chúng giữ cho product có nền tảng, giúp user tin tưởng trải nghiệm hơn và hiểu rằng insight là để hỗ trợ, không phải để phán xét.",
           ],
         },
       ]}
-      takeaway="Sleep timing is not a side topic. It is one of the foundations of how energy and attention behave during the day."
-      nextHref="/learn/chronotype-and-sleep-education"
-      nextLabel="Next: Chronotype and sleep education"
+      takeaway="Các trang kiến thức cũng là một phần của trải nghiệm sản phẩm. Chúng giúp biến kết quả quiz thành điều người dùng có thể thật sự hiểu và áp dụng."
+      nextHref="/learn/general-circadian-background"
+      nextLabel="Tiếp theo: Bối cảnh chung về nhịp sinh học"
       resources={[
         {
-          label: "Original sleep overview source",
-          href: "https://www.nhlbi.nih.gov/health/sleep",
+          label: "Sleep Foundation",
+          href: "https://www.sleepfoundation.org/",
           external: true,
         },
       ]}

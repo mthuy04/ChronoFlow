@@ -4,39 +4,39 @@ import ArticlePageShell from "@/components/learn/ArticlePageShell";
 export default function ChronotypeBasicsPage() {
   return (
     <ArticlePageShell
-      eyebrow="Foundations"
+      eyebrow="Kiến thức nền"
       icon={<MoonStar className="h-3 w-3" />}
-      title="What exactly is a chronotype?"
-      intro="A chronotype is a simple way to describe when someone naturally tends to feel more awake, more focused, and more ready to rest. It is not a strict identity, but it can be a useful pattern for thinking about timing."
+      title="Chronotype thực ra là gì?"
+      intro="Chronotype là cách đơn giản để mô tả khi nào bạn tự nhiên tỉnh táo hơn, tập trung tốt hơn và sẵn sàng nghỉ ngơi hơn. Đây không phải một nhãn cố định, mà là một pattern hữu ích để hiểu timing của chính mình."
       sections={[
         {
-          title: "Why chronotypes matter",
+          title: "Vì sao chronotype quan trọng",
           content: [
-            "People often assume that everyone should work, study, and recover on the same schedule. In reality, many people experience their strongest focus and their lowest energy at different times of the day.",
-            "The idea of chronotypes helps make that difference easier to describe. It gives people a practical language for understanding why one person may feel sharp in the morning while another only feels fully awake later on.",
+            "Nhiều người mặc định rằng ai cũng nên học, làm việc và hồi phục theo cùng một lịch. Trên thực tế, không phải ai cũng có khung tập trung mạnh nhất ở cùng một thời điểm.",
+            "Chronotype giúp gọi tên khác biệt đó. Nó cho bạn một ngôn ngữ đơn giản để hiểu vì sao có người rất rõ đầu vào buổi sáng, trong khi người khác chỉ thật sự vào guồng muộn hơn.",
           ],
         },
         {
-          title: "A useful pattern, not a perfect label",
+          title: "Một pattern hữu ích, không phải chiếc hộp cứng",
           content: [
-            "Chronotypes are helpful because they simplify a complex reality. Most people are not extreme cases, and many factors can affect daily energy, including sleep quality, stress, age, health, work conditions, and habits.",
-            "That means a chronotype should be treated as a planning aid, not a fixed rule. It can help users notice patterns, but it should not be used to force a rigid identity.",
+            "Chronotype hữu ích vì nó làm cho một thực tế phức tạp trở nên dễ hiểu hơn. Nhưng phần lớn mọi người không thuộc về một cực hoàn toàn, và năng lượng hằng ngày còn bị ảnh hưởng bởi giấc ngủ, stress, môi trường, tuổi, sức khỏe và thói quen.",
+            "Vì vậy, chronotype nên được dùng như một công cụ hỗ trợ lập kế hoạch, chứ không phải một định nghĩa cứng về con người bạn.",
           ],
         },
         {
-          title: "How ChronoFlow uses the idea",
+          title: "ChronoFlow dùng ý tưởng này như thế nào",
           content: [
-            "ChronoFlow uses chronotypes as a starting point for reflection. The goal is not to tell users exactly who they are forever. The goal is to give them a clearer way to think about timing, energy, and planning.",
-            "Once users see a likely chronotype, they can connect that result to an energy curve, a focus window, and practical planning choices.",
+            "ChronoFlow dùng chronotype như một điểm bắt đầu để phản chiếu. Mục tiêu không phải là nói bạn sẽ luôn như thế mãi mãi, mà là giúp bạn suy nghĩ rõ hơn về timing, năng lượng và cách lên kế hoạch.",
+            "Từ đó, kết quả chronotype có thể được nối tiếp thành energy curve, focus window và những gợi ý thực tế hơn cho từng ngày.",
           ],
         },
       ]}
-      takeaway="Chronotypes are useful because they turn vague feelings about timing into a pattern you can reflect on and use."
+      takeaway="Chronotype hữu ích vì nó biến cảm giác mơ hồ về thời điểm tỉnh táo thành một pattern bạn có thể hiểu và áp dụng."
       nextHref="/learn/energy-rhythm"
-      nextLabel="Next: Why your energy rises and falls"
+      nextLabel="Tiếp theo: Vì sao năng lượng lên xuống trong ngày"
       resources={[
         {
-          label: "Read about circadian rhythm next",
+          label: "Đọc tiếp về nhịp năng lượng",
           href: "/learn/energy-rhythm",
         },
         {

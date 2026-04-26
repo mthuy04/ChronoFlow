@@ -1,35 +1,44 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
 import {
-  ArrowRight,
+  AlertTriangle,
+  BarChart3,
   CalendarDays,
   CheckCircle2,
-  ListTodo,
-  Target,
-  Waves,
-  Brain,
   Clock3,
-  MoonStar,
+  Flame,
+  Plus,
+  Sparkles,
 } from "lucide-react";
-import FocusTimerCard from "@/components/planner/FocusTimerCard";
-import { Priority, TaskType } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import {
+  PlannerTask,
+  PlannerView,
+  TaskType,
+  Priority,
+  calcFocusScore,
+  calcOverloadWarning,
+  getSuggestion,
+  toDateKey,
+} from "@/lib/planner";
+import AddTaskCard from "@/components/planner/AddTaskCard";
+import PlannerCalendarDay from "@/components/planner/PlannerCalendarDay";
+import PlannerCalendarWeek from "@/components/planner/PlannerCalendarWeek";
+import PlannerTaskModal from "@/components/planner/PlannerTaskModal";
+import BacklogPanel from "@/components/planner/BacklogPanel";
+import FocusScoreCard from "@/components/planner/FocusScoreCard";
+import WeeklyHeatmap from "@/components/planner/WeeklyHeatmap";
 
-type PlannerBlock = {
-  label: string;
-  time: string;
-  text: string;
-};
-
-type PlannerMeta = {
+type ChronotypeMeta = {
+  key: "LION" | "BEAR" | "WOLF" | "DOLPHIN";
   name: string;
-  accent: string;
-  gradient: string;
+  badge: string;
   intro: string;
-  blocks: PlannerBlock[];
 };
 
-type WeeklyInsightLite = {
+type WeeklyInsight = {
+  id: string;
   weekLabel: string;
   alignmentScore: number;
   completedCount: number;
@@ -37,450 +46,332 @@ type WeeklyInsightLite = {
   deepWorkCount: number;
   recommendation: string;
   summary: string;
+  createdAt: string | Date;
 } | null;
 
-type TaskLite = {
-  id: string;
-  name: string;
-  type: TaskType;
-  priority: Priority;
-  duration: string;
-  deadline: string | null;
-  scheduledTime: string;
-  explanation: string;
-  completed: boolean;
-};
-
-interface PlannerClientProps {
-  plannerMeta: PlannerMeta;
-  latestInsight: WeeklyInsightLite;
-  tasks: TaskLite[];
-  pendingTasksCount: number;
-  completedTasksCount: number;
-}
-
-function formatTaskType(type: TaskType) {
-  return type
-    .toLowerCase()
-    .split("_")
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-function getPriorityTone(priority: Priority) {
-  switch (priority) {
-    case "HIGH":
-      return "bg-[#FFF1F1] text-[#C85B5B]";
-    case "MEDIUM":
-      return "bg-[#F7F2FF] text-[#7C5CFA]";
-    case "LOW":
-      return "bg-[#EEF7F2] text-[#4E8B6A]";
-    default:
-      return "bg-slate-100 text-slate-600";
-  }
-}
-
-function getTaskTypeTone(type: TaskType) {
-  switch (type) {
-    case "DEEP_WORK":
-      return "bg-[#F3F2FF] text-[#5B46FF]";
-    case "STUDY":
-      return "bg-[#EEF4FF] text-[#4C6FFF]";
-    case "CREATIVE":
-      return "bg-[#FFF4EC] text-[#C07C2D]";
-    case "ADMIN":
-      return "bg-[#F6F6F6] text-[#666]";
-    case "ROUTINE":
-      return "bg-[#EEF7F2] text-[#4E8B6A]";
-    case "PERSONAL":
-      return "bg-[#FFF2FA] text-[#B6578F]";
-    default:
-      return "bg-slate-100 text-slate-600";
-  }
-}
-
-function parseDurationToMinutes(duration: string): number {
-  const lower = duration.trim().toLowerCase();
-
-  const hourMatch = lower.match(/(\d+)\s*h/);
-  const minuteMatch = lower.match(/(\d+)\s*m/);
-
-  let minutes = 0;
-
-  if (hourMatch) minutes += Number(hourMatch[1]) * 60;
-  if (minuteMatch) minutes += Number(minuteMatch[1]);
-
-  if (!hourMatch && !minuteMatch) {
-    const rawNumber = Number(lower);
-    if (!Number.isNaN(rawNumber) && rawNumber > 0) {
-      minutes = rawNumber;
-    }
-  }
-
-  return minutes > 0 ? minutes : 25;
-}
-
 export default function PlannerClient({
-  plannerMeta,
-  latestInsight,
+  userName,
+  chronotype,
   tasks,
-  pendingTasksCount,
-  completedTasksCount,
-}: PlannerClientProps) {
-  const pendingTasks = tasks.filter((task) => !task.completed);
-  const focusCandidate =
-    pendingTasks.find((task) => task.type === "DEEP_WORK") ??
-    pendingTasks.find((task) => task.type === "STUDY") ??
-    pendingTasks[0] ??
-    null;
+  latestInsight,
+}: {
+  userName: string;
+  chronotype: ChronotypeMeta;
+  tasks: PlannerTask[];
+  latestInsight: WeeklyInsight;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const [view, setView] = useState<PlannerView>("day");
+  const [selectedDate, setSelectedDate] = useState<string>(toDateKey(new Date()));
+  const [selectedTask, setSelectedTask] = useState<PlannerTask | null>(null);
+
+  const scheduledTasks = useMemo(
+    () => tasks.filter((task) => !task.isBacklog),
+    [tasks]
+  );
+
+  const backlogTasks = useMemo(
+    () => tasks.filter((task) => task.isBacklog),
+    [tasks]
+  );
+
+  const tasksForDay = useMemo(
+    () =>
+      scheduledTasks.filter(
+        (task) =>
+          task.scheduledDate === selectedDate && !task.completed
+      ),
+    [scheduledTasks, selectedDate]
+  );
+
+  const overloadWarnings = useMemo(
+    () => calcOverloadWarning(tasksForDay),
+    [tasksForDay]
+  );
+
+  const focusScore = useMemo(
+    () => calcFocusScore(tasksForDay),
+    [tasksForDay]
+  );
+
+  const handleCreateTask = async (payload: {
+    name: string;
+    type: TaskType;
+    priority: Priority;
+    duration: string;
+    deadline?: string | null;
+    scheduledDate?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    scheduledTime: string;
+    explanation: string;
+    focusMode?: string | null;
+    focusMinutes?: number | null;
+    isBacklog?: boolean;
+  }) => {
+    const res = await fetch("/api/tasks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Không thể tạo task.");
+    }
+
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  const handleQuickReschedule = async (taskId: string, type: TaskType) => {
+    const suggestion = getSuggestion(chronotype.key, type);
+
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scheduledDate: selectedDate,
+        startTime: suggestion.startTime,
+        endTime: suggestion.endTime,
+        scheduledTime: suggestion.scheduledTime,
+        explanation: suggestion.explanation,
+        focusMode: suggestion.focusMode,
+        focusMinutes: suggestion.focusMinutes,
+        isBacklog: false,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) return;
+
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  const handleTaskUpdate = async (
+    taskId: string,
+    payload: Record<string, unknown>
+  ) => {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) return;
+
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  const handleTaskDelete = async (taskId: string) => {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) return;
+
+    startTransition(() => {
+      router.refresh();
+    });
+  };
 
   return (
-    <>
-      <div className="mx-auto max-w-[820px] text-center">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-purple-50 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#7C5CFA] shadow-sm">
-          <Waves className="h-3 w-3" />
-          Rhythm-aware planner
-        </div>
+    <div className="space-y-8">
+      <section className="overflow-hidden rounded-[36px] border border-white bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_40%,#DCD1FF_100%)] p-6 shadow-[0_20px_80px_rgba(26,21,40,0.06)] md:p-8">
+        <div className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr]">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5" />
+              ChronoFlow Planner
+            </div>
 
-        <h1 className="text-[clamp(2.2rem,5vw,4.4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A152E]">
-          Plan with your{" "}
-          <span className="font-serif italic" style={{ color: plannerMeta.accent }}>
-            {plannerMeta.name.toLowerCase()}
-          </span>{" "}
-          rhythm in mind.
-        </h1>
+            <h1 className="mx-auto max-w-[800px] text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
+              Kế hoạch của {userName.split(" ")[0]},
+              <br className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent" /> theo nhịp {chronotype.name}.
+            </h1>
+            
+            <p className="mt-4 max-w-[60ch] text-[14px] leading-8 text-[#5F5A77]">
+              {chronotype.intro}
+            </p>
 
-        <p className="mx-auto mt-6 max-w-[700px] text-[15px] leading-8 text-[#615C7A] md:text-[16px]">
-          {plannerMeta.intro}
-        </p>
-      </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <StatPill icon={<Flame className="h-3.5 w-3.5" />}>
+                {chronotype.badge}
+              </StatPill>
+              <StatPill icon={<CalendarDays className="h-3.5 w-3.5" />}>
+                {selectedDate}
+              </StatPill>
+              <StatPill icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
+                {tasks.filter((t) => t.completed).length} task đã xong
+              </StatPill>
+            </div>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
-        <StatCard
-          icon={<Waves className="h-5 w-5 text-[#8B5CF6]" />}
-          label="Your chronotype"
-          value={plannerMeta.name}
-          text="Current rhythm pattern used for planning recommendations."
-          accent={`bg-gradient-to-br ${plannerMeta.gradient}`}
-        />
-        <StatCard
-          icon={<ListTodo className="h-5 w-5 text-[#5B46FF]" />}
-          label="Pending tasks"
-          value={`${pendingTasksCount}`}
-          text="Tasks still waiting to be completed or scheduled."
-          accent="bg-gradient-to-br from-[#F3F2FF] to-[#E9E6FF]"
-        />
-        <StatCard
-          icon={<CheckCircle2 className="h-5 w-5 text-[#C07C2D]" />}
-          label="Completed tasks"
-          value={`${completedTasksCount}`}
-          text="Tasks already marked as completed in your planner."
-          accent="bg-gradient-to-br from-[#FFF8F0] to-[#FCEFE2]"
-        />
-      </div>
-
-      <div className="mt-10 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[36px] border border-white bg-white/65 p-3 shadow-[0_18px_48px_rgba(36,31,61,0.08)] backdrop-blur-xl">
-          <div
-            className={`rounded-[30px] border border-white/70 bg-gradient-to-br ${plannerMeta.gradient} p-6 md:p-8`}
-          >
-            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                  Suggested structure
+            {latestInsight && (
+              <div className="mt-6 rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm">
+                <div className="mb-2 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-[#6F59FF]" />
+                  <span className="text-[13px] font-[900] text-[#1A1528]">
+                    Insight gần nhất
+                  </span>
                 </div>
-                <h2 className="mt-2 text-[1.8rem] font-[850] tracking-tight text-[#1A152E] md:text-[2.3rem]">
-                  Recommended blocks for your day
-                </h2>
+                <div className="text-[12px] font-semibold text-[#8A84A3]">
+                  {latestInsight.weekLabel}
+                </div>
+                <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">
+                  {latestInsight.summary}
+                </p>
               </div>
-
-              <Link
-                href="/result"
-                className="inline-flex items-center gap-2 text-[14px] font-bold text-[#5B46FF] transition-all hover:gap-3"
-              >
-                Review result again
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-3">
-              {plannerMeta.blocks.map((block) => (
-                <div
-                  key={block.label}
-                  className="rounded-[24px] border border-white/70 bg-white/72 p-5 shadow-sm"
-                >
-                  <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#8B5CF6]">
-                    {block.label}
-                  </div>
-                  <div className="text-[1.2rem] font-black tracking-tight text-[#1A152E]">
-                    {block.time}
-                  </div>
-                  <p className="mt-3 text-[13px] leading-6 text-[#615C7A]">
-                    {block.text}
-                  </p>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
-        </div>
 
-        {focusCandidate ? (
-          <FocusTimerCard
-            title={focusCandidate.name}
-            subtitle={`Suggested focus session • ${focusCandidate.scheduledTime}`}
-            durationMinutes={parseDurationToMinutes(focusCandidate.duration)}
-            accent={plannerMeta.accent}
+          <AddTaskCard
+            chronotypeKey={chronotype.key}
+            selectedDate={selectedDate}
+            onCreateTask={handleCreateTask}
           />
-        ) : (
-          <FocusTimerCard
-            title="Your next focus session"
-            subtitle="Add a task to start a real countdown session"
-            durationMinutes={25}
-            accent={plannerMeta.accent}
-          />
-        )}
-      </div>
-
-      <div className="mt-10 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[30px] border border-white bg-white/72 p-6 shadow-[0_14px_32px_rgba(36,31,61,0.05)] backdrop-blur-xl">
-          <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-            <CalendarDays className="h-4 w-4" />
-            Weekly insight
-          </div>
-
-          {latestInsight ? (
-            <>
-              <h3 className="text-[1.4rem] font-black tracking-tight text-[#1A152E]">
-                {latestInsight.weekLabel}
-              </h3>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <MiniInfo label="Alignment score" value={`${latestInsight.alignmentScore}`} />
-                <MiniInfo
-                  label="Task completion"
-                  value={`${latestInsight.completedCount}/${latestInsight.totalCount}`}
-                />
-                <MiniInfo
-                  label="Deep work blocks"
-                  value={`${latestInsight.deepWorkCount}`}
-                />
-                <MiniInfo
-                  label="Recommendation"
-                  value={latestInsight.recommendation}
-                />
-              </div>
-
-              <p className="mt-5 text-[14px] leading-7 text-[#615C7A]">
-                {latestInsight.summary}
-              </p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-[1.4rem] font-black tracking-tight text-[#1A152E]">
-                No weekly insight yet
-              </h3>
-              <p className="mt-4 text-[14px] leading-7 text-[#615C7A]">
-                Weekly insight will become more useful once the system has task history and alignment data to summarize.
-              </p>
-            </>
-          )}
         </div>
+      </section>
 
-        <div className="rounded-[30px] border border-white bg-white/72 p-6 shadow-[0_14px_32px_rgba(36,31,61,0.05)] backdrop-blur-xl">
-          <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-            <Target className="h-4 w-4" />
-            Planning principles
-          </div>
-
-          <div className="space-y-3">
-            <Principle
-              title="Protect your best block"
-              text="Put your most demanding work where your rhythm is strongest first."
-            />
-            <Principle
-              title="Shift task intensity"
-              text="A softer energy period does not mean failure. It often means the task should change."
-            />
-            <Principle
-              title="Recovery is part of output"
-              text="Sleep and decompression are not separate from performance. They support it."
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-10 rounded-[36px] border border-white bg-white/65 p-3 shadow-[0_18px_48px_rgba(36,31,61,0.08)] backdrop-blur-xl">
-        <div className="rounded-[30px] border border-white/70 bg-white/76 p-6 md:p-8">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                Your tasks
+      <section className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <div className="rounded-[30px] border border-white bg-white/90 p-5 shadow-[0_15px_40px_rgba(26,21,40,0.04)]">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <ViewTab
+                  active={view === "day"}
+                  onClick={() => setView("day")}
+                  icon={<Clock3 className="h-4 w-4" />}
+                  label="Xem ngày"
+                />
+                <ViewTab
+                  active={view === "week"}
+                  onClick={() => setView("week")}
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  label="Xem tuần"
+                />
               </div>
-              <h2 className="mt-2 text-[1.8rem] font-[850] tracking-tight text-[#1A152E] md:text-[2.3rem]">
-                Current planner items
-              </h2>
+
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="rounded-2xl border border-[#E9E5FF] bg-[#F8F9FE] px-4 py-2.5 text-[14px] outline-none"
+              />
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link href="/assessment" className="cf-btn-secondary">
-                Re-take assessment
-              </Link>
-            </div>
+            {view === "day" ? (
+              <PlannerCalendarDay
+                date={selectedDate}
+                tasks={scheduledTasks}
+                onTaskClick={setSelectedTask}
+              />
+            ) : (
+              <PlannerCalendarWeek
+                baseDate={selectedDate}
+                tasks={scheduledTasks}
+                onTaskClick={setSelectedTask}
+              />
+            )}
           </div>
 
-          {tasks.length === 0 ? (
-            <div className="rounded-[24px] border border-dashed border-[#DDD6FE] bg-[#FAF8FF] px-6 py-10 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-                <ListTodo className="h-5 w-5 text-[#8B5CF6]" />
+          {overloadWarnings.length > 0 && (
+            <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <span className="text-[14px] font-[900] text-amber-800">
+                  Cảnh báo lịch quá tải
+                </span>
               </div>
-              <h3 className="mt-4 text-[1.3rem] font-black tracking-tight text-[#1A152E]">
-                No tasks yet
-              </h3>
-              <p className="mx-auto mt-3 max-w-[560px] text-[14px] leading-7 text-[#615C7A]">
-                Your planner is connected to the database, but there are no saved tasks for this account yet.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="rounded-[24px] border border-white/80 bg-[linear-gradient(135deg,#F8F4FF_0%,#F5F8FF_55%,#FFF8F1_100%)] p-5 shadow-sm"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-[1.15rem] font-black tracking-tight text-[#1A152E]">
-                          {task.name}
-                        </h3>
-
-                        <span
-                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${getTaskTypeTone(
-                            task.type
-                          )}`}
-                        >
-                          {formatTaskType(task.type)}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${getPriorityTone(
-                            task.priority
-                          )}`}
-                        >
-                          {task.priority}
-                        </span>
-
-                        {task.completed && (
-                          <span className="rounded-full bg-[#EEF7F2] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8B6A]">
-                            Completed
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-3 text-[14px] leading-7 text-[#615C7A]">
-                        {task.explanation}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-4 text-[12px] font-medium text-slate-500">
-                        <span>Scheduled: {task.scheduledTime}</span>
-                        <span>Duration: {task.duration}</span>
-                        {task.deadline && <span>Deadline: {task.deadline}</span>}
-                      </div>
-                    </div>
-
-                    <div className="rounded-[18px] border border-white/80 bg-white/88 px-4 py-3 text-right shadow-sm">
-                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B5CF6]">
-                        Recommended slot
-                      </div>
-                      <div className="mt-1 text-[14px] font-bold text-[#1A152E]">
-                        {task.scheduledTime}
-                      </div>
-                    </div>
+              <div className="space-y-2">
+                {overloadWarnings.map((warning) => (
+                  <div
+                    key={warning}
+                    className="rounded-2xl bg-white/70 px-4 py-3 text-[13px] text-amber-900"
+                  >
+                    {warning}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="mt-12 text-center">
-        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/dashboard" className="cf-btn-primary">
-            Open dashboard
-          </Link>
-
-          <Link
-            href="/learn"
-            className="inline-flex items-center gap-2 text-[14px] font-bold text-[#5B46FF] transition-all hover:gap-3"
-          >
-            Learn more about rhythm
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <WeeklyHeatmap selectedDate={selectedDate} tasks={scheduledTasks} />
         </div>
-      </div>
-    </>
+
+        <div className="space-y-6">
+          <FocusScoreCard score={focusScore} />
+
+          <BacklogPanel
+            tasks={backlogTasks}
+            selectedDate={selectedDate}
+            onTaskClick={setSelectedTask}
+            onQuickReschedule={handleQuickReschedule}
+          />
+        </div>
+      </section>
+
+      {selectedTask && (
+        <PlannerTaskModal
+          task={selectedTask}
+          chronotypeKey={chronotype.key}
+          onClose={() => setSelectedTask(null)}
+          onDelete={handleTaskDelete}
+          onUpdate={handleTaskUpdate}
+          isPending={isPending}
+        />
+      )}
+    </div>
   );
 }
 
-function StatCard({
+function ViewTab({
+  active,
+  onClick,
   icon,
   label,
-  value,
-  text,
-  accent,
 }: {
+  active: boolean;
+  onClick: () => void;
   icon: React.ReactNode;
   label: string;
-  value: string;
-  text: string;
-  accent: string;
 }) {
   return (
-    <div className="group rounded-[30px] border border-white bg-white/70 p-3 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-100/40">
-      <div className={`rounded-[24px] border border-white/70 ${accent} p-5`}>
-        <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white/90 shadow-sm">
-          {icon}
-        </div>
-
-        <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#8B5CF6]">
-          {label}
-        </div>
-
-        <h3 className="text-[1.4rem] font-black tracking-tight text-[#1A152E]">
-          {value}
-        </h3>
-
-        <p className="mt-3 text-[13px] leading-relaxed text-slate-500 md:text-[14px]">
-          {text}
-        </p>
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-semibold transition ${
+        active
+          ? "bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] text-white shadow-[0_12px_28px_rgba(108,92,255,0.22)]"
+          : "border border-[#E9E5FF] bg-white text-[#4F4A68]"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
-function MiniInfo({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[18px] border border-white/80 bg-[#FAF8FF] p-4">
-      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-2 text-[14px] font-bold text-[#1A152E]">{value}</div>
-    </div>
-  );
-}
-
-function Principle({
-  title,
-  text,
+function StatPill({
+  children,
+  icon,
 }: {
-  title: string;
-  text: string;
+  children: React.ReactNode;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/80 bg-[#FAF8FF] p-4">
-      <div className="text-[13px] font-bold text-[#1A152E]">{title}</div>
-      <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">{text}</p>
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-2 text-[12px] font-semibold text-[#4F4A68] shadow-sm">
+      <span className="text-[#6F59FF]">{icon}</span>
+      {children}
     </div>
   );
 }

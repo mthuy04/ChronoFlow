@@ -4,39 +4,39 @@ import ArticlePageShell from "@/components/learn/ArticlePageShell";
 export default function EnergyRhythmPage() {
   return (
     <ArticlePageShell
-      eyebrow="Biology"
+      eyebrow="Sinh học"
       icon={<Brain className="h-3 w-3" />}
-      title="Why your energy rises and falls"
-      intro="Your energy is not flat. Attention, motivation, and mental clarity tend to move through the day in changing patterns rather than staying constant from morning to night."
+      title="Vì sao năng lượng của bạn lên xuống trong ngày?"
+      intro="Năng lượng của bạn không hề phẳng. Sự tập trung, động lực và độ minh mẫn thường thay đổi theo những nhịp khác nhau trong ngày, thay vì giữ nguyên từ sáng đến tối."
       sections={[
         {
-          title: "Why a flat schedule often fails",
+          title: "Vì sao lịch phẳng thường thất bại",
           content: [
-            "Many schedules assume that every hour can hold the same type of work. That is one reason why people often blame themselves when a plan looks good on paper but feels impossible in reality.",
-            "If your energy naturally shifts, then your task difficulty should shift too. The problem is often not discipline alone. The problem is a mismatch between the task and the timing.",
+            "Nhiều lịch làm việc mặc định rằng giờ nào cũng có thể gánh cùng một loại việc. Đây là một lý do khiến nhiều người thấy kế hoạch trên giấy thì hợp lý nhưng trong thực tế lại rất khó theo.",
+            "Nếu năng lượng của bạn thay đổi tự nhiên, thì độ khó của công việc cũng nên thay đổi theo. Vấn đề nhiều khi không nằm ở kỷ luật, mà ở việc task không khớp với timing.",
           ],
         },
         {
-          title: "What affects energy rhythm",
+          title: "Điều gì ảnh hưởng đến nhịp năng lượng",
           content: [
-            "Daily energy can be influenced by sleep timing, sleep quality, light exposure, stress, meals, routines, environment, and individual biological tendencies.",
-            "That is why ChronoFlow should not pretend to predict every day perfectly. Instead, it tries to help users notice the general rhythm that appears often enough to matter in planning.",
+            "Năng lượng hằng ngày có thể bị ảnh hưởng bởi giờ ngủ, chất lượng ngủ, ánh sáng, stress, bữa ăn, thói quen, môi trường và xu hướng sinh học cá nhân.",
+            "Vì vậy, ChronoFlow không nên giả vờ rằng nó dự đoán hoàn hảo từng ngày. Điều hữu ích hơn là giúp bạn nhận ra một nhịp chung xuất hiện đủ thường xuyên để có ý nghĩa trong việc lập kế hoạch.",
           ],
         },
         {
-          title: "What ChronoFlow does with this idea",
+          title: "ChronoFlow làm gì với insight này",
           content: [
-            "ChronoFlow translates rhythm into practical signals: when focus is likely to be stronger, when the day may support lighter work, and when recovery should be protected.",
-            "This creates a more useful planning system than one that treats every block of time as interchangeable.",
+            "ChronoFlow biến nhịp năng lượng thành những tín hiệu thực tế: lúc nào khả năng tập trung có thể mạnh hơn, lúc nào phù hợp hơn cho việc nhẹ, và lúc nào nên giữ chỗ cho hồi phục.",
+            "Điều đó tạo ra một hệ thống lên kế hoạch thực tế hơn nhiều so với cách xem mọi khung giờ là giống nhau.",
           ],
         },
       ]}
-      takeaway="A rhythm-aware schedule works better because it respects the fact that attention and energy change across the day."
+      takeaway="Một lịch trình theo nhịp hiệu quả hơn vì nó tôn trọng sự thật rằng năng lượng và sự chú ý thay đổi trong suốt ngày."
       nextHref="/learn/rhythm-based-planning"
-      nextLabel="Next: How to plan your day with rhythm"
+      nextLabel="Tiếp theo: Cách lên kế hoạch theo nhịp"
       resources={[
         {
-          label: "Read practical rhythm-based planning",
+          label: "Đọc tiếp về lên kế hoạch theo nhịp",
           href: "/learn/rhythm-based-planning",
         },
         {
