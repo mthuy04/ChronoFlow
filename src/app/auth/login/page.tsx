@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react"; // ĐÃ THÊM: Suspense
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Header from "@/components/layout/Navbar";
@@ -19,10 +19,10 @@ import {
   Brain,
 } from "lucide-react";
 
-export default function LoginPage() {
+// ĐÃ SỬA: Tách logic Form ra component riêng để bọc Suspense
+function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const callbackUrl = searchParams.get("callbackUrl");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -49,13 +49,11 @@ export default function LoginPage() {
         return;
       }
   
-      // 1) Ưu tiên quay về trang user định vào trước
       if (callbackUrl) {
         router.push(callbackUrl);
         return;
       }
   
-      // 2) Không có callbackUrl thì check user mới / cũ
       const meRes = await fetch("/api/me", {
         method: "GET",
         credentials: "include",
@@ -69,8 +67,6 @@ export default function LoginPage() {
   
       const me = await meRes.json();
   
-      // user cũ -> dashboard
-      // user mới -> assessment
       if (me?.hasCompletedAssessment) {
         router.push("/dashboard");
       } else {
@@ -82,6 +78,78 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  return (
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      <InputRow
+        icon={<Mail className="h-4 w-4" />}
+        type="email"
+        placeholder="Địa chỉ email"
+        value={email}
+        onChange={setEmail}
+      />
+
+      <InputRow
+        icon={<Lock className="h-4 w-4" />}
+        type={showPassword ? "text" : "password"}
+        placeholder="Mật khẩu"
+        value={password}
+        onChange={setPassword}
+        trailing={
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="text-[#8A84A3] transition-colors hover:text-[#1A1528]"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        }
+      />
+
+      {error && (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 py-4 text-white shadow-xl transition-all hover:scale-[1.01] hover:bg-black disabled:opacity-60"
+      >
+        <span className="text-[14px] font-bold">
+          {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+        </span>
+        {!isSubmitting && (
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        )}
+      </button>
+
+      <Link
+        href="/auth/forgot-password"
+        className="block text-center text-sm font-medium text-[#6B6287] transition-colors hover:text-[#1A1528]"
+      >
+        Quên mật khẩu?
+      </Link>
+
+      <p className="pt-1 text-center text-sm text-[#7A728F]">
+        Chưa có tài khoản?{" "}
+        <Link
+          href="/auth/signup"
+          className="font-semibold text-[#1A1528] hover:underline"
+        >
+          Đăng ký
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#F4F2FA] text-[#1A1528] selection:bg-[#6F59FF]/20">
       <AuthBackground />
@@ -119,72 +187,10 @@ export default function LoginPage() {
                   </MiniPill>
                 </div>
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <InputRow
-                    icon={<Mail className="h-4 w-4" />}
-                    type="email"
-                    placeholder="Địa chỉ email"
-                    value={email}
-                    onChange={setEmail}
-                  />
-
-                  <InputRow
-                    icon={<Lock className="h-4 w-4" />}
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mật khẩu"
-                    value={password}
-                    onChange={setPassword}
-                    trailing={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        className="text-[#8A84A3] transition-colors hover:text-[#1A1528]"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    }
-                  />
-
-                  {error && (
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 py-4 text-white shadow-xl transition-all hover:scale-[1.01] hover:bg-black disabled:opacity-60"
-                  >
-                    <span className="text-[14px] font-bold">
-                      {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
-                    </span>
-                    {!isSubmitting && (
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    )}
-                  </button>
-
-                  <Link
-                    href="/auth/forgot-password"
-                    className="block text-center text-sm font-medium text-[#6B6287] transition-colors hover:text-[#1A1528]"
-                  >
-                    Quên mật khẩu?
-                  </Link>
-
-                  <p className="pt-1 text-center text-sm text-[#7A728F]">
-                    Chưa có tài khoản?{" "}
-                    <Link
-                      href="/auth/signup"
-                      className="font-semibold text-[#1A1528] hover:underline"
-                    >
-                      Đăng ký
-                    </Link>
-                  </p>
-                </form>
+                {/* ĐÃ SỬA: Bọc nội dung Form vào Suspense */}
+                <Suspense fallback={<div className="flex justify-center p-8 text-[#6B6287]">Đang tải biểu mẫu...</div>}>
+                   <LoginFormContent />
+                </Suspense>
               </div>
 
               <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_40%,#DCD1FF_100%)] px-4 py-8 md:px-8">
@@ -265,6 +271,7 @@ export default function LoginPage() {
   );
 }
 
+// Giữ nguyên các sub-component bên dưới...
 function InputRow({
   icon,
   type,
@@ -292,21 +299,6 @@ function InputRow({
       />
       {trailing}
     </div>
-  );
-}
-
-function SimpleNav() {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-white/80 bg-[#F4F2FA]/80 px-6 py-5 backdrop-blur-md">
-      <div className="mx-auto max-w-6xl">
-        <Link href="/" className="flex w-fit items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#6F59FF]" />
-          <span className="text-xl font-[900] tracking-tight text-[#1A1528]">
-            ChronoFlow
-          </span>
-        </Link>
-      </div>
-    </nav>
   );
 }
 
