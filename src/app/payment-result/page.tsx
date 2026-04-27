@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense } from "react"; // Đã thêm Suspense
+import { Suspense, useEffect } from "react"; // Đã thêm useEffect để bắn tracking
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle, ArrowRight, Loader2 } from "lucide-react";
+import { sendGAEvent } from '@next/third-parties/google'; // Import "mắt thần" GA4
 
-// --- TÁCH LOGIC XỬ LÝ KẾT QUẢ VÀO ĐÂY ---
 function PaymentResultContent() {
   const searchParams = useSearchParams();
 
@@ -15,6 +15,31 @@ function PaymentResultContent() {
   const txnRef = searchParams.get("vnp_TxnRef");
 
   const success = responseCode === "00" && transactionStatus === "00";
+
+  // --- LOGIC TRACKING CHUYÊN SÂU ---
+  useEffect(() => {
+    if (success) {
+      // 1. Tracking sự kiện Mua hàng (Purchase) - Cực kỳ quan trọng cho BA
+      sendGAEvent({
+        event: 'purchase',
+        transaction_id: txnRef || 'N/A',
+        value: amount ? Number(amount) / 100 : 0, // Chuyển đơn vị từ VNPAY về tiền thật
+        currency: 'VND',
+        items: [{
+          item_name: 'ChronoFlow Premium Plan',
+          item_category: 'Subscription',
+          quantity: 1
+        }]
+      });
+    } else if (responseCode && responseCode !== "00") {
+      // 2. Tracking sự kiện lỗi thanh toán để phân tích lý do rớt đơn
+      sendGAEvent({
+        event: 'payment_failed',
+        error_code: responseCode,
+        transaction_id: txnRef || 'N/A'
+      });
+    }
+  }, [success, responseCode, amount, txnRef]);
 
   const displayAmount = amount
     ? `${(Number(amount) / 100).toLocaleString("vi-VN")}đ`
@@ -66,11 +91,9 @@ function PaymentResultContent() {
   );
 }
 
-// --- COMPONENT TRANG CHÍNH ---
 export default function PaymentResultPage() {
   return (
     <main className="min-h-screen bg-[#F4F2FA] px-4 py-16 font-sans text-[#1A1528]">
-      {/* Bọc Suspense để vượt qua bước tạo trang tĩnh của Next.js */}
       <Suspense fallback={
         <div className="mx-auto max-w-xl rounded-[36px] border border-white bg-white p-12 text-center shadow-lg">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-[#6F59FF]" />

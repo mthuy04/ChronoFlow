@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react"; // Thêm useEffect để theo dõi sự thay đổi của step
 import Link from "next/link";
 import { ArrowLeft, Moon } from "lucide-react";
+import { sendGAEvent } from '@next/third-parties/google'; // Import hàm gửi sự kiện
 
 export default function AssessmentShell({
   step,
@@ -18,12 +20,25 @@ export default function AssessmentShell({
 }) {
   const progress = Math.round((step / total) * 100);
 
+  // --- LOGIC TRACKING TIẾN ĐỘ ---
+  useEffect(() => {
+    // Mỗi khi 'step' hoặc 'title' thay đổi, GA4 sẽ ghi lại
+    sendGAEvent({
+      event: 'assessment_progress',
+      step_number: step,
+      step_title: title,
+      total_steps: total,
+      completion_rate: progress
+    });
+  }, [step, title, total, progress]);
+
   return (
     <main className="min-h-screen bg-[#F7F3EC] text-[#201C2B] px-6 py-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-10">
           <Link
             href="/"
+            onClick={() => sendGAEvent({ event: 'assessment_abandoned', last_step: step })} // Theo dõi khi người dùng bỏ ngang
             className="inline-flex items-center gap-2 text-[#645E70] hover:text-[#201C2B]"
           >
             <ArrowLeft className="w-4 h-4" />
