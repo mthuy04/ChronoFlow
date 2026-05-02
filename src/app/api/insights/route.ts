@@ -25,7 +25,7 @@ type FocusSessionRow = {
   taskId: string | null;
   durationMinutes: number;
   startedAt: Date;
-  endedAt: Date;
+  endedAt: Date | null;
   createdAt: Date;
 };
 
@@ -33,7 +33,7 @@ type EnergyCheckinRow = {
   id: string;
   score: number;
   note: string | null;
-  source: string | null;
+  source: string;
   createdAt: Date;
 };
 
@@ -1017,32 +1017,49 @@ export async function GET() {
       },
     });
 
-    const focusSessions = await prisma.$queryRaw<FocusSessionRow[]>`
-      SELECT
-        \`id\`,
-        \`taskId\`,
-        \`durationMinutes\`,
-        \`startedAt\`,
-        \`endedAt\`,
-        \`createdAt\`
-      FROM \`FocusSession\`
-      WHERE \`userId\` = ${user.id}
-      ORDER BY \`startedAt\` DESC
-      LIMIT 300;
-    `;
-
-    const energyCheckins = await prisma.$queryRaw<EnergyCheckinRow[]>`
-      SELECT
-        \`id\`,
-        \`score\`,
-        \`note\`,
-        \`source\`,
-        \`createdAt\`
-      FROM \`EnergyCheckin\`
-      WHERE \`userId\` = ${user.id}
-      ORDER BY \`createdAt\` DESC
-      LIMIT 300;
-    `;
+    const focusSessionsRaw = await prisma.focusSession.findMany({
+      where: { userId: user.id },
+      orderBy: { startedAt: "desc" },
+      take: 300,
+      select: {
+        id: true,
+        taskId: true,
+        durationMinutes: true,
+        startedAt: true,
+        endedAt: true,
+        createdAt: true,
+      },
+    });
+    
+    const focusSessions: FocusSessionRow[] = focusSessionsRaw.map((item) => ({
+      id: item.id,
+      taskId: item.taskId,
+      durationMinutes: item.durationMinutes,
+      startedAt: item.startedAt,
+      endedAt: item.endedAt,
+      createdAt: item.createdAt,
+    }));
+    
+    const energyCheckinsRaw = await prisma.energyCheckin.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      select: {
+        id: true,
+        score: true,
+        note: true,
+        source: true,
+        createdAt: true,
+      },
+    });
+    
+    const energyCheckins: EnergyCheckinRow[] = energyCheckinsRaw.map((item) => ({
+      id: item.id,
+      score: item.score,
+      note: item.note,
+      source: item.source,
+      createdAt: item.createdAt,
+    }));
 
     const latestChronotype = user.chronotypeResults[0];
     const chronotype = normalizeChronotype(latestChronotype?.chronotype);
