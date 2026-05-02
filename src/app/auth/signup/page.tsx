@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
@@ -74,8 +74,29 @@ function normalizeUtmSource(value: string | null): SourceChannel | "" {
 
   return "";
 }
-
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
+  );
+}
+
+function SignupPageFallback() {
+  return (
+    <main className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528]">
+      <AuthBackground />
+
+      <section className="relative z-10 flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-[28px] border border-white bg-white/90 px-6 py-5 text-sm font-semibold text-[#6B647C] shadow-[0_20px_70px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+          Đang tải trang đăng ký...
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
