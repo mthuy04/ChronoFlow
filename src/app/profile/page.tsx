@@ -31,32 +31,29 @@ import {
 
 type ChronotypeKey = "LION" | "BEAR" | "WOLF" | "DOLPHIN";
 
-type CountValue = bigint | number;
-
-type TaskStatsRow = {
-  totalTasks: CountValue;
-  completedTasks: CountValue;
-  pendingTasks: CountValue;
+type ProfileTaskRow = {
+  id: string;
+  name: string;
+  type: string;
+  priority: string;
+  duration: string;
+  deadline: string | null;
+  scheduledDate: string | null;
+  scheduledTime: string;
+  explanation: string | null;
+  completed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
-type FocusStatsRow = {
-  totalSessions: CountValue;
-  totalMinutes: CountValue | null;
-  weekMinutes: CountValue | null;
-  averageMinutes: number | null;
+type ProfileFocusSessionRow = {
+  id: string;
+  status: string;
+  startedAt: Date;
+  durationMinutes: number;
 };
 
-type UserWalletRow = {
-  coinBalance: number | null;
-};
-
-type RewardStatsRow = {
-  totalRedemptions: CountValue;
-  pendingRedemptions: CountValue;
-  fulfilledRedemptions: CountValue;
-};
-
-type LatestRedemptionRow = {
+type ProfileRewardRedemptionRow = {
   id: string;
   rewardTitle: string;
   pointsCost: number;
@@ -64,14 +61,14 @@ type LatestRedemptionRow = {
   createdAt: Date;
 };
 
-type LatestStreakRewardRow = {
+type ProfileStreakRewardRow = {
   id: string;
   milestone: number;
   coinsEarned: number;
   awardedAt: Date;
 };
 
-type CoinTransactionRow = {
+type ProfileCoinTransactionRow = {
   id: string;
   type: string;
   amount: number;
@@ -80,28 +77,15 @@ type CoinTransactionRow = {
   createdAt: Date;
 };
 
-type StreakTaskRow = {
-  id: string;
-  scheduledDate: string | null;
-  scheduledTime: string | null;
-  updatedAt: Date;
+type ChronotypeMeta = {
+  label: string;
+  emoji: string;
+  subtitle: string;
+  focusWindow: string;
+  summary: string;
 };
 
-type StreakFocusRow = {
-  id: string;
-  startedAt: Date;
-};
-
-const CHRONOTYPE_META: Record<
-  ChronotypeKey,
-  {
-    label: string;
-    emoji: string;
-    subtitle: string;
-    focusWindow: string;
-    summary: string;
-  }
-> = {
+const CHRONOTYPE_META: Record<ChronotypeKey, ChronotypeMeta> = {
   LION: {
     label: "Sư tử",
     emoji: "🦁",
@@ -136,10 +120,17 @@ const CHRONOTYPE_META: Record<
   },
 };
 
-function countToNumber(value: CountValue | null | undefined) {
-  if (typeof value === "bigint") return Number(value);
-  if (typeof value === "number") return value;
-  return 0;
+async function safeQuery<T>(
+  label: string,
+  query: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await query();
+  } catch (error) {
+    console.error(`[PROFILE_SAFE_QUERY:${label}]`, error);
+    return fallback;
+  }
 }
 
 function normalizeChronotype(
@@ -248,12 +239,14 @@ function parseTaskStartTime(scheduledTime: string | null | undefined) {
 }
 
 function computeCurrentStreak(params: {
-  tasks: StreakTaskRow[];
-  focusSessions: StreakFocusRow[];
+  tasks: ProfileTaskRow[];
+  focusSessions: ProfileFocusSessionRow[];
 }) {
   const activeDateKeys = new Set<string>();
 
   params.tasks.forEach((task) => {
+    if (!task.completed) return;
+
     const dateKey = parseTaskDateKey(
       task.scheduledDate,
       task.scheduledTime,
@@ -264,6 +257,7 @@ function computeCurrentStreak(params: {
   });
 
   params.focusSessions.forEach((session) => {
+    if (session.status !== "COMPLETED") return;
     activeDateKeys.add(toVietnamDateKey(session.startedAt));
   });
 
@@ -450,8 +444,10 @@ export default async function ProfilePage() {
     );
   }
 
+  const userEmail = session.user.email;
+
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { email: userEmail },
     select: {
       id: true,
       name: true,
@@ -462,34 +458,8 @@ export default async function ProfilePage() {
       targetSleepTime: true,
       targetWakeTime: true,
       image: true,
-
-      customerType: true,
-      sourceChannel: true,
-      companyName: true,
-      roleInCompany: true,
-      teamSize: true,
-      consentForResearch: true,
-
       createdAt: true,
       updatedAt: true,
-      tasks: {
-        orderBy: { createdAt: "desc" },
-        take: 6,
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          priority: true,
-          duration: true,
-          deadline: true,
-          scheduledDate: true,
-          scheduledTime: true,
-          explanation: true,
-          completed: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      },
       weeklyInsights: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -538,151 +508,207 @@ export default async function ProfilePage() {
   }
 
   const [
-    taskStatsRows,
-    focusStatsRows,
-    walletRows,
-    rewardStatsRows,
-    latestRedemptionRows,
+    allTasksRaw,
+    focusSessionsRaw,
+    userWallet,
+    rewardRedemptionsRaw,
     latestStreakRows,
-    coinTransactions,
-    completedStreakTasks,
-    completedStreakFocusSessions,
+    coinTransactionsRaw,
   ] = await Promise.all([
-    prisma.$queryRaw<TaskStatsRow[]>`
-      SELECT
-        COUNT(*) AS totalTasks,
-        SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS completedTasks,
-        SUM(CASE WHEN completed = 0 THEN 1 ELSE 0 END) AS pendingTasks
-      FROM \`Task\`
-      WHERE userId = ${user.id}
-    `,
-    prisma.$queryRaw<FocusStatsRow[]>`
-      SELECT
-        COUNT(*) AS totalSessions,
-        COALESCE(SUM(durationMinutes), 0) AS totalMinutes,
-        COALESCE(SUM(
-          CASE
-            WHEN startedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-            THEN durationMinutes
-            ELSE 0
-          END
-        ), 0) AS weekMinutes,
-        AVG(durationMinutes) AS averageMinutes
-      FROM \`FocusSession\`
-      WHERE userId = ${user.id}
-        AND status = 'COMPLETED'
-    `,
-    prisma.$queryRaw<UserWalletRow[]>`
-      SELECT COALESCE(coinBalance, 0) AS coinBalance
-      FROM \`User\`
-      WHERE id = ${user.id}
-      LIMIT 1
-    `,
-    prisma.$queryRaw<RewardStatsRow[]>`
-      SELECT
-        COUNT(*) AS totalRedemptions,
-        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pendingRedemptions,
-        SUM(CASE WHEN status IN ('FULFILLED', 'COMPLETED') THEN 1 ELSE 0 END) AS fulfilledRedemptions
-      FROM \`RewardRedemption\`
-      WHERE userId = ${user.id}
-    `,
-    prisma.$queryRaw<LatestRedemptionRow[]>`
-      SELECT
-        id,
-        rewardTitle,
-        pointsCost,
-        status,
-        createdAt
-      FROM \`RewardRedemption\`
-      WHERE userId = ${user.id}
-      ORDER BY createdAt DESC
-      LIMIT 1
-    `,
-    prisma.$queryRaw<LatestStreakRewardRow[]>`
-      SELECT
-        id,
-        milestone,
-        coinsEarned,
-        awardedAt
-      FROM \`StreakReward\`
-      WHERE userId = ${user.id}
-      ORDER BY awardedAt DESC
-      LIMIT 1
-    `,
-    prisma.$queryRaw<CoinTransactionRow[]>`
-      SELECT
-        id,
-        type,
-        amount,
-        balanceAfter,
-        description,
-        createdAt
-      FROM \`CoinTransaction\`
-      WHERE userId = ${user.id}
-      ORDER BY createdAt DESC
-      LIMIT 6
-    `,
-    prisma.$queryRaw<StreakTaskRow[]>`
-      SELECT
-        id,
-        scheduledDate,
-        scheduledTime,
-        updatedAt
-      FROM \`Task\`
-      WHERE userId = ${user.id}
-        AND completed = 1
-    `,
-    prisma.$queryRaw<StreakFocusRow[]>`
-      SELECT
-        id,
-        startedAt
-      FROM \`FocusSession\`
-      WHERE userId = ${user.id}
-        AND status = 'COMPLETED'
-    `,
+    safeQuery(
+      "tasks",
+      () =>
+        prisma.task.findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            priority: true,
+            duration: true,
+            deadline: true,
+            scheduledDate: true,
+            scheduledTime: true,
+            explanation: true,
+            completed: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+      [],
+    ),
+
+    safeQuery(
+      "focusSessions",
+      () =>
+        prisma.focusSession.findMany({
+          where: { userId: user.id },
+          orderBy: { startedAt: "desc" },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            durationMinutes: true,
+          },
+        }),
+      [],
+    ),
+
+    safeQuery(
+      "wallet",
+      () =>
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            coinBalance: true,
+          },
+        }),
+      null,
+    ),
+
+    safeQuery(
+      "rewardRedemptions",
+      () =>
+        prisma.rewardRedemption.findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            rewardTitle: true,
+            pointsCost: true,
+            status: true,
+            createdAt: true,
+          },
+        }),
+      [],
+    ),
+
+    safeQuery(
+      "streakRewards",
+      () =>
+        prisma.streakReward.findMany({
+          where: { userId: user.id },
+          orderBy: { awardedAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            milestone: true,
+            coinsEarned: true,
+            awardedAt: true,
+          },
+        }),
+      [],
+    ),
+
+    safeQuery(
+      "coinTransactions",
+      () =>
+        prisma.coinTransaction.findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          take: 6,
+          select: {
+            id: true,
+            type: true,
+            amount: true,
+            balanceAfter: true,
+            description: true,
+            createdAt: true,
+          },
+        }),
+      [],
+    ),
   ]);
 
-  const taskStats = taskStatsRows[0] ?? {
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-  };
+  const allTasks: ProfileTaskRow[] = allTasksRaw.map((task) => ({
+    id: task.id,
+    name: task.name,
+    type: String(task.type),
+    priority: String(task.priority),
+    duration: task.duration,
+    deadline: task.deadline,
+    scheduledDate: task.scheduledDate,
+    scheduledTime: task.scheduledTime,
+    explanation: task.explanation,
+    completed: task.completed,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+  }));
 
-  const focusStats = focusStatsRows[0] ?? {
-    totalSessions: 0,
-    totalMinutes: 0,
-    weekMinutes: 0,
-    averageMinutes: 0,
-  };
+  const focusSessions: ProfileFocusSessionRow[] = focusSessionsRaw.map(
+    (sessionItem) => ({
+      id: sessionItem.id,
+      status: String(sessionItem.status),
+      startedAt: sessionItem.startedAt,
+      durationMinutes: sessionItem.durationMinutes,
+    }),
+  );
 
-  const rewardStats = rewardStatsRows[0] ?? {
-    totalRedemptions: 0,
-    pendingRedemptions: 0,
-    fulfilledRedemptions: 0,
-  };
+  const rewardRedemptions: ProfileRewardRedemptionRow[] =
+    rewardRedemptionsRaw.map((item) => ({
+      id: item.id,
+      rewardTitle: item.rewardTitle,
+      pointsCost: item.pointsCost,
+      status: String(item.status),
+      createdAt: item.createdAt,
+    }));
 
-  const totalTasks = countToNumber(taskStats.totalTasks);
-  const completedTasks = countToNumber(taskStats.completedTasks);
-  const pendingTasks = countToNumber(taskStats.pendingTasks);
+  const latestStreakReward: ProfileStreakRewardRow | null =
+    latestStreakRows[0] ?? null;
+
+  const coinTransactions: ProfileCoinTransactionRow[] = coinTransactionsRaw.map(
+    (item) => ({
+      id: item.id,
+      type: item.type,
+      amount: item.amount,
+      balanceAfter: item.balanceAfter,
+      description: item.description,
+      createdAt: item.createdAt,
+    }),
+  );
+
+  const totalTasks = allTasks.length;
+  const completedTasks = allTasks.filter((task) => task.completed).length;
+  const pendingTasks = allTasks.filter((task) => !task.completed).length;
   const completionRate = getCompletionRate(totalTasks, completedTasks);
 
-  const totalFocusSessions = countToNumber(focusStats.totalSessions);
-  const totalFocusMinutes = countToNumber(focusStats.totalMinutes);
-  const weekFocusMinutes = countToNumber(focusStats.weekMinutes);
-  const averageFocusMinutes = Math.round(focusStats.averageMinutes ?? 0);
+  const completedFocusSessions = focusSessions.filter(
+    (item) => item.status === "COMPLETED",
+  );
 
-  const coinBalance = walletRows[0]?.coinBalance ?? 0;
-  const totalRedemptions = countToNumber(rewardStats.totalRedemptions);
-  const pendingRedemptions = countToNumber(rewardStats.pendingRedemptions);
-  const fulfilledRedemptions = countToNumber(rewardStats.fulfilledRedemptions);
-  const latestRedemption = latestRedemptionRows[0] ?? null;
-  const latestStreakReward = latestStreakRows[0] ?? null;
+  const sevenDaysAgo = addDays(new Date(), -7);
+
+  const totalFocusSessions = completedFocusSessions.length;
+  const totalFocusMinutes = completedFocusSessions.reduce(
+    (sum, item) => sum + item.durationMinutes,
+    0,
+  );
+  const weekFocusMinutes = completedFocusSessions
+    .filter((item) => item.startedAt >= sevenDaysAgo)
+    .reduce((sum, item) => sum + item.durationMinutes, 0);
+  const averageFocusMinutes =
+    totalFocusSessions > 0
+      ? Math.round(totalFocusMinutes / totalFocusSessions)
+      : 0;
+
+  const coinBalance = userWallet?.coinBalance ?? 0;
+  const totalRedemptions = rewardRedemptions.length;
+  const pendingRedemptions = rewardRedemptions.filter(
+    (item) => item.status === "PENDING",
+  ).length;
+  const fulfilledRedemptions = rewardRedemptions.filter((item) =>
+    ["FULFILLED", "COMPLETED"].includes(item.status),
+  ).length;
+  const latestRedemption = rewardRedemptions[0] ?? null;
 
   const currentStreak = computeCurrentStreak({
-    tasks: completedStreakTasks,
-    focusSessions: completedStreakFocusSessions,
+    tasks: allTasks,
+    focusSessions,
   });
 
+  const recentTasks = allTasks.slice(0, 6);
   const chronotype = normalizeChronotype(user.chronotype);
   const chronotypeMeta = chronotype ? CHRONOTYPE_META[chronotype] : null;
   const latestInsight = user.weeklyInsights[0] ?? null;
@@ -701,7 +727,7 @@ export default async function ProfilePage() {
           firstName={firstName}
           displayName={displayName}
           email={user.email}
-          role={formatRole(user.role)}
+          role={formatRole(String(user.role))}
           studentId={user.studentId}
           createdAt={user.createdAt}
           image={user.image}
@@ -764,12 +790,12 @@ export default async function ProfilePage() {
                   initialTargetSleepTime={user.targetSleepTime}
                   initialTargetWakeTime={user.targetWakeTime}
                   initialImage={user.image}
-                  initialCustomerType={user.customerType}
-                  initialSourceChannel={user.sourceChannel}
-                  initialCompanyName={user.companyName}
-                  initialRoleInCompany={user.roleInCompany}
-                  initialTeamSize={user.teamSize}
-                  initialConsentForResearch={user.consentForResearch}
+                  initialCustomerType={null}
+                  initialSourceChannel={null}
+                  initialCompanyName={null}
+                  initialRoleInCompany={null}
+                  initialTeamSize={null}
+                  initialConsentForResearch={false}
                 />
               </Panel>
 
@@ -874,7 +900,7 @@ export default async function ProfilePage() {
                 title="Task gần đây"
                 description="Một lát cắt nhanh về những task mới nhất trong planner."
               >
-                {user.tasks.length === 0 ? (
+                {recentTasks.length === 0 ? (
                   <EmptyPanel
                     title="Bạn chưa có task nào"
                     text="Khi bắt đầu dùng planner, activity gần đây sẽ hiển thị tại đây."
@@ -883,7 +909,7 @@ export default async function ProfilePage() {
                   />
                 ) : (
                   <div className="grid gap-3">
-                    {user.tasks.map((task) => (
+                    {recentTasks.map((task) => (
                       <TaskRow key={task.id} task={task} />
                     ))}
                   </div>
@@ -1092,7 +1118,7 @@ export default async function ProfilePage() {
                 </div>
               </SidePanel>
 
-              {user.role === "ADMIN" ? (
+              {String(user.role) === "ADMIN" ? (
                 <SidePanel
                   eyebrow="Admin"
                   title="Admin quick access"
@@ -1161,15 +1187,7 @@ function ProfileHero({
   avatarLetter: string;
   coinBalance: number;
   currentStreak: number;
-  chronotypeMeta:
-    | {
-        label: string;
-        emoji: string;
-        subtitle: string;
-        focusWindow: string;
-        summary: string;
-      }
-    | null;
+  chronotypeMeta: ChronotypeMeta | null;
   completionRate: number;
 }) {
   return (
@@ -1184,9 +1202,8 @@ function ProfileHero({
           </Badge>
 
           <h1 className="mx-auto mt-5 max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-black leading-[0.98] tracking-[-0.06em] text-[#1A1528]">
-  Hồ sơ cá nhân của{" "}
-  <GradientText>{firstName} </GradientText> 
-</h1>
+            Hồ sơ cá nhân của <GradientText>{firstName}</GradientText>
+          </h1>
 
           <p className="mx-auto mt-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16.5px]">
             Quản lý thông tin tài khoản, chronotype, mục tiêu giấc ngủ, ví coin
@@ -1436,15 +1453,28 @@ function ProfileIdentityCard({
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <IdentityMetric label="Coin" value={formatNumber(coinBalance)} tone="orange" />
-          <IdentityMetric label="Streak" value={`${currentStreak} ngày`} tone="green" />
-          <IdentityMetric label="Student ID" value={studentId || "Chưa cập nhật"} tone="blue" />
+          <IdentityMetric
+            label="Coin"
+            value={formatNumber(coinBalance)}
+            tone="orange"
+          />
+          <IdentityMetric
+            label="Streak"
+            value={`${currentStreak} ngày`}
+            tone="green"
+          />
+          <IdentityMetric
+            label="Student ID"
+            value={studentId || "Chưa cập nhật"}
+            tone="blue"
+          />
           <IdentityMetric label="Vai trò" value={role} tone="purple" />
         </div>
       </div>
     </div>
   );
 }
+
 function IdentityMetric({
   label,
   value,
@@ -1672,24 +1702,7 @@ function InfoCard({
   );
 }
 
-function TaskRow({
-  task,
-}: {
-  task: {
-    id: string;
-    name: string;
-    type: string;
-    priority: string;
-    duration: string;
-    deadline: string | null;
-    scheduledDate: string | null;
-    scheduledTime: string;
-    explanation: string | null;
-    completed: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-}) {
+function TaskRow({ task }: { task: ProfileTaskRow }) {
   return (
     <div className="rounded-[26px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -1747,7 +1760,7 @@ function TaskRow({
   );
 }
 
-function CoinRow({ item }: { item: CoinTransactionRow }) {
+function CoinRow({ item }: { item: ProfileCoinTransactionRow }) {
   return (
     <div className="flex gap-3 rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
       <div
