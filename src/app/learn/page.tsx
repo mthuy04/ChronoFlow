@@ -288,18 +288,16 @@ export default function LearnPage() {
                   </motion.div>
 
                   <motion.h1
-                    initial={{ opacity: 0, y: 18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.55, delay: 0.08 }}
-                    className="mb-4 text-[clamp(2.4rem,4.8vw,4.6rem)] font-[950] leading-[1.02] tracking-tight text-[#1A1528]"
-                  >
-                    <h1 className="mb-4 text-[clamp(2.2rem,4vw,4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
-                    Hiểu nhịp của bạn, <br className="hidden sm:block" />
-                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  lập kế hoạch tốt hơn.
-                  </span>
-                </h1>
-                  </motion.h1>
+  initial={{ opacity: 0, y: 18 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.55, delay: 0.08 }}
+  className="mb-4 text-[clamp(2.2rem,4vw,4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]"
+>
+  Hiểu nhịp của bạn, <br className="hidden sm:block" />
+  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+    lập kế hoạch tốt hơn.
+  </span>
+</motion.h1>
 
                   <motion.p
                     initial={{ opacity: 0, y: 14 }}
@@ -383,9 +381,9 @@ export default function LearnPage() {
                     whileHover={{ y: -12, scale: 1.02 }}
                     className="absolute left-1/2 top-3 z-30 w-[220px] -translate-x-1/2 rounded-[38px] shadow-[0_45px_90px_rgba(26,21,40,0.28)] sm:w-[245px]"
                   >
-                    <PhoneFrame featured>
-                      <LearnCorePhone />
-                    </PhoneFrame>
+                    <PhoneFrame large>
+  <LearnCorePhone />
+</PhoneFrame>
                   </motion.div>
 
                   <motion.div
@@ -643,30 +641,30 @@ export default function LearnPage() {
                   </div>
 
                   {/* Thông tin Focus & Best For */}
-                  {(item as any).bestTime && (
-                    <div className="mt-6 rounded-[20px] border border-white/60 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-colors duration-300 group-hover:bg-white/90">
-                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-                        Khung tập trung
-                      </div>
-                      <div className="mt-1 text-[14px] font-bold text-[#1A1528]">
-                        {(item as any).bestTime}
-                      </div>
+                  {item.bestTime && (
+  <div className="mt-6 rounded-[20px] border border-white/60 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-colors duration-300 group-hover:bg-white/90">
+    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+      Khung tập trung
+    </div>
+    <div className="mt-1 text-[14px] font-bold text-[#1A1528]">
+      {item.bestTime}
+    </div>
 
-                      <div className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-                        Hợp với
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {((item as any).bestFor || []).map((tag: string) => (
-                          <span
-                            key={tag}
-                            className="rounded-md border border-[#EAE8F7] bg-white px-2 py-1 text-[11px] font-bold text-[#5E587A]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+    <div className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+      Hợp với
+    </div>
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {item.bestFor.map((tag) => (
+        <span
+          key={tag}
+          className="rounded-md border border-[#EAE8F7] bg-white px-2 py-1 text-[11px] font-bold text-[#5E587A]"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
                 </motion.div>
               ))}
             </div>
