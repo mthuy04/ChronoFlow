@@ -764,90 +764,66 @@ export async function GET() {
       hasCompletedAssessment: user.hasCompletedAssessment,
     };
 
-    const [allTasksRaw, weeklyInsightsRaw, focusSessionRows, rewardRedemptions, rewardItems, energyCheckins] = await Promise.all([
-      prisma.task.findMany({
-        where: { userId: safeUser.id },
-        orderBy: [{ orderIndex: "asc" }, { createdAt: "desc" }],
-      }),
-      prisma.weeklyInsight.findMany({
-        where: { userId: safeUser.id },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      }),
-      prisma.$queryRaw<FocusSessionRawRow[]>`
-        SELECT
-          fs.id,
-          fs.userId,
-          fs.taskId,
-          fs.status,
-          fs.startedAt,
-          fs.endedAt,
-          fs.durationMinutes,
-          fs.coinsEarned,
-          fs.createdAt,
-          fs.updatedAt,
-          t.id AS task_id,
-          t.name AS task_name,
-          t.type AS task_type,
-          t.startTime AS task_startTime,
-          t.endTime AS task_endTime,
-          t.duration AS task_duration
-        FROM FocusSession fs
-        LEFT JOIN Task t ON t.id = fs.taskId
-        WHERE fs.userId = ${safeUser.id}
-        ORDER BY fs.startedAt DESC
-        LIMIT 100
-      `,
-      prisma.$queryRaw<RewardRedemptionRecord[]>`
-        SELECT
-          id,
-          userId,
-          rewardItemId,
-          rewardId,
-          rewardTitle,
-          pointsCost,
-          recipientName,
-          phone,
-          address,
-          note,
-          status,
-          createdAt,
-          updatedAt
-        FROM RewardRedemption
-        WHERE userId = ${safeUser.id}
-        ORDER BY createdAt DESC
-        LIMIT 20
-      `,
-      prisma.$queryRaw<RewardItemRecord[]>`
-        SELECT
-          id,
-          slug,
-          title,
-          description,
-          pointsCost,
-          active,
-          createdAt,
-          updatedAt
-        FROM RewardItem
-        WHERE active = true
-        ORDER BY pointsCost ASC
-      `,
-      prisma.$queryRaw<EnergyCheckinRecord[]>`
-        SELECT
-          id,
-          userId,
-          score,
-          note,
-          source,
-          checkedAt,
-          createdAt,
-          updatedAt
-        FROM EnergyCheckin
-        WHERE userId = ${safeUser.id}
-          AND checkedAt >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-        ORDER BY checkedAt DESC
-      `,
-    ]);
+    const fourteenDaysAgo = addDays(new Date(), -14);
+
+const [
+  allTasksRaw,
+  weeklyInsightsRaw,
+  focusSessionsRaw,
+  rewardRedemptions,
+  rewardItems,
+  energyCheckins,
+] = await Promise.all([
+  prisma.task.findMany({
+    where: { userId: safeUser.id },
+    orderBy: [{ orderIndex: "asc" }, { createdAt: "desc" }],
+  }),
+
+  prisma.weeklyInsight.findMany({
+    where: { userId: safeUser.id },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  }),
+
+  prisma.focusSession.findMany({
+    where: { userId: safeUser.id },
+    orderBy: { startedAt: "desc" },
+    take: 100,
+    include: {
+      task: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          startTime: true,
+          endTime: true,
+          duration: true,
+        },
+      },
+    },
+  }),
+
+  prisma.rewardRedemption.findMany({
+    where: { userId: safeUser.id },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  }),
+
+  prisma.rewardItem.findMany({
+    where: { active: true },
+    orderBy: { pointsCost: "asc" },
+  }),
+
+  prisma.energyCheckin.findMany({
+    where: {
+      userId: safeUser.id,
+      checkedAt: {
+        gte: fourteenDaysAgo,
+      },
+    },
+    orderBy: { checkedAt: "desc" },
+  }),
+]);
 
     const typedTasks: TaskRecord[] = allTasksRaw.map((task) => ({
       id: task.id,
@@ -884,7 +860,28 @@ export async function GET() {
       createdAt: item.createdAt,
     }));
 
-    const focusSessions = mapFocusSessionRows(focusSessionRows);
+    const focusSessions: FocusSessionRecord[] = focusSessionsRaw.map((item) => ({
+      id: item.id,
+      userId: item.userId,
+      taskId: item.taskId,
+      status: item.status,
+      startedAt: item.startedAt,
+      endedAt: item.endedAt,
+      durationMinutes: item.durationMinutes,
+      coinsEarned: item.coinsEarned,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      task: item.task
+        ? {
+            id: item.task.id,
+            name: item.task.name,
+            type: String(item.task.type),
+            startTime: item.task.startTime,
+            endTime: item.task.endTime,
+            duration: item.task.duration,
+          }
+        : null,
+    }));
     const todayDateKey = toDateKey(new Date());
     const weekStart = getStartOfWeek(new Date());
     const weekEnd = addDays(weekStart, 6);
