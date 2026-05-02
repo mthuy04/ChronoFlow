@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
@@ -13,39 +12,17 @@ type CreateFocusSessionBody = {
   endedAt?: string;
 };
 
-type UserCoinRow = {
-  id: string;
-  coinBalance: number | null;
-};
+type FocusStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
 
-type TaskOwnerRow = {
-  id: string;
-  name: string;
-};
-
-type CreatedFocusSessionRow = {
-  id: string;
-  taskId: string | null;
-  durationMinutes: number;
-  startedAt: Date;
-  endedAt: Date | null;
-  coinsEarned: number;
-  createdAt: Date;
-};
-
-type BalanceRow = {
-  coinBalance: number | null;
-};
-
-type StreakActivityTaskRow = {
+type StreakActivityTask = {
   id: string;
   scheduledDate: string | null;
-  scheduledTime: string | null;
-  completed: number | boolean;
+  scheduledTime: string;
+  completed: boolean;
   updatedAt: Date;
 };
 
-type StreakActivityFocusRow = {
+type StreakActivityFocus = {
   id: string;
   startedAt: Date;
 };
@@ -105,7 +82,7 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-function getTaskDateKey(task: StreakActivityTaskRow) {
+function getTaskDateKey(task: StreakActivityTask) {
   if (task.scheduledDate) return task.scheduledDate.slice(0, 10);
 
   const raw = String(task.scheduledTime || "").trim();
@@ -126,19 +103,19 @@ function getTaskDateKey(task: StreakActivityTaskRow) {
 }
 
 function computeProductivityStreak(params: {
-  tasks: StreakActivityTaskRow[];
-  focusSessions: StreakActivityFocusRow[];
+  tasks: StreakActivityTask[];
+  focusSessions: StreakActivityFocus[];
 }) {
   const activeDateKeys = new Set<string>();
 
   params.tasks.forEach((task) => {
-    if (Boolean(task.completed)) {
+    if (task.completed) {
       activeDateKeys.add(getTaskDateKey(task));
     }
   });
 
-  params.focusSessions.forEach((session) => {
-    activeDateKeys.add(toVietnamDateKey(session.startedAt));
+  params.focusSessions.forEach((sessionItem) => {
+    activeDateKeys.add(toVietnamDateKey(sessionItem.startedAt));
   });
 
   let streak = 0;
@@ -155,20 +132,6 @@ function computeProductivityStreak(params: {
   return streak;
 }
 
-async function getCurrentCoinBalance(params: {
-  tx: Prisma.TransactionClient;
-  userId: string;
-}) {
-  const balanceRows = await params.tx.$queryRaw<BalanceRow[]>`
-    SELECT COALESCE(coinBalance, 0) AS coinBalance
-    FROM \`User\`
-    WHERE id = ${params.userId}
-    LIMIT 1
-  `;
-
-  return balanceRows[0]?.coinBalance ?? 0;
-}
-
 async function insertCoinTransaction(params: {
   tx: Prisma.TransactionClient;
   userId: string;
@@ -179,32 +142,17 @@ async function insertCoinTransaction(params: {
   sourceId: string;
   description: string;
 }) {
-  await params.tx.$executeRaw`
-    INSERT INTO \`CoinTransaction\`
-      (
-        id,
-        userId,
-        type,
-        amount,
-        balanceAfter,
-        sourceType,
-        sourceId,
-        description,
-        createdAt
-      )
-    VALUES
-      (
-        ${randomUUID()},
-        ${params.userId},
-        ${params.type},
-        ${params.amount},
-        ${params.balanceAfter},
-        ${params.sourceType},
-        ${params.sourceId},
-        ${params.description},
-        NOW()
-      )
-  `;
+  await params.tx.coinTransaction.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      amount: params.amount,
+      balanceAfter: params.balanceAfter,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      description: params.description,
+    },
+  });
 }
 
 async function awardSevenDayStreakRewardIfEligible(params: {
@@ -212,26 +160,30 @@ async function awardSevenDayStreakRewardIfEligible(params: {
   userId: string;
   currentCoinBalance: number;
 }): Promise<StreakRewardResult> {
-  const tasks = await params.tx.$queryRaw<StreakActivityTaskRow[]>`
-    SELECT
-      id,
-      scheduledDate,
-      scheduledTime,
-      completed,
-      updatedAt
-    FROM \`Task\`
-    WHERE userId = ${params.userId}
-      AND completed = 1
-  `;
+  const tasks = await params.tx.task.findMany({
+    where: {
+      userId: params.userId,
+      completed: true,
+    },
+    select: {
+      id: true,
+      scheduledDate: true,
+      scheduledTime: true,
+      completed: true,
+      updatedAt: true,
+    },
+  });
 
-  const focusSessions = await params.tx.$queryRaw<StreakActivityFocusRow[]>`
-    SELECT
-      id,
-      startedAt
-    FROM \`FocusSession\`
-    WHERE userId = ${params.userId}
-      AND status = 'COMPLETED'
-  `;
+  const focusSessions = await params.tx.focusSession.findMany({
+    where: {
+      userId: params.userId,
+      status: "COMPLETED",
+    },
+    select: {
+      id: true,
+      startedAt: true,
+    },
+  });
 
   const currentStreak = computeProductivityStreak({
     tasks,
@@ -248,24 +200,19 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  const streakRewardId = randomUUID();
+  const existingReward = await params.tx.streakReward.findUnique({
+    where: {
+      userId_milestone: {
+        userId: params.userId,
+        milestone: STREAK_REWARD_MILESTONE,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const insertedRows = await params.tx.$executeRaw`
-    INSERT IGNORE INTO \`StreakReward\`
-      (id, userId, milestone, coinsEarned, awardedAt, createdAt, updatedAt)
-    VALUES
-      (
-        ${streakRewardId},
-        ${params.userId},
-        ${STREAK_REWARD_MILESTONE},
-        ${STREAK_REWARD_COINS},
-        NOW(),
-        NOW(),
-        NOW()
-      )
-  `;
-
-  if (insertedRows === 0) {
+  if (existingReward) {
     return {
       awarded: false,
       milestone: STREAK_REWARD_MILESTONE,
@@ -275,15 +222,32 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  await params.tx.$executeRaw`
-    UPDATE \`User\`
-    SET
-      coinBalance = COALESCE(coinBalance, 0) + ${STREAK_REWARD_COINS},
-      updatedAt = NOW()
-    WHERE id = ${params.userId}
-  `;
+  const streakReward = await params.tx.streakReward.create({
+    data: {
+      userId: params.userId,
+      milestone: STREAK_REWARD_MILESTONE,
+      coinsEarned: STREAK_REWARD_COINS,
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const nextCoinBalance = params.currentCoinBalance + STREAK_REWARD_COINS;
+  const updatedUser = await params.tx.user.update({
+    where: {
+      id: params.userId,
+    },
+    data: {
+      coinBalance: {
+        increment: STREAK_REWARD_COINS,
+      },
+    },
+    select: {
+      coinBalance: true,
+    },
+  });
+
+  const nextCoinBalance = updatedUser.coinBalance ?? params.currentCoinBalance;
 
   await insertCoinTransaction({
     tx: params.tx,
@@ -292,7 +256,7 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     amount: STREAK_REWARD_COINS,
     balanceAfter: nextCoinBalance,
     sourceType: "StreakReward",
-    sourceId: streakRewardId,
+    sourceId: streakReward.id,
     description: "Mở khóa streak 7 ngày.",
   });
 
@@ -313,12 +277,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const body = (await req.json()) as CreateFocusSessionBody;
+    const body = (await req.json().catch(() => null)) as
+      | CreateFocusSessionBody
+      | null;
 
-    const taskId = normalizeString(body.taskId);
-    const durationMinutes = normalizeDuration(body.durationMinutes);
-    const startedAt = normalizeDate(body.startedAt);
-    const endedAt = normalizeDate(body.endedAt);
+    const taskId = normalizeString(body?.taskId);
+    const durationMinutes = normalizeDuration(body?.durationMinutes);
+    const startedAt = normalizeDate(body?.startedAt);
+    const endedAt = normalizeDate(body?.endedAt);
 
     if (!taskId) {
       return NextResponse.json(
@@ -348,87 +314,88 @@ export async function POST(req: Request) {
       );
     }
 
-    const users = await prisma.$queryRaw<UserCoinRow[]>`
-      SELECT id, COALESCE(coinBalance, 0) AS coinBalance
-      FROM \`User\`
-      WHERE email = ${session.user.email}
-      LIMIT 1
-    `;
-
-    const user = users[0];
+    const user = await prisma.user.findUnique({
+      where: {
+        email: session.user.email,
+      },
+      select: {
+        id: true,
+        coinBalance: true,
+      },
+    });
 
     if (!user) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    const tasks = await prisma.$queryRaw<TaskOwnerRow[]>`
-      SELECT id, name
-      FROM \`Task\`
-      WHERE id = ${taskId}
-        AND userId = ${user.id}
-      LIMIT 1
-    `;
-
-    const task = tasks[0];
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found." }, { status: 404 });
     }
 
-    const focusSessionId = randomUUID();
     const awardedCoins = calculateFocusCoins(durationMinutes);
 
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`
-        INSERT INTO \`FocusSession\`
-          (
-            id,
-            userId,
-            taskId,
-            status,
-            startedAt,
-            endedAt,
-            durationMinutes,
-            coinsEarned,
-            createdAt,
-            updatedAt
-          )
-        VALUES
-          (
-            ${focusSessionId},
-            ${user.id},
-            ${task.id},
-            'COMPLETED',
-            ${startedAt},
-            ${endedAt},
-            ${durationMinutes},
-            ${awardedCoins},
-            NOW(),
-            NOW()
-          )
-      `;
+      const focusSession = await tx.focusSession.create({
+        data: {
+          userId: user.id,
+          taskId: task.id,
+          status: "COMPLETED" satisfies FocusStatus,
+          startedAt,
+          endedAt,
+          durationMinutes,
+          coinsEarned: awardedCoins,
+        },
+        select: {
+          id: true,
+          taskId: true,
+          durationMinutes: true,
+          startedAt: true,
+          endedAt: true,
+          coinsEarned: true,
+          createdAt: true,
+        },
+      });
 
-      await tx.$executeRaw`
-        UPDATE \`Task\`
-        SET
-          focusMinutes = COALESCE(focusMinutes, 0) + ${durationMinutes},
-          updatedAt = NOW()
-        WHERE id = ${task.id}
-          AND userId = ${user.id}
-      `;
+      await tx.task.update({
+        where: {
+          id: task.id,
+        },
+        data: {
+          focusMinutes: {
+            increment: durationMinutes,
+          },
+        },
+      });
 
       let nextCoinBalance = user.coinBalance ?? 0;
 
       if (awardedCoins > 0) {
-        await tx.$executeRaw`
-          UPDATE \`User\`
-          SET
-            coinBalance = COALESCE(coinBalance, 0) + ${awardedCoins},
-            updatedAt = NOW()
-          WHERE id = ${user.id}
-        `;
+        const updatedUser = await tx.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            coinBalance: {
+              increment: awardedCoins,
+            },
+          },
+          select: {
+            coinBalance: true,
+          },
+        });
 
-        nextCoinBalance += awardedCoins;
+        nextCoinBalance = updatedUser.coinBalance ?? nextCoinBalance + awardedCoins;
 
         await insertCoinTransaction({
           tx,
@@ -437,7 +404,7 @@ export async function POST(req: Request) {
           amount: awardedCoins,
           balanceAfter: nextCoinBalance,
           sourceType: "FocusSession",
-          sourceId: focusSessionId,
+          sourceId: focusSession.id,
           description: `Hoàn thành phiên focus ${durationMinutes} phút cho task: ${task.name}`,
         });
       }
@@ -448,35 +415,26 @@ export async function POST(req: Request) {
         currentCoinBalance: nextCoinBalance,
       });
 
-      const finalCoinBalance = await getCurrentCoinBalance({
-        tx,
-        userId: user.id,
+      const finalUser = await tx.user.findUnique({
+        where: {
+          id: user.id,
+        },
+        select: {
+          coinBalance: true,
+        },
       });
 
       return {
+        focusSession,
         streakReward,
-        nextCoinBalance: finalCoinBalance,
+        nextCoinBalance: finalUser?.coinBalance ?? nextCoinBalance,
       };
     });
-
-    const createdRows = await prisma.$queryRaw<CreatedFocusSessionRow[]>`
-      SELECT
-        id,
-        taskId,
-        durationMinutes,
-        startedAt,
-        endedAt,
-        coinsEarned,
-        createdAt
-      FROM \`FocusSession\`
-      WHERE id = ${focusSessionId}
-      LIMIT 1
-    `;
 
     return NextResponse.json(
       {
         success: true,
-        session: createdRows[0],
+        session: result.focusSession,
         awardedCoins,
         nextCoinBalance: result.nextCoinBalance,
         streakReward: result.streakReward,
