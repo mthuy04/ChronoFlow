@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
@@ -13,36 +12,6 @@ type RedeemBody = {
   note?: string;
 };
 
-type UserCoinRow = {
-  id: string;
-  name: string | null;
-  email: string;
-  coinBalance: number | null;
-};
-
-type RewardItemRow = {
-  id: string;
-  slug: string;
-  title: string;
-  pointsCost: number;
-  active: number | boolean;
-  stock: number | null;
-  perUserLimit: number | null;
-  category: string | null;
-};
-
-type BalanceRow = {
-  coinBalance: number | null;
-};
-
-type ExistingRedemptionCountRow = {
-  total: bigint | number;
-};
-
-type UpdateResultRow = {
-  affectedRows?: number;
-};
-
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -50,14 +19,6 @@ function normalizeString(value: unknown) {
 function normalizeOptionalString(value: unknown) {
   const normalized = normalizeString(value);
   return normalized ? normalized : null;
-}
-
-function normalizeActive(value: number | boolean) {
-  return value === true || value === 1;
-}
-
-function getCountValue(value: bigint | number) {
-  return typeof value === "bigint" ? Number(value) : value;
 }
 
 function validatePhone(value: string) {
@@ -126,231 +87,219 @@ export async function POST(request: Request) {
       );
     }
 
-    const users = await prisma.$queryRaw<UserCoinRow[]>`
-      SELECT
-        id,
-        name,
-        email,
-        COALESCE(coinBalance, 0) AS coinBalance
-      FROM \`User\`
-      WHERE email = ${session.user.email}
-      LIMIT 1
-    `;
-
-    const user = users[0];
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Không tìm thấy tài khoản.",
-        },
-        { status: 404 },
-      );
-    }
-
-    const rewards = await prisma.$queryRaw<RewardItemRow[]>`
-      SELECT
-        id,
-        slug,
-        title,
-        pointsCost,
-        active,
-        stock,
-        perUserLimit,
-        category
-      FROM \`RewardItem\`
-      WHERE id = ${rewardItemId}
-      LIMIT 1
-    `;
-
-    const reward = rewards[0];
-
-    if (!reward) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Không tìm thấy phần thưởng.",
-        },
-        { status: 404 },
-      );
-    }
-
-    if (!normalizeActive(reward.active)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Phần thưởng này hiện chưa khả dụng.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof reward.stock === "number" && reward.stock <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Phần thưởng này hiện đã hết hàng.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const limit = reward.perUserLimit ?? 1;
-
-    if (limit > 0) {
-      const existingCounts = await prisma.$queryRaw<ExistingRedemptionCountRow[]>`
-        SELECT COUNT(*) AS total
-        FROM \`RewardRedemption\`
-        WHERE userId = ${user.id}
-          AND rewardItemId = ${reward.id}
-          AND status NOT IN ('REJECTED', 'CANCELLED')
-      `;
-
-      const currentCount = getCountValue(existingCounts[0]?.total ?? 0);
-
-      if (currentCount >= limit) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Bạn đã đạt giới hạn đổi phần thưởng này.",
-          },
-          { status: 400 },
-        );
-      }
-    }
-
-    const currentBalance = user.coinBalance ?? 0;
-
-    if (currentBalance < reward.pointsCost) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Bạn chưa đủ coin để đổi phần thưởng này.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const redemptionId = randomUUID();
-
     const result = await prisma.$transaction(async (tx) => {
-      const updateRows = await tx.$queryRaw<UpdateResultRow[]>`
-        UPDATE \`User\`
-        SET
-          coinBalance = COALESCE(coinBalance, 0) - ${reward.pointsCost},
-          updatedAt = NOW()
-        WHERE id = ${user.id}
-          AND COALESCE(coinBalance, 0) >= ${reward.pointsCost}
-      `;
+      const user = await tx.user.findUnique({
+        where: {
+          email: session.user.email,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          coinBalance: true,
+        },
+      });
 
-      const affectedRows = updateRows[0]?.affectedRows ?? 0;
+      if (!user) {
+        throw new Error("USER_NOT_FOUND");
+      }
 
-      if (affectedRows === 0) {
-        throw new Error("Coin balance changed. Please try again.");
+      const reward = await tx.rewardItem.findUnique({
+        where: {
+          id: rewardItemId,
+        },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          pointsCost: true,
+          active: true,
+          stock: true,
+          perUserLimit: true,
+          category: true,
+        },
+      });
+
+      if (!reward) {
+        throw new Error("REWARD_NOT_FOUND");
+      }
+
+      if (!reward.active) {
+        throw new Error("REWARD_INACTIVE");
+      }
+
+      if (typeof reward.stock === "number" && reward.stock <= 0) {
+        throw new Error("REWARD_OUT_OF_STOCK");
+      }
+
+      const limit = reward.perUserLimit ?? 1;
+
+      if (limit > 0) {
+        const currentCount = await tx.rewardRedemption.count({
+          where: {
+            userId: user.id,
+            rewardItemId: reward.id,
+            status: {
+              not: "REJECTED",
+            },
+          },
+        });
+
+        if (currentCount >= limit) {
+          throw new Error("REWARD_LIMIT_REACHED");
+        }
+      }
+
+      const currentBalance = user.coinBalance ?? 0;
+
+      if (currentBalance < reward.pointsCost) {
+        throw new Error("NOT_ENOUGH_COINS");
+      }
+
+      const userUpdate = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          coinBalance: {
+            gte: reward.pointsCost,
+          },
+        },
+        data: {
+          coinBalance: {
+            decrement: reward.pointsCost,
+          },
+        },
+      });
+
+      if (userUpdate.count === 0) {
+        throw new Error("COIN_BALANCE_CHANGED");
       }
 
       if (typeof reward.stock === "number") {
-        await tx.$executeRaw`
-          UPDATE \`RewardItem\`
-          SET
-            stock = GREATEST(COALESCE(stock, 0) - 1, 0),
-            updatedAt = NOW()
-          WHERE id = ${reward.id}
-            AND COALESCE(stock, 0) > 0
-        `;
+        const stockUpdate = await tx.rewardItem.updateMany({
+          where: {
+            id: reward.id,
+            stock: {
+              gt: 0,
+            },
+          },
+          data: {
+            stock: {
+              decrement: 1,
+            },
+          },
+        });
+
+        if (stockUpdate.count === 0) {
+          throw new Error("REWARD_OUT_OF_STOCK");
+        }
       }
 
-      const balanceRows = await tx.$queryRaw<BalanceRow[]>`
-        SELECT COALESCE(coinBalance, 0) AS coinBalance
-        FROM \`User\`
-        WHERE id = ${user.id}
-        LIMIT 1
-      `;
+      const updatedUser = await tx.user.findUnique({
+        where: {
+          id: user.id,
+        },
+        select: {
+          coinBalance: true,
+        },
+      });
 
-      const nextCoinBalance = balanceRows[0]?.coinBalance ?? 0;
+      const nextCoinBalance = updatedUser?.coinBalance ?? 0;
 
-      await tx.$executeRaw`
-        INSERT INTO \`RewardRedemption\`
-          (
-            id,
-            userId,
-            rewardItemId,
-            rewardId,
-            rewardTitle,
-            pointsCost,
-            recipientName,
-            phone,
-            address,
-            note,
-            status,
-            createdAt,
-            updatedAt
-          )
-        VALUES
-          (
-            ${redemptionId},
-            ${user.id},
-            ${reward.id},
-            ${reward.slug},
-            ${reward.title},
-            ${reward.pointsCost},
-            ${recipientName},
-            ${phone},
-            ${address},
-            ${note},
-            'PENDING',
-            NOW(),
-            NOW()
-          )
-      `;
+      const redemption = await tx.rewardRedemption.create({
+        data: {
+          userId: user.id,
+          rewardItemId: reward.id,
+          rewardId: reward.slug,
+          rewardTitle: reward.title,
+          pointsCost: reward.pointsCost,
+          recipientName,
+          phone,
+          address,
+          note,
+          status: "PENDING",
+        },
+        select: {
+          id: true,
+          rewardItemId: true,
+          userId: true,
+          pointsCost: true,
+          status: true,
+          createdAt: true,
+        },
+      });
 
-      await tx.$executeRaw`
-        INSERT INTO \`CoinTransaction\`
-          (
-            id,
-            userId,
-            type,
-            amount,
-            balanceAfter,
-            sourceType,
-            sourceId,
-            description,
-            createdAt
-          )
-        VALUES
-          (
-            ${randomUUID()},
-            ${user.id},
-            'REWARD_REDEEM',
-            ${-reward.pointsCost},
-            ${nextCoinBalance},
-            'RewardRedemption',
-            ${redemptionId},
-            ${`Đổi phần thưởng: ${reward.title}`},
-            NOW()
-          )
-      `;
+      await tx.coinTransaction.create({
+        data: {
+          userId: user.id,
+          type: "REWARD_REDEEM",
+          amount: -reward.pointsCost,
+          balanceAfter: nextCoinBalance,
+          sourceType: "RewardRedemption",
+          sourceId: redemption.id,
+          description: `Đổi phần thưởng: ${reward.title}`,
+        },
+      });
 
       return {
+        reward,
+        redemption,
         nextCoinBalance,
       };
     });
 
     return NextResponse.json({
       success: true,
-      message: `Đã gửi yêu cầu đổi "${reward.title}".`,
-      redemption: {
-        id: redemptionId,
-        rewardItemId: reward.id,
-        userId: user.id,
-        pointsCost: reward.pointsCost,
-        status: "PENDING",
-      },
+      message: `Đã gửi yêu cầu đổi "${result.reward.title}".`,
+      redemption: result.redemption,
       nextCoinBalance: result.nextCoinBalance,
     });
   } catch (error) {
     console.error("REDEEM REWARD ERROR:", error);
+
+    if (error instanceof Error) {
+      const errorMap: Record<string, { error: string; status: number }> = {
+        USER_NOT_FOUND: {
+          error: "Không tìm thấy tài khoản.",
+          status: 404,
+        },
+        REWARD_NOT_FOUND: {
+          error: "Không tìm thấy phần thưởng.",
+          status: 404,
+        },
+        REWARD_INACTIVE: {
+          error: "Phần thưởng này hiện chưa khả dụng.",
+          status: 400,
+        },
+        REWARD_OUT_OF_STOCK: {
+          error: "Phần thưởng này hiện đã hết hàng.",
+          status: 400,
+        },
+        REWARD_LIMIT_REACHED: {
+          error: "Bạn đã đạt giới hạn đổi phần thưởng này.",
+          status: 400,
+        },
+        NOT_ENOUGH_COINS: {
+          error: "Bạn chưa đủ coin để đổi phần thưởng này.",
+          status: 400,
+        },
+        COIN_BALANCE_CHANGED: {
+          error: "Số dư coin vừa thay đổi. Vui lòng thử lại.",
+          status: 409,
+        },
+      };
+
+      const mapped = errorMap[error.message];
+
+      if (mapped) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: mapped.error,
+          },
+          { status: mapped.status },
+        );
+      }
+    }
 
     return NextResponse.json(
       {

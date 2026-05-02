@@ -27,7 +27,7 @@ const SOURCE_CHANNELS = [
 ] as const;
 
 const profileSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2, "Tên cần có ít nhất 2 ký tự."),
   studentId: z.string().optional().nullable(),
   targetSleepTime: z.string().optional().nullable(),
   targetWakeTime: z.string().optional().nullable(),
@@ -36,7 +36,7 @@ const profileSchema = z.object({
   sourceChannel: z.enum(SOURCE_CHANNELS).optional().nullable(),
   companyName: z.string().optional().nullable(),
   roleInCompany: z.string().optional().nullable(),
-  teamSize: z.number().int().min(0).max(100000).optional().nullable(),
+  teamSize: z.coerce.number().int().min(0).max(100000).optional().nullable(),
   consentForResearch: z.boolean().optional(),
 });
 
@@ -50,6 +50,12 @@ function normalizeOptionalString(value: string | null | undefined) {
   return normalized || null;
 }
 
+function normalizeOptionalNumber(value: number | null | undefined) {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,7 +64,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = (await req.json().catch(() => null)) as unknown;
     const parsed = profileSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -68,6 +74,18 @@ export async function PATCH(req: Request) {
           issues: parsed.error.flatten().fieldErrors,
         },
         { status: 400 },
+      );
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: "Không tìm thấy tài khoản." },
+        { status: 404 },
       );
     }
 
@@ -102,9 +120,9 @@ export async function PATCH(req: Request) {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { email: session.user.email },
+      where: { id: existingUser.id },
       data: {
-        name: name.trim(),
+        name,
         studentId: normalizeOptionalString(studentId),
         targetSleepTime: normalizedSleepTime,
         targetWakeTime: normalizedWakeTime,
@@ -113,7 +131,7 @@ export async function PATCH(req: Request) {
         sourceChannel: sourceChannel ?? null,
         companyName: normalizeOptionalString(companyName),
         roleInCompany: normalizeOptionalString(roleInCompany),
-        teamSize: typeof teamSize === "number" ? teamSize : null,
+        teamSize: normalizeOptionalNumber(teamSize),
         consentForResearch: consentForResearch ?? false,
       },
       select: {

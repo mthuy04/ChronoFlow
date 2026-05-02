@@ -4,16 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type FocusSessionHistoryRow = {
-  id: string;
-  taskId: string | null;
-  durationMinutes: number;
-  startedAt: Date;
-  endedAt: Date;
-  createdAt: Date;
-};
-
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -21,7 +12,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const url = new URL(req.url);
+    const url = new URL(request.url);
     const taskId = url.searchParams.get("taskId");
 
     if (!taskId) {
@@ -52,24 +43,26 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Task not found." }, { status: 404 });
     }
 
-    const rows = await prisma.$queryRaw<FocusSessionHistoryRow[]>`
-      SELECT
-        "id",
-        "taskId",
-        "durationMinutes",
-        "startedAt",
-        "endedAt",
-        "createdAt"
-      FROM "FocusSession"
-      WHERE "userId" = ${user.id}
-        AND "taskId" = ${task.id}
-      ORDER BY "startedAt" DESC
-      LIMIT 5;
-    `;
+    const sessions = await prisma.focusSession.findMany({
+      where: {
+        userId: user.id,
+        taskId: task.id,
+      },
+      orderBy: { startedAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        taskId: true,
+        durationMinutes: true,
+        startedAt: true,
+        endedAt: true,
+        createdAt: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      sessions: rows,
+      sessions,
     });
   } catch (error) {
     console.error("FOCUS SESSION HISTORY ERROR:", error);

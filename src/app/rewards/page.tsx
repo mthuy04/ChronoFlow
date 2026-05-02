@@ -36,12 +36,7 @@ import RewardRedeemButton from "@/components/rewards/RewardRedeemButton";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-type UserCoinRow = {
-  id: string;
-  name: string | null;
-  email: string;
-  coinBalance: number | null;
-};
+
 
 type RewardItemRow = {
   id: string;
@@ -49,7 +44,7 @@ type RewardItemRow = {
   title: string;
   description: string | null;
   pointsCost: number;
-  active: number | boolean;
+  active: boolean;
   imageUrl: string | null;
   category: string | null;
   stock: number | null;
@@ -423,70 +418,158 @@ export default async function RewardsPage({
   const coinBalance = user.coinBalance ?? 0;
   const displayName = user.name?.trim() || "bạn";
 
-  const rewardItems = await prisma.$queryRaw<RewardItemRow[]>`
-    SELECT
-      id,
-      slug,
-      title,
-      description,
-      pointsCost,
-      active,
-      imageUrl,
-      category,
-      stock,
-      perUserLimit,
-      createdAt
-    FROM \`RewardItem\`
-    WHERE active = 1
-    ORDER BY pointsCost ASC, createdAt DESC
-  `;
-
-  const redemptions = await prisma.$queryRaw<RewardRedemptionRow[]>`
-    SELECT
-      id,
-      rewardItemId,
-      rewardTitle,
-      pointsCost,
-      recipientName,
-      phone,
-      address,
-      note,
-      status,
-      createdAt,
-      updatedAt
-    FROM \`RewardRedemption\`
-    WHERE userId = ${user.id}
-    ORDER BY createdAt DESC
-    LIMIT 8
-  `;
-
-  const streakRewards = await prisma.$queryRaw<StreakRewardRow[]>`
-    SELECT
-      id,
-      milestone,
-      coinsEarned,
-      awardedAt
-    FROM \`StreakReward\`
-    WHERE userId = ${user.id}
-    ORDER BY awardedAt DESC
-    LIMIT 5
-  `;
-
-  const coinTransactions = await prisma.$queryRaw<CoinTransactionRow[]>`
-    SELECT
-      id,
-      type,
-      amount,
-      balanceAfter,
-      sourceType,
-      sourceId,
-      description,
-      createdAt
-    FROM \`CoinTransaction\`
-    WHERE userId = ${user.id}
-    ORDER BY createdAt DESC
-    LIMIT 12
-  `;
+  const user = await prisma.user.findUnique({
+    where: {
+      email: session.user.email,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      coinBalance: true,
+    },
+  });
+  
+  if (!user) {
+    redirect("/auth/login");
+  }
+  
+  const coinBalance = user.coinBalance ?? 0;
+  const displayName = user.name?.trim() || "bạn";
+  
+  const rewardItemsRaw = await prisma.rewardItem.findMany({
+    where: {
+      active: true,
+    },
+    orderBy: [
+      {
+        pointsCost: "asc",
+      },
+      {
+        createdAt: "desc",
+      },
+    ],
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      pointsCost: true,
+      active: true,
+      imageUrl: true,
+      category: true,
+      stock: true,
+      perUserLimit: true,
+      createdAt: true,
+    },
+  });
+  
+  const rewardItems: RewardItemRow[] = rewardItemsRaw.map((item) => ({
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    description: item.description,
+    pointsCost: item.pointsCost,
+    active: item.active,
+    imageUrl: item.imageUrl,
+    category: item.category,
+    stock: item.stock,
+    perUserLimit: item.perUserLimit,
+    createdAt: item.createdAt,
+  }));
+  
+  const redemptionsRaw = await prisma.rewardRedemption.findMany({
+    where: {
+      userId: user.id,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 8,
+    select: {
+      id: true,
+      rewardItemId: true,
+      rewardTitle: true,
+      pointsCost: true,
+      recipientName: true,
+      phone: true,
+      address: true,
+      note: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  
+  const redemptions: RewardRedemptionRow[] = redemptionsRaw.map((item) => ({
+    id: item.id,
+    rewardItemId: item.rewardItemId,
+    rewardTitle: item.rewardTitle,
+    pointsCost: item.pointsCost,
+    recipientName: item.recipientName,
+    phone: item.phone,
+    address: item.address,
+    note: item.note,
+    status: String(item.status),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  }));
+  
+  const streakRewardsRaw = await prisma.streakReward.findMany({
+    where: {
+      userId: user.id,
+    },
+    orderBy: {
+      awardedAt: "desc",
+    },
+    take: 5,
+    select: {
+      id: true,
+      milestone: true,
+      coinsEarned: true,
+      awardedAt: true,
+    },
+  });
+  
+  const streakRewards: StreakRewardRow[] = streakRewardsRaw.map((item) => ({
+    id: item.id,
+    milestone: item.milestone,
+    coinsEarned: item.coinsEarned,
+    awardedAt: item.awardedAt,
+  }));
+  
+  const coinTransactionsRaw = await prisma.coinTransaction.findMany({
+    where: {
+      userId: user.id,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 12,
+    select: {
+      id: true,
+      type: true,
+      amount: true,
+      balanceAfter: true,
+      sourceType: true,
+      sourceId: true,
+      description: true,
+      createdAt: true,
+    },
+  });
+  
+  const coinTransactions: CoinTransactionRow[] = coinTransactionsRaw.map(
+    (item) => ({
+      id: item.id,
+      type: item.type,
+      amount: item.amount,
+      balanceAfter: item.balanceAfter,
+      sourceType: item.sourceType,
+      sourceId: item.sourceId,
+      description: item.description,
+      createdAt: item.createdAt,
+    }),
+  );
 
   const activeRewards = rewardItems.filter((item) =>
     normalizeActive(item.active),
