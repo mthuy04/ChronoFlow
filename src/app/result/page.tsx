@@ -457,7 +457,7 @@ function InfoListCard({
   accent,
 }: {
   title: string;
-  items: string[];
+  items: readonly string[];
   kicker: string;
   accent: string;
 }) {
