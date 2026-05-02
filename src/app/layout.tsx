@@ -1,8 +1,9 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import AuthProvider from "@/components/providers/AuthProvider";
+import Navbar from "@/components/layout/Navbar";
+import CoinFlightLayer from "@/components/rewards/CoinFlightLayer";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
-import { GoogleAnalytics } from '@next/third-parties/google'; // Thêm dòng này
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,11 +28,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${plusJakarta.variable}`}>
+    <html lang="vi" className={`${inter.variable} ${plusJakarta.variable}`}>
       <body className="bg-[#F7F4FB] text-[#241F3D] antialiased">
-        <AuthProvider>{children}</AuthProvider>
-        {/* Mã GA4 của bạn từ ảnh chụp màn hình */}
-        <GoogleAnalytics gaId="G-H4FJW15XEV" /> 
+        <AuthProvider>
+          <Navbar />
+          <CoinFlightLayer />
+          <main className="pt-[104px]">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

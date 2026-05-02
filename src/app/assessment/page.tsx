@@ -885,7 +885,7 @@ export default function AssessmentPage() {
   }, [localResult, savedResult]);
 
   return (
-    <div className="min-h-screen bg-[#F4F2FA] text-[#1A1528]">
+    <div className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
       <Navbar />
 
       <main className="relative overflow-hidden pb-24">
@@ -902,12 +902,11 @@ export default function AssessmentPage() {
                   </div>
 
                   <h1 className="mb-3 text-[clamp(2.2rem,4vw,3.8rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
-                    Tìm chronotype của bạn, <br className="hidden sm:block" />
-                    <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                      rồi sắp việc đúng lúc hơn.
-                    </span>
-                  </h1>
-
+  Tìm chronotype của bạn, <br className="hidden sm:block" />
+  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+    rồi sắp việc đúng lúc hơn.
+  </span>
+</h1>
                   <p className="mx-auto mb-6 max-w-[680px] text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
                     Bài đánh giá này gồm 20 câu hỏi, giúp bạn nhìn rõ hơn xu hướng
                     năng lượng, khung tỉnh táo và kiểu nhịp sinh học phù hợp nhất với mình.

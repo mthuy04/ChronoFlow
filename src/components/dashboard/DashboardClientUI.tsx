@@ -1,1018 +1,2939 @@
 "use client";
 
 import Link from "next/link";
+import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
-import { motion, Variants } from "framer-motion";
+import Footer from "@/components/layout/Footer";
 import {
+  Activity,
+  AlertTriangle,
   ArrowRight,
   BarChart3,
-  Brain,
-  CalendarClock,
+  CalendarDays,
   CheckCircle2,
-  Clock3,
-  ListTodo,
-  MoonStar,
-  Sparkles,
-  Target,
-  TrendingUp,
-  Zap,
+  Coins,
+  Coffee,
   Flame,
-  RefreshCcw,
-  Grid2X2,
+  Gift,
+  Loader2,
+  PackageCheck,
+  Play,
+  Plus,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Square,
+  Target,
+  Timer,
+  TrendingUp,
+  X,
+  Zap,
 } from "lucide-react";
+import { motion } from "framer-motion";
 
-const CHRONOTYPE_META = {
-  LION: {
-    label: "Sư tử",
-    emoji: "🦁",
-    subtitle: "Mạnh vào buổi sáng",
-    summary:
-      "Bạn thường rõ đầu óc và vào guồng nhanh hơn ở đầu ngày. Nên ưu tiên việc khó vào giờ vàng buổi sáng, rồi giảm tải dần về chiều.",
-    focusWindow: "07:00 - 10:00",
-    supportWindow: "13:00 - 15:00",
-    recoveryWindow: "Tối sớm",
-    note: "Bảo vệ buổi sáng cho deep work, đừng lấp bằng admin.",
-    gradient: "from-[#F59E0B] to-[#FCD34D]",
-  },
-  BEAR: {
-    label: "Gấu",
-    emoji: "🐻",
-    subtitle: "Nhịp cân bằng ban ngày",
-    summary:
-      "Bạn có xu hướng hợp với nhịp sinh hoạt ban ngày và duy trì mức ổn định tốt. Điều quan trọng là chặn trước block tập trung để tránh bị lịch vụn.",
-    focusWindow: "09:00 - 12:00",
-    supportWindow: "14:00 - 16:00",
-    recoveryWindow: "Cuối chiều",
-    note: "Lịch ban ngày hợp với bạn, nhưng vẫn cần giữ block tập trung rõ ràng.",
-    gradient: "from-[#6F59FF] to-[#9B8CFF]",
-  },
-  WOLF: {
-    label: "Sói",
-    emoji: "🐺",
-    subtitle: "Mạnh hơn về chiều và tối",
-    summary:
-      "Bạn thường khởi động chậm hơn vào buổi sáng nhưng bùng năng lượng tốt hơn về chiều hoặc tối. Việc khó nên đặt muộn hơn thay vì ép vào quá sớm.",
-    focusWindow: "14:30 - 18:00",
-    supportWindow: "19:00 - 21:00",
-    recoveryWindow: "Sáng nhẹ nhàng",
-    note: "Đừng dùng hết giờ mạnh cuối ngày cho việc phản hồi hoặc việc nhẹ.",
-    gradient: "from-[#5B46FF] to-[#8D7CFF]",
-  },
-  DOLPHIN: {
-    label: "Cá heo",
-    emoji: "🐬",
-    subtitle: "Nhạy giấc ngủ, hợp block gọn",
-    summary:
-      "Bạn dễ nhạy với giấc ngủ và môi trường hơn người khác. Planner nên ngắn, có khoảng đệm và ưu tiên block tập trung rõ, ít nhiễu.",
-    focusWindow: "10:00 - 11:30",
-    supportWindow: "16:00 - 18:00",
-    recoveryWindow: "Xen kẽ trong ngày",
-    note: "Đừng ép lịch quá cứng. Block ngắn và rõ sẽ hợp với bạn hơn.",
-    gradient: "from-[#4DA8FF] to-[#7DD3FC]",
-  },
-} as const;
+type Tone = "purple" | "blue" | "orange" | "green";
+type SuggestionTone = "warning" | "info" | "success";
+type TaskTypeValue =
+  | "DEEP_WORK"
+  | "STUDY"
+  | "CREATIVE"
+  | "ADMIN"
+  | "ROUTINE"
+  | "PERSONAL";
+type PriorityValue = "HIGH" | "MEDIUM" | "LOW";
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+type EnergyPoint = {
+  hour: string;
+  value: number;
 };
 
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: "spring", stiffness: 110, damping: 15 },
+type EnergyCheckin = {
+  id: string;
+  userId: string;
+  score: number;
+  note: string | null;
+  source: string;
+  checkedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type EnergyRecommendation = {
+  status: "aligned" | "move_to_peak" | "recovery" | "low_energy_ok" | "unscheduled";
+  label: string;
+  description: string;
+};
+
+type DashboardTask = {
+  id: string;
+  title: string;
+  type?: "deep" | "admin" | "creative" | "recovery" | string;
+  originalType?: string;
+  typeLabel?: string;
+  priority?: string;
+  priorityWeight?: number;
+  status?: "todo" | "in_progress" | "done" | string;
+  startTime?: string | null;
+  endTime?: string | null;
+  estimatedMinutes?: number | null;
+  focusMinutes?: number | null;
+  coins?: number | null;
+  explanation?: string | null;
+  isAligned?: boolean;
+  alignmentLabel?: string;
+  energyRecommendation?: EnergyRecommendation;
+};
+
+type FocusSession = {
+  id: string;
+  taskTitle?: string | null;
+  durationMinutes: number;
+  coinsEarned?: number | null;
+  createdAt?: string | null;
+};
+
+type ActiveFocusSession = {
+  id: string;
+  taskId?: string | null;
+  startedAt: string;
+  task?: {
+    id: string;
+    name: string;
+    type: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    duration?: string | null;
+  } | null;
+};
+
+type ActionItem = {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  cta: string;
+  tone?: SuggestionTone;
+};
+
+type RewardMilestone = {
+  id: string;
+  slug?: string;
+  title: string;
+  description?: string | null;
+  points: number;
+  unlocked: boolean;
+};
+
+type RewardRedemption = {
+  id: string;
+  rewardItemId?: string | null;
+  rewardId: string;
+  rewardTitle: string;
+  pointsCost: number;
+  recipientName: string;
+  phone: string;
+  address: string;
+  note?: string | null;
+  status: string;
+  createdAt: string;
+};
+
+type DashboardData = {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+  };
+  chronotype?: {
+    type?: string | null;
+    label?: string | null;
+    peakWindow?: string | null;
+    lowWindow?: string | null;
+    recoveryWindow?: string | null;
+    description?: string | null;
+  } | null;
+  today?: {
+    energyScore?: number | null;
+    focusMinutes?: number | null;
+    coins?: number | null;
+    coinsToday?: number | null;
+    streak?: number | null;
+    completedTasks?: number | null;
+    totalTasks?: number | null;
+    pendingTasks?: number | null;
+    activeTasks?: number | null;
+    backlogTasks?: number | null;
+    allCompletedTasks?: number | null;
+    completionRate?: number | null;
+    alignmentScore?: number | null;
+  } | null;
+  nowStatus?: {
+    label: string;
+    description: string;
+    tone: string;
+    currentTime?: string;
+  };
+  energyInsight?: {
+    currentTime?: string;
+    summary?: string;
+    peakWindow?: string | null;
+    recoveryWindow?: string | null;
+  };
+  energyCurve?: EnergyPoint[];
+  energyCheckins?: EnergyCheckin[];
+  tasks?: DashboardTask[];
+  nextTask?: DashboardTask | null;
+  priorityQueue?: DashboardTask[];
+  activeFocusSession?: ActiveFocusSession | null;
+  focusSessions?: FocusSession[];
+  weekly?: {
+    date: string;
+    label?: string;
+    focusMinutes?: number | null;
+    completedTasks?: number | null;
+    totalTasks?: number | null;
+    coins?: number | null;
+    energyScore?: number | null;
+    isToday?: boolean;
+  }[];
+  alerts?: {
+    id: string;
+    title: string;
+    description: string;
+    type?: SuggestionTone;
+  }[];
+  decisionActions?: ActionItem[];
+  focusAlignment?: {
+    alignedCount: number;
+    misalignedCount: number;
+    alignedTasks: DashboardTask[];
+    misalignedTasks: DashboardTask[];
+    score?: number;
+  };
+  rewards?: {
+    currentPoints: number;
+    earnedPoints?: number;
+    spentPoints?: number;
+    nextMilestone?: RewardMilestone | null;
+    milestones: RewardMilestone[];
+    progressToNext: number;
+    earningRule?: string;
+    recentRedemptions?: RewardRedemption[];
+  };
+  smartSuggestions?: ActionItem[];
+  weeklyInsight?: {
+    weekLabel?: string;
+    alignmentScore?: number;
+    completedCount?: number;
+    totalCount?: number;
+    deepWorkCount?: number;
+    recommendation?: string;
+    summary?: string;
+  } | null;
+};
+
+type TaskTone = {
+  label: string;
+  pill: string;
+  dot: string;
+  card: string;
+};
+
+type QuickTaskForm = {
+  name: string;
+  type: TaskTypeValue;
+  priority: PriorityValue;
+  durationMinutes: string;
+  scheduledDate: string;
+  startTime: string;
+};
+
+type EnergyCheckinForm = {
+  score: string;
+  note: string;
+};
+
+type RedeemForm = {
+  rewardItemId: string;
+  recipientName: string;
+  phone: string;
+  address: string;
+  note: string;
+};
+
+type StartFocusResponse = {
+  message?: string;
+  focusSession?: ActiveFocusSession;
+};
+
+type StreakRewardResponse = {
+  awarded: boolean;
+  milestone: number;
+  coinsEarned: number;
+  currentStreak: number;
+  nextCoinBalance: number;
+};
+
+type FinishFocusResponse = {
+  message?: string;
+  durationMinutes?: number;
+  coinsEarned?: number;
+  nextCoinBalance?: number;
+  streakReward?: StreakRewardResponse | null;
+};
+
+type BasicApiResponse = {
+  message?: string;
+};
+
+const taskToneMap: Record<string, TaskTone> = {
+  deep: {
+    label: "Deep work",
+    pill: "bg-[#F3F0FF] text-[#6F59FF]",
+    dot: "bg-[#6F59FF]",
+    card: "border-[#E9E5FF] bg-[#FBF9FF]",
+  },
+  admin: {
+    label: "Việc nhẹ",
+    pill: "bg-[#EEF6FF] text-[#4DA8FF]",
+    dot: "bg-[#4DA8FF]",
+    card: "border-[#DDEEFF] bg-[#F8FCFF]",
+  },
+  creative: {
+    label: "Sáng tạo",
+    pill: "bg-[#FFF7ED] text-[#F59E0B]",
+    dot: "bg-[#F59E0B]",
+    card: "border-[#FFE6C7] bg-[#FFFDF8]",
+  },
+  recovery: {
+    label: "Hồi phục",
+    pill: "bg-[#ECFDF5] text-[#10B981]",
+    dot: "bg-[#10B981]",
+    card: "border-[#D1FAE5] bg-[#FBFFFE]",
   },
 };
 
-function formatDateLabel(date: Date) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
+const taskTypeOptions: { value: TaskTypeValue; label: string }[] = [
+  { value: "DEEP_WORK", label: "Deep work" },
+  { value: "STUDY", label: "Học tập" },
+  { value: "CREATIVE", label: "Sáng tạo" },
+  { value: "ADMIN", label: "Việc nhẹ" },
+  { value: "ROUTINE", label: "Routine" },
+  { value: "PERSONAL", label: "Cá nhân" },
+];
 
-function parseTaskTimeLabel(scheduledTime: string | null | undefined) {
-  const raw = String(scheduledTime || "").trim();
-  if (!raw || raw.toUpperCase() === "BACKLOG") return "Backlog";
-  const pipeParts = raw.split("|");
-  if (pipeParts.length === 3) return `${pipeParts[1]} - ${pipeParts[2]}`;
-  const match = raw.match(/^\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2}\s*-\s*\d{2}:\d{2})$/);
-  if (match) return match[1];
-  return raw;
-}
+const priorityOptions: { value: PriorityValue; label: string }[] = [
+  { value: "HIGH", label: "Cao" },
+  { value: "MEDIUM", label: "Vừa" },
+  { value: "LOW", label: "Thấp" },
+];
 
-function getTaskTypeLabel(type: string) {
-  const types: Record<string, string> = {
-    DEEP_WORK: "Deep work",
-    STUDY: "Học tập",
-    CREATIVE: "Sáng tạo",
-    ADMIN: "Admin",
-    ROUTINE: "Routine",
-    PERSONAL: "Cá nhân",
-  };
-  return types[type] || type;
-}
+export default function DashboardClientUI() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-function getPriorityLabel(priority: string) {
-  const priorities: Record<string, string> = {
-    HIGH: "Cao",
-    MEDIUM: "Trung bình",
-    LOW: "Thấp",
-  };
-  return priorities[priority] || priority;
-}
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickTaskForm, setQuickTaskForm] = useState<QuickTaskForm>({
+    name: "",
+    type: "DEEP_WORK",
+    priority: "MEDIUM",
+    durationMinutes: "45",
+    scheduledDate: todayKey(),
+    startTime: "",
+  });
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
 
-function getTaskTone(type: string) {
-  switch (type) {
-    case "DEEP_WORK":
-      return "from-[#6B5BFF] to-[#5B8CFF] text-white";
-    case "STUDY":
-      return "from-[#5B8CFF] to-[#60A5FA] text-white";
-    case "CREATIVE":
-      return "from-[#F59E0B] to-[#FBBF24] text-white";
-    case "ADMIN":
-      return "from-[#94A3B8] to-[#CBD5E1] text-white";
-    case "ROUTINE":
-      return "from-[#10B981] to-[#34D399] text-white";
-    default:
-      return "from-[#EC4899] to-[#F9A8D4] text-white";
-  }
-}
+  const [energyOpen, setEnergyOpen] = useState(false);
+  const [energyForm, setEnergyForm] = useState<EnergyCheckinForm>({
+    score: "",
+    note: "",
+  });
+  const [energyLoading, setEnergyLoading] = useState(false);
+  const [energyError, setEnergyError] = useState<string | null>(null);
 
-export default function DashboardClientUI({
-  data,
-  isGuest,
-  isError,
-}: {
-  data: any;
-  isGuest: boolean;
-  isError: boolean;
-}) {
-  if (isGuest) {
-    return (
-      <main className="min-h-screen overflow-x-hidden bg-slate-50 text-[#241F3D]">
-        <Navbar />
-        <section className="relative px-6 py-32">
-          <div className="pointer-events-none absolute inset-0 z-0">
-            <div className="absolute left-1/4 top-1/4 h-[400px] w-[400px] animate-[pulse_6s_infinite] rounded-full bg-[#DCCEFF]/60 blur-[100px]" />
-            <div className="absolute right-1/4 top-1/2 h-[400px] w-[400px] animate-[pulse_8s_infinite] rounded-full bg-[#D9EAFF]/60 blur-[100px]" />
-          </div>
+  const [activeFocus, setActiveFocus] = useState<ActiveFocusSession | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [focusMessage, setFocusMessage] = useState<string | null>(null);
 
-          <motion.div
-            initial={{ opacity: 0, y: 40, rotateX: 10 }}
-            animate={{ opacity: 1, y: 0, rotateX: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative z-10 mx-auto max-w-3xl rounded-[40px] border border-white/90 bg-white/70 p-12 text-center shadow-[0_30px_80px_rgba(97,76,197,0.08)] backdrop-blur-2xl ring-1 ring-gray-100"
-          >
-            <div className="mb-6 inline-flex rounded-full border border-[#E9E5FF] bg-white px-5 py-2.5 text-[12px] font-black uppercase tracking-[0.16em] text-[#7C5CFA] shadow-sm">
-              <Sparkles className="mr-2 h-4 w-4" /> ChronoFlow Dashboard
-            </div>
-            <h1 className="text-[clamp(2rem,4vw,3rem)] font-black tracking-tight text-[#241F3D]">
-              Bạn cần đăng nhập để mở dashboard
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-[16px] leading-8 text-[#615C7A]">
-              Đăng nhập để xem chronotype, insight tuần, task hôm nay và tình trạng planner theo nhịp sinh học của bạn.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/auth/login?callbackUrl=/dashboard"
-                className="group inline-flex min-h-[54px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] px-8 text-[15px] font-bold text-white shadow-[0_15px_30px_rgba(108,92,255,0.25)] transition-all hover:scale-105"
-              >
-                Đăng nhập ngay
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </motion.div>
-        </section>
-      </main>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <main className="min-h-screen overflow-x-hidden bg-slate-50 text-[#241F3D]">
-        <Navbar />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center text-xl font-bold">
-          Lỗi không tìm thấy tài khoản.
-        </div>
-      </main>
-    );
-  }
-
-  const meta = CHRONOTYPE_META[data.chronotype as keyof typeof CHRONOTYPE_META];
-
-  return (
-    <main className="min-h-screen overflow-x-hidden bg-slate-50 text-[#241F3D]">
-      <Navbar />
-
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute left-[-5%] top-[5%] h-[500px] w-[500px] animate-[pulse_8s_infinite] rounded-full bg-purple-200/30 blur-[120px]" />
-        <div className="absolute right-[-5%] top-[20%] h-[400px] w-[400px] animate-[pulse_10s_infinite] rounded-full bg-blue-200/30 blur-[120px]" />
-        <div
-          className="absolute inset-0 opacity-30 mix-blend-multiply"
-          style={{
-            backgroundImage: "radial-gradient(#CFC7E8 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
-      </div>
-
-      <section className="relative z-10 px-4 pb-20 pt-0 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1320px] space-y-10">
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          >
-            <div className="overflow-hidden rounded-[48px] border-[1.5px] border-white/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(243,238,255,0.6)_100%)] shadow-[0_30px_90px_rgba(97,76,197,0.1)] backdrop-blur-2xl">
-              <div className="relative px-6 py-10 md:px-12 md:py-14 lg:px-14">
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="absolute left-[5%] top-[-20%] h-[300px] w-[300px] rounded-full bg-[#DCCEFF]/60 blur-[100px]" />
-                  <div className="absolute right-[5%] bottom-[-20%] h-[300px] w-[300px] rounded-full bg-[#D9EAFF]/50 blur-[100px]" />
-                </div>
-
-                <div className="relative z-10 grid gap-10 xl:grid-cols-[minmax(0,1.15fr)_460px] xl:items-center">
-                  <div>
-                    <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[12px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm backdrop-blur-md">
-                      <Sparkles className="h-4 w-4" /> Tổng quan hôm nay
-                    </div>
-
-                    <h1 className="mx-auto max-w-[800px] text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
-                      Xin chào {data.firstName}, <br className="hidden sm:block" />
-                      đây là{" "}
-                      <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent drop-shadow-sm">
-                        nhịp làm việc
-                      </span>{" "}
-                      của bạn.
-                    </h1>
-    
-                    <p className="mt-6 max-w-2xl text-[16px] font-medium leading-8 text-[#5B566E]">
-                      Bạn đang nghiêng về chronotype <span className="font-black text-[#241F3D]">{meta.label}</span>.{" "}
-                      {meta.summary}
-                    </p>
-
-                    <div className="mt-8 flex flex-wrap items-center gap-3">
-                      <Chip icon={<Zap className="h-4 w-4 text-[#7C5CFA]" />}>{meta.subtitle}</Chip>
-                      <Chip icon={<CalendarClock className="h-4 w-4 text-[#7C5CFA]" />}>{formatDateLabel(new Date())}</Chip>
-                      <Chip icon={<CheckCircle2 className="h-4 w-4 text-[#7C5CFA]" />}>{data.completedTasksCount} task đã xong</Chip>
-                    </div>
-
-                    <div className="mt-10 flex flex-wrap items-center gap-4">
-                      <Link
-                        href="/planner"
-                        className="group inline-flex min-h-[56px] items-center justify-center gap-3 rounded-full bg-[#1A1528] px-8 text-[15px] font-[900] text-white shadow-[0_15px_30px_rgba(26,21,40,0.15)] transition-all hover:scale-105"
-                      >
-                        Mở planner của tôi
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </Link>
-                      <Link
-                        href="/learn"
-                        className="inline-flex min-h-[56px] items-center justify-center rounded-full border border-white/80 bg-white/80 px-8 text-[15px] font-[900] text-[#1A1528] shadow-sm backdrop-blur-md transition-all hover:bg-white hover:scale-105"
-                      >
-                        Đọc thêm về chronotype
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6">
-                    <motion.div
-                      whileHover={{ y: -5, scale: 1.02 }}
-                      className="rounded-[36px] border-[4px] border-white/80 bg-white/60 p-7 shadow-[0_20px_50px_rgba(97,76,197,0.06)] backdrop-blur-xl"
-                    >
-                      <div className="mb-6 flex items-start justify-between gap-4">
-                        <div>
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-                            Chronotype của bạn
-                          </div>
-                          <div className="mt-2 text-[28px] font-black tracking-tight text-[#241F3D]">
-                            {meta.label} <span className="drop-shadow-md">{meta.emoji}</span>
-                          </div>
-                        </div>
-                        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${meta.gradient}`}>
-                          <MoonStar className="h-6 w-6" />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <MetricCard label="Giờ mạnh chính" value={meta.focusWindow} hint="Nên giữ cho deep work" />
-                        <MetricCard label="Khung phụ" value={meta.supportWindow} hint="Hợp cho việc nhẹ hơn" />
-                      </div>
-
-                      <div className="mt-4 rounded-[20px] border border-[#ECE8FF] bg-[#FAF9FF] px-5 py-4 text-[13.5px] font-medium leading-relaxed text-[#615C7A] shadow-inner">
-                        <span className="font-bold text-[#6F59FF]">Lưu ý: </span>
-                        {meta.note}
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      whileHover={{ y: -5, scale: 1.02 }}
-                      className="rounded-[36px] border-[4px] border-white/80 bg-white/60 p-7 shadow-[0_20px_50px_rgba(97,76,197,0.06)] backdrop-blur-xl flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-                          Điểm năng suất
-                        </div>
-                        <p className="mt-2 max-w-[200px] text-[13px] font-medium leading-relaxed text-[#615C7A]">
-                          Mức độ bạn xếp lịch hợp nhịp sinh học
-                        </p>
-                      </div>
-                      <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-white shadow-md ring-4 ring-[#F3EEFF]">
-                        <svg className="absolute inset-0 h-full w-full rotate-[-90deg]">
-                          <circle cx="48" cy="48" r="40" fill="none" stroke="#F3EEFF" strokeWidth="8" />
-                          <motion.circle
-                            cx="48"
-                            cy="48"
-                            r="40"
-                            fill="none"
-                            stroke="#6F59FF"
-                            strokeWidth="8"
-                            strokeDasharray="251.2"
-                            strokeDashoffset={251.2 - (251.2 * data.focusScore) / 100}
-                            strokeLinecap="round"
-                            initial={{ strokeDashoffset: 251.2 }}
-                            animate={{ strokeDashoffset: 251.2 - (251.2 * data.focusScore) / 100 }}
-                            transition={{ duration: 1.5, ease: "easeOut" }}
-                          />
-                        </svg>
-                        <div className="text-[26px] font-[950] tracking-tight text-[#1A1528]">
-                          {data.focusScore}
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
-            <section className="space-y-8">
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="grid gap-6 md:grid-cols-3"
-              >
-                <SummaryCard icon={<Target />} title="Chờ xử lý" value={data.pendingTasksCount} hint="Task đang mở" />
-                <SummaryCard icon={<CheckCircle2 />} title="Hoàn thành" value={data.completedTasksCount} hint="Đã xong hôm nay" />
-                <SummaryCard icon={<ListTodo />} title="Backlog" value={data.backlogTasksCount} hint="Chưa gán lịch" />
-              </motion.div>
-
-              <GlassSection
-                eyebrow="Năng lượng trong ngày"
-                title="Chart nhịp năng lượng mini"
-                actionHref="/rhythm"
-                actionLabel="Xem chi tiết"
-              >
-                <EnergyMiniChart points={data.energySeries} gradientClass={meta.gradient} />
-              </GlassSection>
-
-              <GlassSection
-                eyebrow="Task hôm nay"
-                title="Các task trong ngày"
-                actionHref="/planner"
-                actionLabel="Chỉnh sửa planner"
-              >
-                {data.todayTasks.length === 0 ? (
-                  <EmptyState
-                    title="Hôm nay chưa có task nào"
-                    text="Thêm task mới để bắt đầu sắp việc theo nhịp sinh học."
-                    href="/planner"
-                    cta="Mở planner ngay"
-                  />
-                ) : (
-                  <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="space-y-4"
-                  >
-                    {data.todayTasks.slice(0, 6).map((task: any) => (
-                      <motion.div
-                        key={task.id}
-                        variants={itemVariants}
-                        whileHover={{ y: -3, scale: 1.01 }}
-                        className="group rounded-[28px] border border-white/80 bg-white p-5 shadow-sm transition-shadow hover:border-[#E9E5FF] hover:shadow-[0_15px_30px_rgba(26,21,40,0.06)]"
-                      >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex rounded-full bg-gradient-to-r px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] ${getTaskTone(task.type)} shadow-sm`}>
-                                {getTaskTypeLabel(task.type)}
-                              </span>
-                              <span className="rounded-full border border-gray-100 bg-gray-50 px-3 py-1.5 text-[11px] font-bold text-gray-500">
-                                Ưu tiên {getPriorityLabel(task.priority)}
-                              </span>
-                              {task.completed && (
-                                <span className="rounded-full border border-[#DDF5E7] bg-[#F3FFF8] px-3 py-1.5 text-[11px] font-bold text-[#2E7C59]">
-                                  Đã xong
-                                </span>
-                              )}
-                            </div>
-                            <div className={`mt-3 text-[18px] font-[900] tracking-tight ${task.completed ? "text-gray-400 line-through" : "text-[#241F3D]"}`}>
-                              {task.name}
-                            </div>
-                            <div className="mt-2 flex items-center gap-4 text-[13.5px] font-medium text-[#615C7A]">
-                              <span className="flex items-center gap-1.5 rounded-md bg-slate-50 px-2 py-1">
-                                <Clock3 className="h-4 w-4 text-[#7C5CFA]" />
-                                {parseTaskTimeLabel(task.scheduledTime)}
-                              </span>
-                              <span className="rounded-md bg-slate-50 px-2 py-1">{task.duration}</span>
-                            </div>
-                            {task.explanation ? (
-                              <p className="mt-3 text-[13px] font-medium leading-relaxed text-[#615C7A]">
-                                {task.explanation}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </GlassSection>
-
-              <GlassSection eyebrow="Focus alignment" title="Task theo đúng / sai focus window">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <FocusWindowPanel
-                    icon={<Flame className="h-5 w-5" />}
-                    title="Đúng focus window"
-                    tone="good"
-                    items={data.alignedTasks}
-                    emptyText="Chưa có task deep work nào nằm đúng giờ mạnh."
-                  />
-                  <FocusWindowPanel
-                    icon={<RefreshCcw className="h-5 w-5" />}
-                    title="Lệch focus window"
-                    tone="warn"
-                    items={data.misalignedTasks}
-                    emptyText="Rất tốt, hiện chưa có task deep work nào bị lệch giờ mạnh."
-                  />
-                </div>
-              </GlassSection>
-
-              <GlassSection eyebrow="Insight tuần" title="Nhìn lại cách bạn dùng nhịp sinh học">
-                <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-[32px] border border-white/80 bg-white/80 p-6 shadow-sm backdrop-blur-md">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-2xl bg-[#F3EEFF] p-3 text-[#6F59FF]">
-                        <BarChart3 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
-                          Weekly Insight
-                        </div>
-                        <div className="mt-0.5 text-[18px] font-black tracking-tight text-[#241F3D]">
-                          {data.latestInsight?.weekLabel || "Chưa có dữ liệu"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="mt-5 text-[14.5px] font-medium leading-relaxed text-[#5B566E]">
-                      {data.latestInsight?.summary || "Hoàn thành thêm task để xem phân tích tuần này nhé."}
-                    </p>
-
-                    {data.latestInsight?.recommendation && (
-                      <div className="mt-5 rounded-[20px] border border-[#E9E5FF] bg-[#FAF8FF] px-5 py-4 text-[13.5px] font-medium leading-relaxed text-[#615C7A] shadow-inner">
-                        <span className="font-bold text-[#6F59FF]">Gợi ý: </span>
-                        {data.latestInsight.recommendation}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4">
-                    <MiniStat label="Task hoàn thành tuần" value={String(data.latestInsight?.completedCount ?? data.completedTasksCount)} />
-                    <MiniStat label="Deep work / Study" value={String(data.latestInsight?.deepWorkCount ?? 0)} />
-                    <MiniStat label="Điểm alignment" value={String(data.latestInsight?.alignmentScore ?? data.focusScore)} />
-                  </div>
-                </div>
-              </GlassSection>
-            </section>
-
-            <aside className="space-y-8">
-              <SidebarSection eyebrow="Nhịp của bạn" title="3 khung quan trọng" icon={<Brain className="h-5 w-5" />}>
-                <div className="space-y-4">
-                  <RhythmCard title="Focus window" value={meta.focusWindow} text="Dành cho việc khó, cần chiều sâu." accent={meta.gradient} />
-                  <RhythmCard title="Khung phụ" value={meta.supportWindow} text="Hợp cho việc nhẹ, email." accent="from-[#EDE9FE] to-[#DBEAFE]" />
-                  <RhythmCard title="Khung hồi phục" value={meta.recoveryWindow} text="Giảm cường độ tránh vỡ nhịp." accent="from-[#FCE7F3] to-[#F3E8FF]" />
-                </div>
-              </SidebarSection>
-
-              <SidebarSection eyebrow="Quick reschedule" title="Khung giờ gợi ý để dời task" icon={<CalendarClock className="h-5 w-5" />}>
-                <div className="space-y-3">
-                  {data.quickRescheduleCards.map((card: any) => (
-                    <div
-                      key={`${card.title}-${card.slot}`}
-                      className="rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm"
-                    >
-                      <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-                        {card.title}
-                      </div>
-                      <div className="mt-1.5 text-[20px] font-[950] tracking-tight text-[#241F3D]">
-                        {card.slot}
-                      </div>
-                      <div className="mt-2 text-[13px] font-medium leading-relaxed text-[#615C7A]">
-                        {card.note}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </SidebarSection>
-
-              <SidebarSection eyebrow="Heatmap tuần" title="Weekly heatmap mini" icon={<Grid2X2 className="h-5 w-5" />}>
-                <WeeklyHeatmapMini items={data.weekHeatmap} />
-              </SidebarSection>
-
-              <SidebarSection eyebrow="Quick actions" title="Đi tiếp từ đây" icon={<TrendingUp className="h-5 w-5" />}>
-                <div className="space-y-3">
-                  <ActionLink href="/planner" title="Mở planner" text="Sắp task theo ngày, tuần." />
-                  <ActionLink href="/rhythm" title="Xem nhịp của tôi" text="Đọc lại khung giờ mạnh." />
-                  <ActionLink href="/insights" title="Xem phân tích" text="Mở pattern làm việc." />
-                </div>
-              </SidebarSection>
-
-              {data.latestResult && (
-                <SidebarSection eyebrow="Kết quả gần nhất" title="Điểm chronotype" icon={<MoonStar className="h-5 w-5" />}>
-                  <div className="space-y-3">
-                    <ScoreBar label="Sư tử" value={data.latestResult.lionScore} max={Math.max(data.latestResult.lionScore, data.latestResult.bearScore, data.latestResult.wolfScore, data.latestResult.dolphinScore, 1)} />
-                    <ScoreBar label="Gấu" value={data.latestResult.bearScore} max={Math.max(data.latestResult.lionScore, data.latestResult.bearScore, data.latestResult.wolfScore, data.latestResult.dolphinScore, 1)} />
-                    <ScoreBar label="Sói" value={data.latestResult.wolfScore} max={Math.max(data.latestResult.lionScore, data.latestResult.bearScore, data.latestResult.wolfScore, data.latestResult.dolphinScore, 1)} />
-                    <ScoreBar label="Cá heo" value={data.latestResult.dolphinScore} max={Math.max(data.latestResult.lionScore, data.latestResult.bearScore, data.latestResult.wolfScore, data.latestResult.dolphinScore, 1)} />
-                  </div>
-                </SidebarSection>
-              )}
-            </aside>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function GlassSection({
-  eyebrow,
-  title,
-  actionHref,
-  actionLabel,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  actionHref?: string;
-  actionLabel?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="overflow-hidden rounded-[40px] border border-white/80 bg-white/70 shadow-[0_20px_70px_rgba(97,76,197,0.06)] backdrop-blur-2xl"
-    >
-      <div className="flex flex-col gap-4 border-b border-gray-100 bg-white/50 px-8 py-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-            {eyebrow}
-          </div>
-          <h2 className="mt-1.5 text-[22px] font-[950] tracking-tight text-[#241F3D]">
-            {title}
-          </h2>
-        </div>
-
-        {actionHref && actionLabel ? (
-          <Link
-            href={actionHref}
-            className="group inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#E9E5FF] bg-white px-5 text-[14px] font-bold text-[#241F3D] shadow-sm transition hover:bg-[#F3EEFF] hover:text-[#6F59FF]"
-          >
-            {actionLabel}
-            <ArrowRight className="ml-2 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </Link>
-        ) : null}
-      </div>
-
-      <div className="p-6 md:p-8">{children}</div>
-    </motion.div>
-  );
-}
-
-function SidebarSection({
-  eyebrow,
-  title,
-  icon,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      className="overflow-hidden rounded-[40px] border border-white/80 bg-white/70 shadow-[0_20px_70px_rgba(97,76,197,0.06)] backdrop-blur-2xl"
-    >
-      <div className="border-b border-gray-100 bg-white/50 px-7 py-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-[#F3EEFF] p-3 text-[#6F59FF]">{icon}</div>
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-              {eyebrow}
-            </div>
-            <div className="mt-0.5 text-[18px] font-black tracking-tight text-[#241F3D]">
-              {title}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="p-6">{children}</div>
-    </motion.div>
-  );
-}
-
-function EnergyMiniChart({
-  points,
-  gradientClass,
-}: {
-  points: Array<{ label: string; value: number }>;
-  gradientClass: string;
-}) {
-  const width = 620;
-  const height = 210;
-  const paddingX = 18;
-  const paddingY = 18;
-
-  const max = Math.max(...points.map((p) => p.value), 100);
-  const stepX = (width - paddingX * 2) / (points.length - 1);
-
-  const coordinates = points.map((point, index) => {
-    const x = paddingX + index * stepX;
-    const y = height - paddingY - (point.value / max) * (height - paddingY * 2);
-    return { ...point, x, y };
+  const [redeemOpen, setRedeemOpen] = useState(false);
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+  const [redeemForm, setRedeemForm] = useState<RedeemForm>({
+    rewardItemId: "",
+    recipientName: "",
+    phone: "",
+    address: "",
+    note: "",
   });
 
-  const linePath = coordinates
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
+  async function loadDashboard(showRefreshing = false) {
+    try {
+      if (showRefreshing) setRefreshing(true);
+      setError(null);
 
-  const areaPath = `${linePath} L ${coordinates[coordinates.length - 1].x} ${height - paddingY} L ${coordinates[0].x} ${height - paddingY} Z`;
+      const res = await fetch("/api/dashboard", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-  return (
-    <div className="rounded-[32px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-            Mini energy curve
-          </div>
-          <div className="mt-1 text-[18px] font-[950] tracking-tight text-[#241F3D]">
-            Đường nhịp năng lượng dự kiến
+      if (res.status === 401) {
+        throw new Error("Bạn cần đăng nhập để xem dashboard.");
+      }
+
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as BasicApiResponse | null;
+        throw new Error(json?.message || "Không thể tải dữ liệu dashboard.");
+      }
+
+      const json = (await res.json()) as DashboardData;
+      setData(json);
+      setActiveFocus(json.activeFocusSession || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Có lỗi xảy ra khi tải dashboard.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      loadDashboard(false);
+    }, 60000);
+
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!activeFocus) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      const startedAt = new Date(activeFocus.startedAt).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((now - startedAt) / 1000));
+      setElapsedSeconds(diff);
+    };
+
+    updateElapsed();
+
+    const id = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(id);
+  }, [activeFocus]);
+
+  const today = data?.today;
+  const tasks = data?.tasks ?? [];
+  const priorityQueue = data?.priorityQueue ?? [];
+  const focusSessions = data?.focusSessions ?? [];
+  const weekly = data?.weekly ?? [];
+  const chronotype = data?.chronotype;
+  const displayName = data?.user?.name || "bạn";
+  const energyCurve = data?.energyCurve ?? [];
+
+  const nextTask = useMemo(() => {
+    return (
+      data?.nextTask ||
+      priorityQueue[0] ||
+      tasks.find((task) => task.status !== "done") ||
+      null
+    );
+  }, [data, priorityQueue, tasks]);
+
+  const donePercent = useMemo(() => {
+    const total = today?.totalTasks ?? tasks.length;
+    const done = today?.completedTasks ?? tasks.filter((task) => task.status === "done").length;
+
+    if (!total) return 0;
+    return Math.round((done / total) * 100);
+  }, [today, tasks]);
+
+  const decisionActions = useMemo<ActionItem[]>(() => {
+    if (data?.decisionActions?.length) return data.decisionActions;
+
+    if (nextTask) {
+      return [
+        {
+          id: "next-task",
+          title: `Làm tiếp: ${nextTask.title}`,
+          description: `${nextTask.typeLabel || "Task"} · ${formatTimeRange(
+            nextTask.startTime,
+            nextTask.endTime,
+          )}`,
+          href: `/planner?taskId=${nextTask.id}`,
+          cta: "Mở task",
+          tone: "success",
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "create-task",
+        title: "Bắt đầu bằng một task quan trọng",
+        description: "Thêm task đầu tiên và chọn khung giờ dự kiến.",
+        href: "/planner",
+        cta: "Thêm task",
+        tone: "info",
+      },
+    ];
+  }, [data, nextTask]);
+
+  const suggestedPeakStart = useMemo(() => {
+    return getStartFromWindow(chronotype?.peakWindow || data?.energyInsight?.peakWindow || null);
+  }, [chronotype, data]);
+
+  async function handleCreateTask(formOverride?: Partial<QuickTaskForm>) {
+    try {
+      setQuickAddLoading(true);
+      setQuickAddError(null);
+
+      const payload = {
+        ...quickTaskForm,
+        ...formOverride,
+      };
+
+      const name = payload.name.trim();
+      if (!name) {
+        throw new Error("Tên task không được để trống.");
+      }
+
+      const res = await fetch("/api/dashboard/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          type: payload.type,
+          priority: payload.priority,
+          durationMinutes: Number(payload.durationMinutes || 45),
+          scheduledDate: payload.scheduledDate || todayKey(),
+          startTime: payload.startTime,
+        }),
+      });
+
+      const json = (await res.json().catch(() => null)) as BasicApiResponse | null;
+
+      if (!res.ok) {
+        throw new Error(json?.message || "Không thể tạo task.");
+      }
+
+      setQuickAddOpen(false);
+      setQuickTaskForm({
+        name: "",
+        type: "DEEP_WORK",
+        priority: "MEDIUM",
+        durationMinutes: "45",
+        scheduledDate: todayKey(),
+        startTime: "",
+      });
+
+      await loadDashboard(true);
+    } catch (err) {
+      setQuickAddError(err instanceof Error ? err.message : "Không thể tạo task.");
+    } finally {
+      setQuickAddLoading(false);
+    }
+  }
+
+  async function handleEnergyCheckinSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    try {
+      setEnergyLoading(true);
+      setEnergyError(null);
+
+      const score = Number(energyForm.score);
+
+      const res = await fetch("/api/dashboard/energy/checkin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          score,
+          note: energyForm.note,
+        }),
+      });
+
+      const json = (await res.json().catch(() => null)) as BasicApiResponse | null;
+
+      if (!res.ok) {
+        throw new Error(json?.message || "Không thể lưu check-in năng lượng.");
+      }
+
+      setEnergyOpen(false);
+      setEnergyForm({ score: "", note: "" });
+      await loadDashboard(true);
+    } catch (err) {
+      setEnergyError(err instanceof Error ? err.message : "Không thể lưu check-in năng lượng.");
+    } finally {
+      setEnergyLoading(false);
+    }
+  }
+
+  async function handleStartFocus(taskId?: string | null) {
+    try {
+      setFocusLoading(true);
+      setFocusMessage(null);
+
+      const res = await fetch("/api/dashboard/focus/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: taskId || null,
+        }),
+      });
+
+      const json = (await res.json().catch(() => null)) as StartFocusResponse | null;
+
+      if (!res.ok) {
+        throw new Error(json?.message || "Không thể bắt đầu focus session.");
+      }
+
+      if (json?.focusSession) {
+        setActiveFocus(json.focusSession);
+      }
+
+      setFocusMessage("Phiên focus đã bắt đầu.");
+      await loadDashboard(false);
+    } catch (err) {
+      setFocusMessage(err instanceof Error ? err.message : "Không thể bắt đầu focus session.");
+    } finally {
+      setFocusLoading(false);
+    }
+  }
+
+  async function handleFinishFocus(completeTask = true) {
+    try {
+      if (!activeFocus) return;
+
+      setFocusLoading(true);
+      setFocusMessage(null);
+
+      const res = await fetch("/api/dashboard/focus/finish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          focusSessionId: activeFocus.id,
+          completeTask,
+        }),
+      });
+
+      const json = (await res.json().catch(() => null)) as FinishFocusResponse | null;
+
+      if (!res.ok) {
+        throw new Error(json?.message || "Không thể kết thúc focus session.");
+      }
+
+      const streakRewardText = json?.streakReward?.awarded
+        ? ` 🔥 Bạn mở khóa streak ${json.streakReward.milestone} ngày và nhận thêm +${json.streakReward.coinsEarned} coins!`
+        : "";
+
+      setActiveFocus(null);
+      setElapsedSeconds(0);
+      setFocusMessage(
+        `Đã lưu ${json?.durationMinutes ?? 0} phút focus và +${
+          json?.coinsEarned ?? 0
+        } điểm.${streakRewardText}`,
+      );
+
+      await loadDashboard(true);
+    } catch (err) {
+      setFocusMessage(err instanceof Error ? err.message : "Không thể kết thúc focus session.");
+    } finally {
+      setFocusLoading(false);
+    }
+  }
+
+  function openRedeemModal(reward?: RewardMilestone | null) {
+    const firstReward =
+      reward || data?.rewards?.nextMilestone || data?.rewards?.milestones?.[0] || null;
+
+    setRedeemForm({
+      rewardItemId: firstReward?.id || "",
+      recipientName: displayName === "bạn" ? "" : displayName,
+      phone: "",
+      address: "",
+      note: "",
+    });
+    setRedeemError(null);
+    setRedeemSuccess(null);
+    setRedeemOpen(true);
+  }
+
+  async function handleRedeemSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    try {
+      setRedeemLoading(true);
+      setRedeemError(null);
+      setRedeemSuccess(null);
+
+      const res = await fetch("/api/dashboard/rewards/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(redeemForm),
+      });
+
+      const json = (await res.json().catch(() => null)) as BasicApiResponse | null;
+
+      if (!res.ok) {
+        throw new Error(json?.message || "Không thể gửi yêu cầu đổi thưởng.");
+      }
+
+      setRedeemSuccess("Yêu cầu đổi thưởng đã được ghi nhận.");
+      await loadDashboard(true);
+    } catch (err) {
+      setRedeemError(err instanceof Error ? err.message : "Không thể gửi yêu cầu đổi thưởng.");
+    } finally {
+      setRedeemLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardShell>
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="rounded-[32px] border border-white/80 bg-white/80 p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#6F59FF]" />
+            <div className="mt-4 text-[18px] font-[900] text-[#1A1528]">
+              Đang tải dashboard...
+            </div>
+            <p className="mt-2 text-[14px] font-medium text-[#6B647C]">
+              ChronoFlow đang lấy dữ liệu thật từ tài khoản của bạn.
+            </p>
           </div>
         </div>
-        <div className={`rounded-full bg-gradient-to-r px-3 py-1.5 text-[11px] font-black text-white ${gradientClass}`}>
-          chronotype
+      </DashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardShell>
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="max-w-[520px] rounded-[36px] border border-white/80 bg-white/85 p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F59E0B]">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h1 className="mt-5 text-[28px] font-[900] tracking-[-0.03em] text-[#1A1528]">
+              Dashboard chưa tải được
+            </h1>
+            <p className="mt-2 text-[14px] font-medium leading-relaxed text-[#6B647C]">
+              {error}
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => loadDashboard(true)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#1A1528] px-5 py-3 text-[14px] font-bold text-white shadow-xl transition hover:-translate-y-0.5"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Tải lại
+              </button>
+              <Link
+                href="/auth/login?callbackUrl=/dashboard"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/80 bg-white px-5 py-3 text-[14px] font-bold text-[#1A1528] shadow-sm transition hover:-translate-y-0.5"
+              >
+                Đăng nhập
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  return (
+    <DashboardShell>
+      <HeroHeader
+        displayName={displayName}
+        refreshing={refreshing}
+        onRefresh={() => loadDashboard(true)}
+        onOpenQuickAdd={() => setQuickAddOpen(true)}
+        onOpenEnergy={() => setEnergyOpen(true)}
+        currentTime={data?.energyInsight?.currentTime || data?.nowStatus?.currentTime}
+      />
+
+      <SectionWrapper>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Năng lượng hiện tại"
+            value={formatEnergyScore(today?.energyScore)}
+            helper={getEnergyLabel(today?.energyScore)}
+            icon={<Activity className="h-5 w-5" />}
+            tone="purple"
+          />
+          <StatCard
+            label="Focus hôm nay"
+            value={formatMinutes(today?.focusMinutes ?? 0)}
+            helper={`${focusSessions.length} phiên đã ghi nhận`}
+            icon={<Timer className="h-5 w-5" />}
+            tone="blue"
+          />
+          <StatCard
+            label="Điểm khả dụng"
+            value={`${today?.coins ?? 0}`}
+            helper={`+${today?.coinsToday ?? 0} điểm hôm nay`}
+            icon={<Coins className="h-5 w-5" />}
+            tone="orange"
+          />
+          <StatCard
+            label="Tiến độ hôm nay"
+            value={`${donePercent}%`}
+            helper={`${today?.completedTasks ?? 0}/${today?.totalTasks ?? 0} task hoàn thành`}
+            icon={<Flame className="h-5 w-5" />}
+            tone="green"
+          />
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <CommandCenter
+          today={today}
+          nextTask={nextTask}
+          chronotype={chronotype}
+          nowStatus={data?.nowStatus}
+          donePercent={donePercent}
+          actions={decisionActions}
+          onOpenQuickAdd={() => setQuickAddOpen(true)}
+          onOpenEnergy={() => setEnergyOpen(true)}
+          onCreateSampleTask={(sample) => handleCreateTask(sample)}
+          suggestedPeakStart={suggestedPeakStart}
+          quickAddLoading={quickAddLoading}
+        />
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <EnergyPanel
+          chronotype={chronotype}
+          energyCurve={energyCurve}
+          energyScore={today?.energyScore ?? null}
+          insight={data?.energyInsight}
+          checkins={data?.energyCheckins ?? []}
+          onOpenEnergy={() => setEnergyOpen(true)}
+        />
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <div className="grid items-start gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <FocusCard
+            nextTask={nextTask}
+            chronotype={chronotype}
+            activeFocus={activeFocus}
+            elapsedSeconds={elapsedSeconds}
+            focusLoading={focusLoading}
+            focusMessage={focusMessage}
+            onStartFocus={handleStartFocus}
+            onFinishFocus={handleFinishFocus}
+            onOpenQuickAdd={() => setQuickAddOpen(true)}
+          />
+          <SmartSuggestions
+            suggestions={data?.smartSuggestions ?? []}
+            onOpenQuickAdd={() => setQuickAddOpen(true)}
+            onOpenEnergy={() => setEnergyOpen(true)}
+          />
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <PlannerBoard tasks={tasks} priorityQueue={priorityQueue} onOpenQuickAdd={() => setQuickAddOpen(true)} />
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <FocusAlignmentPanel alignment={data?.focusAlignment} />
+          <RewardProgress rewards={data?.rewards} onRedeem={openRedeemModal} />
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <div className="grid items-start gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <WeekCalendar weekly={weekly} />
+          <RecentFocus sessions={focusSessions} />
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper>
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <WeeklyInsightPanel data={data} />
+          <AttentionPanel alerts={data?.alerts ?? []} tasks={tasks} />
+        </div>
+      </SectionWrapper>
+
+      <QuickAddTaskModal
+        open={quickAddOpen}
+        form={quickTaskForm}
+        loading={quickAddLoading}
+        error={quickAddError}
+        suggestedPeakStart={suggestedPeakStart}
+        onClose={() => setQuickAddOpen(false)}
+        onChange={setQuickTaskForm}
+        onSubmit={() => handleCreateTask()}
+      />
+
+      <EnergyCheckinModal
+        open={energyOpen}
+        form={energyForm}
+        loading={energyLoading}
+        error={energyError}
+        onClose={() => setEnergyOpen(false)}
+        onChange={setEnergyForm}
+        onSubmit={handleEnergyCheckinSubmit}
+      />
+
+      <RedeemModal
+        open={redeemOpen}
+        form={redeemForm}
+        rewards={data?.rewards?.milestones ?? []}
+        availablePoints={data?.rewards?.currentPoints ?? 0}
+        loading={redeemLoading}
+        error={redeemError}
+        success={redeemSuccess}
+        onClose={() => setRedeemOpen(false)}
+        onChange={setRedeemForm}
+        onSubmit={handleRedeemSubmit}
+      />
+    </DashboardShell>
+  );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] pb-24 pt-0 font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
+        <BackgroundPattern />
+
+        <div className="relative z-10 mx-auto flex w-full max-w-[1280px] flex-col gap-10 px-4 py-6 lg:px-8">
+          {children}
+        </div>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
+
+function BackgroundPattern() {
+  return (
+    <>
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-40 mix-blend-multiply"
+        style={{
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute left-[10%] top-[-5%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/60 blur-[110px]" />
+        <div className="absolute right-[-7%] top-[8%] h-[340px] w-[340px] rounded-full bg-[#D9EAFF]/60 blur-[110px]" />
+        <div className="absolute bottom-[12%] left-[35%] h-[460px] w-[460px] rounded-full bg-white/70 blur-[120px]" />
+      </div>
+    </>
+  );
+}
+
+function SectionWrapper({
+  children,
+  id,
+}: {
+  children: React.ReactNode;
+  id?: string;
+}) {
+  return (
+    <section
+      id={id}
+      className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/62 px-5 py-8 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:px-8 md:py-10"
+    >
+      {children}
+    </section>
+  );
+}
+
+function HeroHeader({
+  displayName,
+  refreshing,
+  currentTime,
+  onRefresh,
+  onOpenQuickAdd,
+  onOpenEnergy,
+}: {
+  displayName: string;
+  refreshing: boolean;
+  currentTime?: string;
+  onRefresh: () => void;
+  onOpenQuickAdd: () => void;
+  onOpenEnergy: () => void;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[40px] border border-white bg-white shadow-[0_22px_80px_rgba(26,21,40,0.06)] md:rounded-[48px]">
+      <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#DCD1FF_100%)] px-5 py-12 md:px-10 md:py-16">
+        <div className="pointer-events-none absolute left-[8%] top-[-20%] h-[360px] w-[360px] rounded-full bg-white/45 blur-[90px]" />
+        <div className="pointer-events-none absolute right-[-8%] top-[12%] h-[340px] w-[340px] rounded-full bg-[#D9EAFF]/70 blur-[100px]" />
+
+        <div className="relative z-10 mx-auto max-w-4xl text-center">
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5" />
+            Dashboard cá nhân
+            {currentTime ? <span className="text-[#8A84A3]">· {currentTime}</span> : null}
+          </div>
+
+          <h1 className="mx-auto max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-[900] leading-[1.02] tracking-tight text-[#1A1528]">
+            Chào {displayName}, chọn đúng việc cho{" "}
+            <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+              đúng thời điểm
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-[700px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16.5px]">
+            Theo dõi task, focus session, năng lượng và điểm thưởng bằng dữ liệu thật từ hành vi sử dụng của bạn.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenQuickAdd}
+              className="group flex min-h-[58px] items-center gap-3 rounded-2xl bg-[#1A1528] px-6 py-3 text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-black"
+            >
+              <Plus className="h-4 w-4 text-[#4DA8FF]" />
+              <div className="flex flex-col text-left">
+                <span className="text-[9px] font-bold uppercase leading-none tracking-wider text-gray-400">
+                  HÀNH ĐỘNG
+                </span>
+                <span className="text-[14px] font-bold leading-tight">
+                  Thêm task mới
+                </span>
+              </div>
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenEnergy}
+              className="group flex min-h-[58px] items-center gap-2.5 rounded-2xl border border-white/80 bg-white/85 px-6 py-3 text-[#1A1528] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F3F0FF]">
+                <Activity className="h-3.5 w-3.5 text-[#6F59FF]" />
+              </div>
+              <span className="text-[14px] font-bold leading-tight">
+                Check-in năng lượng
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="group flex min-h-[58px] items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-6 py-3 text-[#1A1528] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white disabled:opacity-60"
+            >
+              {refreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#6F59FF]" />
+              ) : (
+                <RefreshCw className="h-4 w-4 text-[#6F59FF]" />
+              )}
+              <span className="text-[14px] font-bold leading-tight">Làm mới</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  helper,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  icon: React.ReactNode;
+  tone: Tone;
+}) {
+  const style = getTone(tone);
+
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_18px_45px_rgba(26,21,40,0.05)] transition-all duration-300 ${style.card}`}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-white/55 blur-3xl" />
+
+      <div className="relative z-10 mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/80 bg-white/90 shadow-sm">
+        <div className={style.text}>{icon}</div>
+      </div>
+
+      <div className="relative z-10 text-[10px] font-black uppercase tracking-[0.18em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="relative z-10 mt-2 text-[30px] font-[900] leading-none text-[#1A1528]">
+        {value}
+      </div>
+      <p className="relative z-10 mt-3 text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
+        {helper}
+      </p>
+    </motion.div>
+  );
+}
+
+function CommandCenter({
+  today,
+  nextTask,
+  chronotype,
+  nowStatus,
+  donePercent,
+  actions,
+  onOpenQuickAdd,
+  onOpenEnergy,
+  onCreateSampleTask,
+  suggestedPeakStart,
+  quickAddLoading,
+}: {
+  today: DashboardData["today"];
+  nextTask: DashboardTask | null;
+  chronotype?: DashboardData["chronotype"];
+  nowStatus?: DashboardData["nowStatus"];
+  donePercent: number;
+  actions: ActionItem[];
+  onOpenQuickAdd: () => void;
+  onOpenEnergy: () => void;
+  onCreateSampleTask: (sample: Partial<QuickTaskForm>) => void;
+  suggestedPeakStart: string;
+  quickAddLoading: boolean;
+}) {
+  return (
+    <Panel className="overflow-hidden p-0">
+      <div className="relative grid items-start gap-6 bg-[linear-gradient(135deg,#F5F3FF_0%,#EEF6FF_52%,#FFFFFF_100%)] p-5 md:p-6 xl:grid-cols-[0.82fr_1.18fr]">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#DCCEFF]/70 blur-[90px]" />
+
+        <div className="relative z-10">
+          <Pill tone="purple" icon={<Target className="h-3.5 w-3.5" />}>
+            Điều hướng hôm nay
+          </Pill>
+          <h2 className="mt-3 text-[28px] font-[900] leading-tight text-[#1A1528]">
+            Gợi ý cho thời điểm hiện tại
+          </h2>
+          <p className="mt-2 max-w-[560px] text-[14px] font-medium leading-relaxed text-[#6B647C]">
+            {nowStatus?.description || "Hãy thêm task hoặc check-in năng lượng để dashboard có dữ liệu thật."}
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <MiniMetric label="Task xong" value={`${today?.completedTasks ?? 0}/${today?.totalTasks ?? 0}`} />
+            <MiniMetric label="Hoàn thành" value={`${donePercent}%`} />
+            <MiniMetric label="Đúng nhịp" value={`${today?.alignmentScore ?? 0}%`} />
+          </div>
+
+          <div className="mt-4 rounded-[24px] border border-white/80 bg-white/82 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+                  Trạng thái hiện tại
+                </div>
+                <div className="mt-1 text-[18px] font-[900] text-[#1A1528]">
+                  {nowStatus?.label || "Chưa đủ dữ liệu"}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-[#F3F0FF] px-3 py-2 text-[13px] font-black text-[#6F59FF]">
+                {nowStatus?.currentTime || "Now"}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenEnergy}
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[#1A1528] px-4 py-2.5 text-[13px] font-bold text-white"
+            >
+              <Activity className="h-4 w-4 text-[#4DA8FF]" />
+              Cập nhật năng lượng
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <MiniMetric label="Peak" value={chronotype?.peakWindow || "Chưa đủ dữ liệu"} />
+            <MiniMetric label="Recovery" value={chronotype?.recoveryWindow || "Chưa đủ dữ liệu"} />
+          </div>
+        </div>
+
+        <div className="relative z-10 grid gap-4 rounded-[30px] border border-white/80 bg-white/88 p-5 shadow-[0_18px_45px_rgba(26,21,40,0.06)] backdrop-blur-xl">
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+            Bước nên làm tiếp
+          </div>
+
+          {nextTask ? (
+            <div className="rounded-[24px] border border-[#E9E5FF] bg-[#FBF9FF] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6F59FF] shadow-sm">
+                  {nextTask.typeLabel || "Task"}
+                </span>
+                <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#8A84A3] shadow-sm">
+                  {formatTimeRange(nextTask.startTime, nextTask.endTime)}
+                </span>
+                {nextTask.energyRecommendation ? (
+                  <span
+                    className={`rounded-full px-3 py-1 text-[11px] font-black ${getRecommendationPill(
+                      nextTask.energyRecommendation.status,
+                    )}`}
+                  >
+                    {nextTask.energyRecommendation.label}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 text-[21px] font-[900] leading-tight text-[#1A1528]">
+                {nextTask.title}
+              </div>
+              <p className="mt-2 text-[13px] font-medium leading-relaxed text-[#6B647C]">
+                {nextTask.energyRecommendation?.description ||
+                  nextTask.explanation ||
+                  `Hoàn thành task này để giữ tiến độ hôm nay và nhận khoảng ${
+                    nextTask.coins ?? 0
+                  } điểm.`}
+              </p>
+              <Link
+                href={`/planner?taskId=${nextTask.id}`}
+                className="mt-5 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-bold text-white shadow-xl transition hover:-translate-y-0.5"
+              >
+                Mở task này <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-[26px] border border-[#EEF0F6] bg-[#F8F9FE] p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[16px] font-[900] text-[#1A1528]">
+                    Bắt đầu bằng dữ liệu thật
+                  </div>
+                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-[#6B647C]">
+                    Thêm task thật hoặc check-in năng lượng để ChronoFlow có dữ liệu phân tích.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <SampleTaskButton
+                  disabled={quickAddLoading}
+                  label="Deep Work 45p"
+                  helper={suggestedPeakStart || "Chưa có peak"}
+                  onClick={() =>
+                    onCreateSampleTask({
+                      name: "Deep Work 45 phút",
+                      type: "DEEP_WORK",
+                      priority: "HIGH",
+                      durationMinutes: "45",
+                      scheduledDate: todayKey(),
+                      startTime: suggestedPeakStart,
+                    })
+                  }
+                />
+                <SampleTaskButton
+                  disabled={quickAddLoading}
+                  label="Việc nhẹ 20p"
+                  helper="Admin"
+                  onClick={() =>
+                    onCreateSampleTask({
+                      name: "Việc nhẹ 20 phút",
+                      type: "ADMIN",
+                      priority: "MEDIUM",
+                      durationMinutes: "20",
+                      scheduledDate: todayKey(),
+                      startTime: "",
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={onOpenEnergy}
+                  className="rounded-[20px] border border-white bg-white/85 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  <div className="text-[13px] font-[900] text-[#1A1528]">
+                    Check-in năng lượng
+                  </div>
+                  <div className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+                    Manual
+                  </div>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenQuickAdd}
+                className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-bold text-white shadow-xl transition hover:-translate-y-0.5"
+              >
+                <Plus className="h-4 w-4 text-[#4DA8FF]" />
+                Tự thêm task
+              </button>
+            </div>
+          )}
+
+          {actions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {actions.slice(0, 2).map((action) => (
+                <ActionRow key={action.id} action={action} compact />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function SampleTaskButton({
+  label,
+  helper,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  helper: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-[20px] border border-white bg-white/85 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <div className="text-[13px] font-[900] text-[#1A1528]">{label}</div>
+      <div className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+        {helper}
+      </div>
+    </button>
+  );
+}
+
+function EnergyPanel({
+  chronotype,
+  energyCurve,
+  energyScore,
+  insight,
+  checkins,
+  onOpenEnergy,
+}: {
+  chronotype?: DashboardData["chronotype"];
+  energyCurve: EnergyPoint[];
+  energyScore: number | null;
+  insight?: DashboardData["energyInsight"];
+  checkins: EnergyCheckin[];
+  onOpenEnergy: () => void;
+}) {
+  const chronotypeLabel = chronotype?.label || "Chưa có chronotype";
+  const peak = chronotype?.peakWindow || insight?.peakWindow || "Chưa đủ dữ liệu";
+  const recovery = chronotype?.recoveryWindow || insight?.recoveryWindow || "Chưa đủ dữ liệu";
+  const hasCurve = energyCurve.length >= 2;
+
+  return (
+    <Panel className="p-5 md:p-6">
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <Pill tone="purple" icon={<BarChart3 className="h-3.5 w-3.5" />}>
+            Bản đồ năng lượng thật
+          </Pill>
+          <h2 className="mt-3 text-[30px] font-[900] leading-tight text-[#1A1528]">
+            {chronotypeLabel}
+          </h2>
+          <p className="mt-2 max-w-[660px] text-[14px] font-medium leading-relaxed text-[#6B647C]">
+            {insight?.summary || "Energy score và đường năng lượng được lấy từ check-in thật của bạn."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+          <MiniMetric label="Energy" value={formatEnergyScore(energyScore)} />
+          <MiniMetric label="Check-ins" value={`${checkins.length}`} />
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[24px] border border-[#ECE8FF] bg-[linear-gradient(180deg,#FAF8FF_0%,#FFFFFF_100%)] p-4">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-[220px] w-full">
+      <div className="grid gap-5">
+        <div className="rounded-[30px] border border-[#E9E5FF] bg-[#FBF9FF] p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+              Đường năng lượng từ check-in
+            </div>
+            <button
+              type="button"
+              onClick={onOpenEnergy}
+              className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6F59FF] shadow-sm"
+            >
+              Check-in
+            </button>
+          </div>
+
+          {hasCurve ? (
+            <EnergyLineChart points={energyCurve} />
+          ) : (
+            <EmptyState
+              icon={<Activity className="h-5 w-5" />}
+              title="Chưa đủ dữ liệu năng lượng"
+              desc="Bạn cần check-in năng lượng vài lần trong ngày để ChronoFlow vẽ đường năng lượng cá nhân."
+              cta="Check-in ngay"
+              onAction={onOpenEnergy}
+            />
+          )}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <InsightCard
+            icon={<Zap className="h-5 w-5" />}
+            title="Khung deep work"
+            value={peak}
+            desc="Được suy ra từ dữ liệu check-in thật. Nếu chưa đủ dữ liệu, hệ thống sẽ không tự bịa."
+            tone="purple"
+          />
+          <InsightCard
+            icon={<Coffee className="h-5 w-5" />}
+            title="Khung hồi phục"
+            value={recovery}
+            desc="Chỉ hiển thị khi có đủ dữ liệu thật hoặc được lưu từ hệ thống."
+            tone="green"
+          />
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function EnergyLineChart({ points }: { points: EnergyPoint[] }) {
+  const safe = points.map((point) => ({ hour: point.hour, value: clamp(point.value, 0, 100) }));
+  const width = 640;
+  const height = 220;
+  const paddingX = 26;
+  const paddingY = 22;
+  const step = safe.length > 1 ? (width - paddingX * 2) / (safe.length - 1) : 0;
+  const coords = safe.map((point, index) => {
+    const x = paddingX + index * step;
+    const y = height - paddingY - (clamp(point.value, 0, 100) / 100) * (height - paddingY * 2);
+    return { ...point, x, y };
+  });
+  const path = coords.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const area = `${path} L ${width - paddingX} ${height - paddingY} L ${paddingX} ${height - paddingY} Z`;
+
+  return (
+    <div>
+      <div className="relative overflow-hidden rounded-[26px] border border-white bg-white/75 p-3 shadow-inner">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] w-full" role="img" aria-label="Energy curve">
           <defs>
-            <linearGradient id="energyLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="energyStroke" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#6F59FF" />
               <stop offset="100%" stopColor="#4DA8FF" />
             </linearGradient>
-            <linearGradient id="energyAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="rgba(111,89,255,0.25)" />
-              <stop offset="100%" stopColor="rgba(77,168,255,0.04)" />
+            <linearGradient id="energyFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6F59FF" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#4DA8FF" stopOpacity="0.02" />
             </linearGradient>
           </defs>
 
-          {[0.25, 0.5, 0.75].map((ratio) => (
-            <line
-              key={ratio}
-              x1={paddingX}
-              y1={height - paddingY - ratio * (height - paddingY * 2)}
-              x2={width - paddingX}
-              y2={height - paddingY - ratio * (height - paddingY * 2)}
-              stroke="#E9E5FF"
-              strokeDasharray="6 8"
-            />
-          ))}
+          {[25, 50, 75].map((line) => {
+            const y = height - paddingY - (line / 100) * (height - paddingY * 2);
+            return <line key={line} x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="#E9E5FF" strokeDasharray="6 8" />;
+          })}
 
-          <path d={areaPath} fill="url(#energyAreaGradient)" />
-          <path
-            d={linePath}
-            fill="none"
-            stroke="url(#energyLineGradient)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <motion.path initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} d={area} fill="url(#energyFill)" />
+          <motion.path initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.9, ease: "easeOut" }} d={path} fill="none" stroke="url(#energyStroke)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
 
-          {coordinates.map((point) => (
-            <g key={point.label}>
-              <circle cx={point.x} cy={point.y} r="5.5" fill="#6F59FF" />
-              <circle cx={point.x} cy={point.y} r="10" fill="rgba(111,89,255,0.12)" />
+          {coords.map((point) => (
+            <g key={point.hour}>
+              <circle cx={point.x} cy={point.y} r="7" fill="white" stroke="#6F59FF" strokeWidth="4" />
+              <text x={point.x} y={height - 2} textAnchor="middle" className="fill-[#8A84A3] text-[18px] font-bold">
+                {point.hour}
+              </text>
             </g>
-          ))}
-
-          {coordinates.map((point) => (
-            <text
-              key={`label-${point.label}`}
-              x={point.x}
-              y={height - 4}
-              textAnchor="middle"
-              className="fill-[#8A84A3] text-[11px] font-bold"
-            >
-              {point.label}
-            </text>
           ))}
         </svg>
       </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <MiniMetric label="Thấp nhất" value={`${Math.min(...safe.map((p) => p.value))}%`} />
+        <MiniMetric label="Cao nhất" value={`${Math.max(...safe.map((p) => p.value))}%`} />
+        <MiniMetric label="Trung bình" value={`${Math.round(safe.reduce((s, p) => s + p.value, 0) / safe.length)}%`} />
+      </div>
     </div>
   );
 }
 
-function FocusWindowPanel({
-  icon,
-  title,
-  tone,
-  items,
-  emptyText,
+function FocusCard({
+  nextTask,
+  chronotype,
+  activeFocus,
+  elapsedSeconds,
+  focusLoading,
+  focusMessage,
+  onStartFocus,
+  onFinishFocus,
+  onOpenQuickAdd,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  tone: "good" | "warn";
-  items: Array<{ id: string; name: string; scheduledTime: string; duration: string }>;
-  emptyText: string;
+  nextTask: DashboardTask | null;
+  chronotype?: DashboardData["chronotype"];
+  activeFocus: ActiveFocusSession | null;
+  elapsedSeconds: number;
+  focusLoading: boolean;
+  focusMessage: string | null;
+  onStartFocus: (taskId?: string | null) => void;
+  onFinishFocus: (completeTask?: boolean) => void;
+  onOpenQuickAdd: () => void;
 }) {
-  const toneClasses =
-    tone === "good"
-      ? "bg-[#F3FFF8] border-[#DDF5E7] text-[#2E7C59]"
-      : "bg-[#FFF8F1] border-[#FCE7D3] text-[#B86B00]";
-
   return (
-    <div className="rounded-[32px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[12px] font-black uppercase tracking-[0.14em] ${toneClasses}`}>
-        {icon}
-        {title}
-      </div>
+    <Panel className="overflow-hidden p-0">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#1A1528] via-[#201A35] to-[#111827] p-6 text-white">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#6F59FF]/35 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-[-70px] left-10 h-48 w-48 rounded-full bg-[#4DA8FF]/25 blur-3xl" />
 
-      <div className="mt-4 space-y-3">
-        {items.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-[#D9CEFF] bg-[#FAF8FF] px-4 py-5 text-[13px] font-medium leading-relaxed text-[#615C7A]">
-            {emptyText}
+        <div className="relative z-10">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/80">
+            <Timer className="h-3.5 w-3.5 text-[#4DA8FF]" />
+            Phiên tập trung
           </div>
-        ) : (
-          items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-[22px] border border-[#ECE8FF] bg-[#FAF8FF] px-4 py-4"
-            >
-              <div className="text-[15px] font-[900] tracking-tight text-[#241F3D]">
-                {item.name}
+
+          <h2 className="text-[26px] font-[900] leading-tight">
+            {activeFocus ? "Đang focus" : "Phiên tiếp theo"}
+          </h2>
+
+          {activeFocus ? (
+            <>
+              <div className="mt-5 rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  Timer
+                </div>
+                <div className="mt-2 text-[44px] font-[900] leading-none tracking-[-0.04em]">
+                  {formatElapsed(elapsedSeconds)}
+                </div>
+                <div className="mt-3 text-[14px] font-semibold text-white/70">
+                  {activeFocus.task?.name || "Focus session không gắn task"}
+                </div>
               </div>
-              <div className="mt-1.5 text-[13px] font-medium text-[#615C7A]">
-                {parseTaskTimeLabel(item.scheduledTime)} • {item.duration}
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={focusLoading}
+                  onClick={() => onFinishFocus(true)}
+                  className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white px-5 text-[14px] font-black text-[#1A1528] shadow-xl transition hover:-translate-y-0.5 disabled:opacity-60"
+                >
+                  {focusLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#6F59FF]" /> : <Square className="h-4 w-4 text-[#6F59FF]" />}
+                  Kết thúc & hoàn thành
+                </button>
+
+                <button
+                  type="button"
+                  disabled={focusLoading}
+                  onClick={() => onFinishFocus(false)}
+                  className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 text-[14px] font-black text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:opacity-60"
+                >
+                  Chỉ lưu thời gian
+                </button>
               </div>
+            </>
+          ) : nextTask ? (
+            <>
+              <div className="mt-5 rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  Task đề xuất
+                </div>
+                <div className="mt-2 text-[20px] font-[900]">{nextTask.title}</div>
+                <div className="mt-2 text-[13px] font-semibold text-white/65">
+                  {formatTimeRange(nextTask.startTime, nextTask.endTime)} ·{" "}
+                  {formatMinutesShort(nextTask.estimatedMinutes ?? 0)}
+                </div>
+                {nextTask.energyRecommendation ? (
+                  <div className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-[12px] font-semibold leading-relaxed text-white/70">
+                    {nextTask.energyRecommendation.description}
+                  </div>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                disabled={focusLoading}
+                onClick={() => onStartFocus(nextTask.id)}
+                className="mt-5 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 text-[14px] font-black text-[#1A1528] shadow-xl transition hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                {focusLoading ? <Loader2 className="h-4 w-4 animate-spin text-[#6F59FF]" /> : <Play className="h-4 w-4 text-[#6F59FF]" />}
+                Bắt đầu focus
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mt-5 rounded-[26px] border border-white/10 bg-white/10 p-4 text-[14px] font-medium leading-relaxed text-white/70 backdrop-blur-md">
+                Chưa có phiên tập trung sẵn sàng. Hãy thêm một task thật để bắt đầu focus.
+              </div>
+              <button
+                type="button"
+                onClick={onOpenQuickAdd}
+                className="mt-5 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 text-[14px] font-black text-[#1A1528] shadow-xl transition hover:-translate-y-0.5"
+              >
+                <Plus className="h-4 w-4 text-[#6F59FF]" />
+                Thêm task để focus
+              </button>
+            </>
+          )}
+
+          {focusMessage ? (
+            <div className="mt-4 rounded-2xl bg-white/10 px-4 py-3 text-[12px] font-bold text-white/75">
+              {focusMessage}
             </div>
-          ))
-        )}
+          ) : null}
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <DarkMiniMetric label="Peak" value={chronotype?.peakWindow || "Chưa đủ dữ liệu"} />
+            <DarkMiniMetric label="Recovery" value={chronotype?.recoveryWindow || "Chưa đủ dữ liệu"} />
+          </div>
+        </div>
       </div>
+    </Panel>
+  );
+}
+
+function SmartSuggestions({
+  suggestions,
+  onOpenQuickAdd,
+  onOpenEnergy,
+}: {
+  suggestions: ActionItem[];
+  onOpenQuickAdd: () => void;
+  onOpenEnergy: () => void;
+}) {
+  return (
+    <Panel className="p-5">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <Pill tone="blue" icon={<Sparkles className="h-3.5 w-3.5" />}>
+            Gợi ý thông minh
+          </Pill>
+          <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+            Việc nên ưu tiên
+          </h2>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onOpenEnergy} className="rounded-2xl bg-[#EEF6FF] px-4 py-2 text-[12px] font-black text-[#4DA8FF] transition hover:-translate-y-0.5">
+            Check-in
+          </button>
+          <button type="button" onClick={onOpenQuickAdd} className="rounded-2xl bg-[#F3F0FF] px-4 py-2 text-[12px] font-black text-[#6F59FF] transition hover:-translate-y-0.5">
+            Thêm task
+          </button>
+        </div>
+      </div>
+
+      {suggestions.length === 0 ? (
+        <SuccessBox title="Không có gợi ý khẩn cấp" desc="Dashboard chưa phát hiện vấn đề từ dữ liệu hiện có." />
+      ) : (
+        <div className="space-y-3">
+          {suggestions.slice(0, 4).map((item) => (
+            <ActionRow key={item.id} action={item} />
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function PlannerBoard({
+  tasks,
+  priorityQueue,
+  onOpenQuickAdd,
+}: {
+  tasks: DashboardTask[];
+  priorityQueue: DashboardTask[];
+  onOpenQuickAdd: () => void;
+}) {
+  const hasTasks = tasks.length > 0 || priorityQueue.length > 0;
+
+  return (
+    <Panel className="p-5 md:p-6">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <Pill tone="blue" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+            Kế hoạch hôm nay
+          </Pill>
+          <h2 className="mt-3 text-[26px] font-[900] text-[#1A1528]">
+            Timeline & hàng đợi ưu tiên
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenQuickAdd}
+          className="inline-flex items-center gap-2 text-[13px] font-black text-[#6F59FF]"
+        >
+          Thêm task <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      {hasTasks ? (
+        <div className="grid gap-5 xl:grid-cols-2">
+          <TodayTimeline tasks={tasks} />
+          <PriorityQueue tasks={priorityQueue} embedded />
+        </div>
+      ) : (
+        <div className="rounded-[30px] border border-[#EEF0F6] bg-[#F8F9FE] p-6">
+          <EmptyState
+            icon={<CalendarDays className="h-5 w-5" />}
+            title="Lịch hôm nay đang trống"
+            desc="Thêm task thật và chọn thời gian dự kiến để tạo timeline làm việc trong ngày."
+            cta="Thêm task"
+            onAction={onOpenQuickAdd}
+          />
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function TodayTimeline({ tasks }: { tasks: DashboardTask[] }) {
+  const sorted = [...tasks].sort((a, b) => {
+    const aTime = minutesFromTime(a.startTime) ?? 9999;
+    const bTime = minutesFromTime(b.startTime) ?? 9999;
+    return aTime - bTime;
+  });
+
+  return (
+    <div className="rounded-[28px] border border-[#EEF0F6] bg-[#F8F9FE] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+          Timeline
+        </div>
+        <div className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#6F59FF] shadow-sm">
+          {tasks.length} task
+        </div>
+      </div>
+
+      {sorted.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDays className="h-5 w-5" />}
+          title="Chưa có task trong timeline"
+          desc="Task có khung giờ sẽ xuất hiện ở đây."
+          cta="Xem planner"
+          href="/planner"
+        />
+      ) : (
+        <div className="space-y-3">
+          {sorted.slice(0, 5).map((task) => (
+            <TaskRow key={task.id} task={task} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function WeeklyHeatmapMini({
-  items,
-}: {
-  items: Array<{ label: string; total: number; completed: number; intensity: number }>;
-}) {
-  const colors = [
-    "bg-[#F3EEFF]",
-    "bg-[#DED4FF]",
-    "bg-[#BDAAFF]",
-    "bg-[#8B6DFF]",
-    "bg-[#6F59FF]",
-  ];
+function PriorityQueue({ tasks, embedded = false }: { tasks: DashboardTask[]; embedded?: boolean }) {
+  const content =
+    tasks.length === 0 ? (
+      <EmptyState
+        icon={<CheckCircle2 className="h-5 w-5" />}
+        title="Không có task chờ xử lý"
+        desc="Các task chưa hoàn thành hôm nay sẽ xuất hiện ở đây."
+        cta="Mở planner"
+        href="/planner"
+      />
+    ) : (
+      <div className="space-y-3">
+        {tasks.slice(0, 5).map((task) => (
+          <TaskRow key={task.id} task={task} />
+        ))}
+      </div>
+    );
+
+  if (embedded) {
+    return (
+      <div className="rounded-[28px] border border-[#EEF0F6] bg-white/75 p-5">
+        <div className="mb-4 text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+          Priority queue
+        </div>
+        {content}
+      </div>
+    );
+  }
+
+  return <Panel className="p-5">{content}</Panel>;
+}
+
+function TaskRow({ task }: { task: DashboardTask }) {
+  const tone = taskToneMap[String(task.type || "deep")] || taskToneMap.deep;
+  const done = task.status === "done";
+  const recommendation = task.energyRecommendation;
 
   return (
-    <div className="rounded-[28px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className="mb-4 text-[13px] font-bold text-[#615C7A]">
-        Mật độ hoàn thành trong tuần
+    <Link
+      href={`/planner?taskId=${task.id}`}
+      className={`group flex items-center gap-4 rounded-[24px] border p-4 transition hover:-translate-y-0.5 hover:shadow-sm ${tone.card}`}
+    >
+      <div className={`h-3 w-3 shrink-0 rounded-full ${done ? "bg-[#10B981]" : tone.dot}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="truncate text-[15px] font-[900] text-[#1A1528]">{task.title}</div>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${tone.pill}`}>
+            {task.typeLabel || tone.label}
+          </span>
+          {recommendation ? (
+            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${getRecommendationPill(recommendation.status)}`}>
+              {recommendation.label}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-1 text-[12px] font-bold text-[#8A84A3]">
+          {formatTimeRange(task.startTime, task.endTime)} · {formatMinutesShort(task.estimatedMinutes ?? 0)} · +{task.coins ?? 0} điểm
+        </div>
+        {recommendation ? (
+          <div className="mt-2 text-[12px] font-semibold leading-relaxed text-[#6B647C]">
+            {recommendation.description}
+          </div>
+        ) : null}
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-[#8A84A3] transition group-hover:translate-x-1 group-hover:text-[#6F59FF]" />
+    </Link>
+  );
+}
+
+function FocusAlignmentPanel({ alignment }: { alignment?: DashboardData["focusAlignment"] }) {
+  const aligned = alignment?.alignedCount ?? 0;
+  const misaligned = alignment?.misalignedCount ?? 0;
+  const total = aligned + misaligned;
+  const score = alignment?.score ?? (total === 0 ? 0 : Math.round((aligned / total) * 100));
+  const misalignedTasks = alignment?.misalignedTasks ?? [];
+
+  return (
+    <Panel className="p-5">
+      <div className="mb-5">
+        <Pill tone="purple" icon={<Target className="h-3.5 w-3.5" />}>
+          Độ khớp nhịp
+        </Pill>
+        <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+          Task có đúng dữ liệu năng lượng không?
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <MiniMetric label="Score" value={`${score}%`} />
+        <MiniMetric label="Đúng nhịp" value={`${aligned}`} />
+        <MiniMetric label="Lệch nhịp" value={`${misaligned}`} />
+      </div>
+
+      <ProgressBar value={score} className="mt-5" />
+
+      {total === 0 ? (
+        <p className="mt-4 text-[13px] font-medium leading-relaxed text-[#6B647C]">
+          Cần task có giờ và đủ dữ liệu check-in để tính alignment.
+        </p>
+      ) : (
+        <p className="mt-4 text-[13px] font-medium leading-relaxed text-[#6B647C]">
+          {score >= 70
+            ? "Lịch hôm nay khá khớp với dữ liệu năng lượng hiện có."
+            : "Một số task nặng đang lệch khỏi khung năng lượng tốt nhất."}
+        </p>
+      )}
+
+      {misalignedTasks.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          {misalignedTasks.slice(0, 3).map((task) => (
+            <TaskRow key={task.id} task={task} />
+          ))}
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
+function RewardProgress({
+  rewards,
+  onRedeem,
+}: {
+  rewards?: DashboardData["rewards"];
+  onRedeem: (reward?: RewardMilestone | null) => void;
+}) {
+  const points = rewards?.currentPoints ?? 0;
+  const earned = rewards?.earnedPoints ?? points;
+  const spent = rewards?.spentPoints ?? 0;
+  const progress = rewards?.progressToNext ?? 0;
+  const next = rewards?.nextMilestone ?? null;
+  const redemptions = rewards?.recentRedemptions ?? [];
+  const milestones = rewards?.milestones ?? [];
+
+  return (
+    <Panel className="overflow-hidden p-0">
+      <div className="bg-[linear-gradient(135deg,#FFF8EF_0%,#F8F4FF_52%,#EEF7FF_100%)] p-5">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <Pill tone="orange" icon={<Gift className="h-3.5 w-3.5" />}>
+              Planner Kit
+            </Pill>
+            <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+              Tiến độ đổi thưởng
+            </h2>
+            <p className="mt-1 text-[13px] font-medium text-[#6B647C]">
+              {points} điểm khả dụng · đã dùng {spent} điểm
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#F59E0B] shadow-sm">
+            <Coins className="h-5 w-5" />
+          </div>
+        </div>
+
+        {milestones.length === 0 ? (
+          <EmptyState
+            icon={<Gift className="h-5 w-5" />}
+            title="Chưa có phần thưởng khả dụng"
+            desc="Hãy thêm RewardItem trong database để user có thể đổi thưởng thật."
+            cta="Không có reward"
+            href="/dashboard"
+          />
+        ) : (
+          <>
+            <div className="rounded-[24px] border border-white/80 bg-white/70 p-4">
+              <div className="mb-2 flex justify-between gap-3 text-[13px] font-black">
+                <span>{next?.title || "Đã đủ tất cả mốc hiện có"}</span>
+                <span className="text-[#6F59FF]">{progress}%</span>
+              </div>
+              <ProgressBar value={progress} />
+              <div className="mt-3 text-[12px] font-bold text-[#6B647C]">
+                Đã kiếm: {earned} điểm · Mốc tiếp theo: {next?.points ?? 0} điểm
+              </div>
+              <div className="mt-3 rounded-[18px] bg-white px-4 py-3 text-[12px] font-bold leading-relaxed text-[#6B647C]">
+                {rewards?.earningRule || "Điểm được tính từ FocusSession COMPLETED trong database."}
+              </div>
+              <button
+                type="button"
+                onClick={() => onRedeem(next)}
+                disabled={!next}
+                className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-bold text-white shadow-xl transition hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                <PackageCheck className="h-4 w-4 text-[#F59E0B]" />
+                Đổi thưởng
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {milestones.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => onRedeem(item)}
+                  className="flex items-center justify-between rounded-[18px] bg-white/70 px-4 py-3 text-left text-[13px] font-bold transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  <span>{item.title}</span>
+                  <span className={item.unlocked ? "text-[#10B981]" : "text-[#8A84A3]"}>
+                    {item.unlocked ? "Đủ điểm" : `${item.points} điểm`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {redemptions.length > 0 ? (
+          <div className="mt-4 rounded-[22px] border border-white/70 bg-white/60 p-4">
+            <div className="mb-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+              Yêu cầu gần đây
+            </div>
+            <div className="space-y-2">
+              {redemptions.slice(0, 3).map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 text-[12px] font-bold">
+                  <span>{item.rewardTitle}</span>
+                  <span className="text-[#6F59FF]">{translateRedemptionStatus(item.status)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}
+
+function WeekCalendar({ weekly }: { weekly: NonNullable<DashboardData["weekly"]> }) {
+  const days = normalizeWeek(weekly);
+  const maxFocus = Math.max(60, ...days.map((day) => day.focusMinutes ?? 0));
+
+  return (
+    <Panel className="p-5">
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <Pill tone="blue" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+            Tuần này
+          </Pill>
+          <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+            Lịch tuần trực quan
+          </h2>
+        </div>
+        <Link href="/planner" className="inline-flex items-center gap-1 text-[12px] font-black text-[#6F59FF]">
+          Xem lịch <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       <div className="grid grid-cols-7 gap-2">
-        {items.map((item) => (
-          <div key={item.label} className="text-center">
+        {days.map((day) => {
+          const height = clamp(Math.round(((day.focusMinutes ?? 0) / maxFocus) * 100), 8, 100);
+          return (
             <div
-              className={`mx-auto h-12 w-12 rounded-2xl border border-white shadow-sm ${colors[item.intensity]}`}
-              title={`${item.label}: ${item.completed}/${item.total}`}
+              key={day.date}
+              className={`rounded-[20px] border p-2 text-center ${
+                day.isToday ? "border-[#C9BEFF] bg-[#F3F0FF]" : "border-[#EEF0F6] bg-[#F8F9FE]"
+              }`}
+            >
+              <div className="text-[11px] font-black text-[#8A84A3]">{day.label}</div>
+              <div className="mt-3 flex h-28 items-end justify-center rounded-full bg-white/80 p-1 shadow-inner">
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${height}%` }}
+                  transition={{ duration: 0.55 }}
+                  className="w-full rounded-full bg-gradient-to-t from-[#6F59FF] to-[#4DA8FF]"
+                />
+              </div>
+              <div className="mt-2 text-[11px] font-black text-[#1A1528]">
+                {formatMinutesShort(day.focusMinutes ?? 0)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+function RecentFocus({ sessions }: { sessions: FocusSession[] }) {
+  return (
+    <Panel className="p-5">
+      <div className="mb-5">
+        <Pill tone="green" icon={<Target className="h-3.5 w-3.5" />}>
+          Focus gần đây
+        </Pill>
+        <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+          Lịch sử phiên tập trung
+        </h2>
+      </div>
+
+      {sessions.length === 0 ? (
+        <EmptyState
+          icon={<Timer className="h-5 w-5" />}
+          title="Chưa có phiên focus"
+          desc="Hoàn thành task có thời lượng tập trung để ghi nhận tiến độ và tích điểm."
+          cta="Mở planner"
+          href="/planner"
+        />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {sessions.slice(0, 4).map((session) => (
+            <div key={session.id} className="flex items-center justify-between gap-3 rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4">
+              <div>
+                <div className="text-[14px] font-[900] text-[#1A1528]">
+                  {session.taskTitle || "Focus session"}
+                </div>
+                <div className="mt-1 text-[12px] font-bold text-[#8A84A3]">
+                  {formatMinutes(session.durationMinutes)}
+                </div>
+              </div>
+              <div className="rounded-full bg-white px-3 py-1.5 text-[12px] font-black text-[#F59E0B] shadow-sm">
+                +{session.coinsEarned ?? 0} điểm
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function WeeklyInsightPanel({ data }: { data: DashboardData | null }) {
+  const insight = data?.weeklyInsight;
+
+  return (
+    <Panel className="p-5">
+      <div className="mb-5">
+        <Pill tone="purple" icon={<TrendingUp className="h-3.5 w-3.5" />}>
+          Tổng kết tuần
+        </Pill>
+        <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+          Nhìn lại dữ liệu tuần
+        </h2>
+      </div>
+
+      {insight ? (
+        <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-5">
+            <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+              {insight.weekLabel || "Tuần gần nhất"}
+            </div>
+            <p className="mt-3 text-[14px] font-medium leading-relaxed text-[#5B566E]">
+              {insight.summary || "Chưa có tổng kết chi tiết."}
+            </p>
+            {insight.recommendation ? (
+              <div className="mt-4 rounded-[20px] border border-[#E9E5FF] bg-white p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+                <span className="font-black text-[#6F59FF]">Gợi ý: </span>
+                {insight.recommendation}
+              </div>
+            ) : null}
+          </div>
+          <div className="grid gap-3">
+            <MiniMetric label="Alignment" value={`${insight.alignmentScore ?? 0}%`} />
+            <MiniMetric label="Task xong" value={`${insight.completedCount ?? 0}/${insight.totalCount ?? 0}`} />
+            <MiniMetric label="Deep work" value={`${insight.deepWorkCount ?? 0}`} />
+          </div>
+        </div>
+      ) : (
+        <EmptyState
+          icon={<BarChart3 className="h-5 w-5" />}
+          title="Chưa đủ dữ liệu tuần"
+          desc="Sau vài ngày sử dụng, ChronoFlow sẽ tổng hợp dữ liệu thật từ task, focus session và check-in."
+          cta="Mở planner"
+          href="/planner"
+        />
+      )}
+    </Panel>
+  );
+}
+
+function AttentionPanel({
+  alerts,
+  tasks,
+}: {
+  alerts: NonNullable<DashboardData["alerts"]>;
+  tasks: DashboardTask[];
+}) {
+  const derivedAlerts = useMemo(() => {
+    if (alerts.length > 0) return alerts;
+
+    const noTimeTasks = tasks.filter((task) => task.status !== "done" && !task.startTime);
+    if (noTimeTasks.length > 0) {
+      return [
+        {
+          id: "no-time",
+          title: "Có task chưa được đặt giờ",
+          description: "Một số task chưa có khung thời gian. Hãy đưa chúng vào timeline để dashboard trực quan hơn.",
+          type: "warning" as const,
+        },
+      ];
+    }
+
+    return [];
+  }, [alerts, tasks]);
+
+  return (
+    <Panel className="p-5">
+      <div className="mb-5">
+        <Pill tone="orange" icon={<AlertTriangle className="h-3.5 w-3.5" />}>
+          Cần chú ý
+        </Pill>
+        <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
+          Việc nên xử lý sớm
+        </h2>
+      </div>
+
+      {derivedAlerts.length === 0 ? (
+        <SuccessBox title="Không có cảnh báo lớn" desc="Dashboard chưa phát hiện vấn đề từ dữ liệu hiện có." />
+      ) : (
+        <div className="space-y-3">
+          {derivedAlerts.map((alert) => (
+            <div key={alert.id} className="rounded-[24px] border border-[#FFE6C7] bg-[#FFFDF8] p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#F59E0B]" />
+                <div>
+                  <div className="text-[15px] font-[900] text-[#1A1528]">{alert.title}</div>
+                  <p className="mt-1 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+                    {alert.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function QuickAddTaskModal({
+  open,
+  form,
+  loading,
+  error,
+  suggestedPeakStart,
+  onClose,
+  onChange,
+  onSubmit,
+}: {
+  open: boolean;
+  form: QuickTaskForm;
+  loading: boolean;
+  error: string | null;
+  suggestedPeakStart: string;
+  onClose: () => void;
+  onChange: React.Dispatch<React.SetStateAction<QuickTaskForm>>;
+  onSubmit: () => void;
+}) {
+  if (!open) return null;
+
+  function updateField<K extends keyof QuickTaskForm>(key: K, value: QuickTaskForm[K]) {
+    onChange((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit();
+  }
+
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="w-full max-w-[560px] rounded-[34px] border border-white/80 bg-white p-6 shadow-[0_30px_120px_rgba(26,21,40,0.20)]">
+        <ModalHeader title="Thêm task nhanh" desc="Tạo task thật ngay trên dashboard và lưu vào planner." onClose={onClose} />
+
+        <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+          <Field label="Tên task">
+            <input
+              value={form.name}
+              onChange={(event) => updateField("name", event.target.value)}
+              placeholder="Ví dụ: Viết báo cáo, học tiếng Trung..."
+              className="input-base"
             />
-            <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
-              {item.label}
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Loại task">
+              <select
+                value={form.type}
+                onChange={(event) => updateField("type", event.target.value as TaskTypeValue)}
+                className="input-base"
+              >
+                {taskTypeOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Độ ưu tiên">
+              <select
+                value={form.priority}
+                onChange={(event) => updateField("priority", event.target.value as PriorityValue)}
+                className="input-base"
+              >
+                {priorityOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Ngày">
+              <input
+                value={form.scheduledDate}
+                onChange={(event) => updateField("scheduledDate", event.target.value)}
+                type="date"
+                className="input-base"
+              />
+            </Field>
+
+            <Field label="Bắt đầu">
+              <input
+                value={form.startTime}
+                onChange={(event) => updateField("startTime", event.target.value)}
+                type="time"
+                className="input-base"
+              />
+            </Field>
+
+            <Field label="Thời lượng">
+              <input
+                value={form.durationMinutes}
+                onChange={(event) => updateField("durationMinutes", event.target.value)}
+                type="number"
+                min={5}
+                max={480}
+                className="input-base"
+              />
+            </Field>
+          </div>
+
+          <div className="rounded-[22px] border border-[#E9E5FF] bg-[#FBF9FF] p-4">
+            <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+              Gợi ý nhanh
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onChange((prev) => ({
+                    ...prev,
+                    name: "Deep Work 45 phút",
+                    type: "DEEP_WORK",
+                    priority: "HIGH",
+                    durationMinutes: "45",
+                    startTime: suggestedPeakStart,
+                  }))
+                }
+                className="rounded-2xl bg-white px-4 py-3 text-left text-[13px] font-black text-[#1A1528] shadow-sm transition hover:-translate-y-0.5"
+              >
+                Deep Work 45p {suggestedPeakStart ? `· ${suggestedPeakStart}` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange((prev) => ({
+                    ...prev,
+                    name: "Việc nhẹ 20 phút",
+                    type: "ADMIN",
+                    priority: "MEDIUM",
+                    durationMinutes: "20",
+                    startTime: "",
+                  }))
+                }
+                className="rounded-2xl bg-white px-4 py-3 text-left text-[13px] font-black text-[#1A1528] shadow-sm transition hover:-translate-y-0.5"
+              >
+                Việc nhẹ 20p
+              </button>
             </div>
           </div>
-        ))}
+
+          {error ? (
+            <div className="rounded-2xl bg-[#FFF7ED] px-4 py-3 text-[13px] font-bold text-[#F59E0B]">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} className="min-h-[48px] rounded-2xl border border-[#EEF0F6] bg-white px-5 text-[14px] font-bold text-[#1A1528]">
+              Huỷ
+            </button>
+            <button type="submit" disabled={loading} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[14px] font-bold text-white disabled:opacity-60">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 text-[#4DA8FF]" />}
+              Tạo task
+            </button>
+          </div>
+        </form>
       </div>
+    </ModalShell>
+  );
+}
+
+function EnergyCheckinModal({
+  open,
+  form,
+  loading,
+  error,
+  onClose,
+  onChange,
+  onSubmit,
+}: {
+  open: boolean;
+  form: EnergyCheckinForm;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+  onChange: React.Dispatch<React.SetStateAction<EnergyCheckinForm>>;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  if (!open) return null;
+
+  function updateField<K extends keyof EnergyCheckinForm>(key: K, value: EnergyCheckinForm[K]) {
+    onChange((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="w-full max-w-[520px] rounded-[34px] border border-white/80 bg-white p-6 shadow-[0_30px_120px_rgba(26,21,40,0.20)]">
+        <ModalHeader title="Check-in năng lượng" desc="Lưu mức năng lượng thật của bạn tại thời điểm hiện tại." onClose={onClose} />
+
+        <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+          <Field label="Điểm năng lượng 0–100">
+            <input
+              value={form.score}
+              onChange={(event) => updateField("score", event.target.value)}
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Ví dụ: 75"
+              className="input-base"
+            />
+          </Field>
+
+          <div className="grid grid-cols-4 gap-2">
+            {[25, 50, 75, 90].map((score) => (
+              <button
+                type="button"
+                key={score}
+                onClick={() => updateField("score", String(score))}
+                className="rounded-2xl border border-[#EEF0F6] bg-[#F8F9FE] px-3 py-3 text-[13px] font-black text-[#1A1528] transition hover:-translate-y-0.5 hover:bg-white"
+              >
+                {score}
+              </button>
+            ))}
+          </div>
+
+          <Field label="Ghi chú">
+            <textarea
+              value={form.note}
+              onChange={(event) => updateField("note", event.target.value)}
+              rows={3}
+              placeholder="Ví dụ: ngủ ít, vừa uống cà phê, đang tỉnh táo..."
+              className="input-base resize-none py-3"
+            />
+          </Field>
+
+          {error ? (
+            <div className="rounded-2xl bg-[#FFF7ED] px-4 py-3 text-[13px] font-bold text-[#F59E0B]">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} className="min-h-[48px] rounded-2xl border border-[#EEF0F6] bg-white px-5 text-[14px] font-bold text-[#1A1528]">
+              Huỷ
+            </button>
+            <button type="submit" disabled={loading} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[14px] font-bold text-white disabled:opacity-60">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4 text-[#4DA8FF]" />}
+              Lưu check-in
+            </button>
+          </div>
+        </form>
+      </div>
+    </ModalShell>
+  );
+}
+
+function RedeemModal({
+  open,
+  form,
+  rewards,
+  availablePoints,
+  loading,
+  error,
+  success,
+  onClose,
+  onChange,
+  onSubmit,
+}: {
+  open: boolean;
+  form: RedeemForm;
+  rewards: RewardMilestone[];
+  availablePoints: number;
+  loading: boolean;
+  error: string | null;
+  success: string | null;
+  onClose: () => void;
+  onChange: React.Dispatch<React.SetStateAction<RedeemForm>>;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  if (!open) return null;
+
+  const selectedReward = rewards.find((item) => item.id === form.rewardItemId) || rewards[0] || null;
+  const enoughPoints = selectedReward ? availablePoints >= selectedReward.points : false;
+
+  function updateField<K extends keyof RedeemForm>(key: K, value: RedeemForm[K]) {
+    onChange((prev) => ({ ...prev, [key]: value }));
+  }
+
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="w-full max-w-[620px] rounded-[34px] border border-white/80 bg-white p-6 shadow-[0_30px_120px_rgba(26,21,40,0.20)]">
+        <ModalHeader title="Đổi Planner Kit" desc="Gửi yêu cầu đổi thưởng bằng điểm focus thật đã tích luỹ." onClose={onClose} />
+
+        <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+          <Field label="Phần thưởng">
+            <select value={form.rewardItemId} onChange={(event) => updateField("rewardItemId", event.target.value)} className="input-base" disabled={rewards.length === 0}>
+              {rewards.length === 0 ? (
+                <option value="">Chưa có phần thưởng khả dụng</option>
+              ) : (
+                rewards.map((reward) => (
+                  <option key={reward.id} value={reward.id}>
+                    {reward.title} · {reward.points} điểm
+                  </option>
+                ))
+              )}
+            </select>
+          </Field>
+
+          <div className={`rounded-[22px] border p-4 ${enoughPoints ? "border-[#D1FAE5] bg-[#ECFDF5]" : "border-[#FFE6C7] bg-[#FFF7ED]"}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[13px] font-[900] text-[#1A1528]">
+                  {selectedReward?.title || "Chưa có phần thưởng"}
+                </div>
+                <div className="mt-1 text-[12px] font-bold text-[#6B647C]">
+                  Bạn có {availablePoints} điểm khả dụng
+                </div>
+              </div>
+              <div className={`rounded-full px-3 py-1.5 text-[12px] font-black ${enoughPoints ? "bg-white text-[#10B981]" : "bg-white text-[#F59E0B]"}`}>
+                {selectedReward ? (enoughPoints ? "Đủ điểm" : "Chưa đủ điểm") : "Không có reward"}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Tên người nhận">
+              <input value={form.recipientName} onChange={(event) => updateField("recipientName", event.target.value)} className="input-base" />
+            </Field>
+            <Field label="Số điện thoại">
+              <input value={form.phone} onChange={(event) => updateField("phone", event.target.value)} className="input-base" />
+            </Field>
+          </div>
+
+          <Field label="Địa chỉ nhận kit">
+            <input value={form.address} onChange={(event) => updateField("address", event.target.value)} className="input-base" />
+          </Field>
+
+          <Field label="Ghi chú">
+            <textarea value={form.note} onChange={(event) => updateField("note", event.target.value)} rows={3} className="input-base resize-none py-3" />
+          </Field>
+
+          {error ? (
+            <div className="rounded-2xl bg-[#FFF7ED] px-4 py-3 text-[13px] font-bold text-[#F59E0B]">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div className="rounded-2xl bg-[#ECFDF5] px-4 py-3 text-[13px] font-bold text-[#10B981]">
+              {success}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} className="min-h-[48px] rounded-2xl border border-[#EEF0F6] bg-white px-5 text-[14px] font-bold text-[#1A1528]">
+              Đóng
+            </button>
+            <button type="submit" disabled={loading || !enoughPoints || !selectedReward} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[14px] font-bold text-white disabled:opacity-60">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 text-[#F59E0B]" />}
+              Gửi yêu cầu
+            </button>
+          </div>
+        </form>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ModalShell({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 py-8">
+      <button type="button" aria-label="Đóng modal" onClick={onClose} className="absolute inset-0 bg-[#1A1528]/45 backdrop-blur-sm" />
+      <div className="relative z-10 max-h-[90vh] w-full overflow-y-auto">{children}</div>
     </div>
   );
 }
 
-function Chip({
-  children,
-  icon,
-}: {
-  children: React.ReactNode;
-  icon: React.ReactNode;
-}) {
+function ModalHeader({ title, desc, onClose }: { title: string; desc: string; onClose: () => void }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2.5 text-[13px] font-bold text-[#5F5A77] shadow-sm backdrop-blur-md">
-      {icon}
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h2 className="text-[28px] font-[900] tracking-[-0.03em] text-[#1A1528]">
+          {title}
+        </h2>
+        <p className="mt-1 text-[14px] font-medium leading-relaxed text-[#6B647C]">
+          {desc}
+        </p>
+      </div>
+      <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F8F9FE] text-[#6B647C] transition hover:bg-[#F3F0FF] hover:text-[#6F59FF]">
+        <X className="h-5 w-5" />
+      </button>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {label}
+      </span>
       {children}
-    </div>
+    </label>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-        {label}
-      </div>
-      <div className="mt-1.5 text-[22px] font-[900] tracking-tight text-[#241F3D]">
-        {value}
-      </div>
-      <div className="mt-1 text-[12.5px] font-medium text-[#615C7A]">{hint}</div>
-    </div>
-  );
-}
+function ActionRow({ action, compact = false }: { action: ActionItem; compact?: boolean }) {
+  const styles = getSuggestionStyle(action.tone || "info");
 
-function SummaryCard({
-  icon,
-  title,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: number | string;
-  hint: string;
-}) {
   return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ y: -5, scale: 1.02 }}
-      className="group rounded-[36px] border border-white/80 bg-white/70 p-7 shadow-[0_15px_40px_rgba(97,76,197,0.06)] backdrop-blur-xl"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="rounded-2xl bg-white p-3 text-[#6F59FF] shadow-sm ring-1 ring-black/5 transition-colors group-hover:bg-[#6F59FF] group-hover:text-white">
-          {icon}
+    <Link href={action.href} className={`group block rounded-[24px] border transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm ${compact ? "p-3" : "p-4"} ${styles.card}`}>
+      <div className="flex items-start gap-3">
+        <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ${styles.icon}`}>
+          {action.tone === "warning" ? (
+            <AlertTriangle className="h-4 w-4" />
+          ) : action.tone === "success" ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
         </div>
-        <div className="text-[2.5rem] font-[950] tracking-tighter text-[#241F3D]">{value}</div>
-      </div>
-      <div className="mt-5 text-[17px] font-[900] text-[#1A1528]">{title}</div>
-      <div className="mt-1.5 text-[13.5px] font-medium text-[#615C7A]">{hint}</div>
-    </motion.div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <motion.div whileHover={{ scale: 1.02 }} className="rounded-[28px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-        {label}
-      </div>
-      <div className="mt-1.5 text-[26px] font-[950] tracking-tight text-[#241F3D]">{value}</div>
-    </motion.div>
-  );
-}
-
-function RhythmCard({
-  title,
-  value,
-  text,
-  accent,
-}: {
-  title: string;
-  value: string;
-  text: string;
-  accent: string;
-}) {
-  return (
-    <motion.div whileHover={{ scale: 1.02 }} className="rounded-[28px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className={`inline-flex rounded-full bg-gradient-to-r px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-sm ${accent}`}>
-        {title}
-      </div>
-      <div className="mt-4 text-[20px] font-[950] tracking-tight text-[#241F3D]">{value}</div>
-      <div className="mt-1.5 text-[13.5px] font-medium leading-relaxed text-[#615C7A]">{text}</div>
-    </motion.div>
-  );
-}
-
-function ActionLink({
-  href,
-  title,
-  text,
-}: {
-  href: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group block rounded-[28px] border border-white/80 bg-white/80 p-5 transition-all hover:-translate-y-1 hover:shadow-[0_15px_30px_rgba(97,76,197,0.1)]"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[16px] font-[900] tracking-tight text-[#1A1528] transition-colors group-hover:text-[#6F59FF]">
-            {title}
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-[900] text-[#1A1528]">{action.title}</div>
+          <p className="mt-1 text-[13px] font-medium leading-relaxed text-[#6B647C]">
+            {action.description}
+          </p>
+          <div className={`mt-3 inline-flex items-center gap-1 text-[12px] font-black ${styles.text}`}>
+            {action.cta}
+            <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
           </div>
-          <div className="mt-1.5 text-[13px] font-medium leading-relaxed text-[#615C7A]">
-            {text}
-          </div>
-        </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3EEFF] text-[#6F59FF] transition-transform group-hover:translate-x-1">
-          <TrendingUp className="h-4 w-4" />
         </div>
       </div>
     </Link>
   );
 }
 
-function ScoreBar({
-  label,
-  value,
-  max,
+function SuccessBox({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="rounded-[24px] border border-[#D1FAE5] bg-[#ECFDF5] p-4">
+      <div className="flex items-start gap-3">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 text-[#10B981]" />
+        <div>
+          <div className="text-[15px] font-[900] text-[#1A1528]">{title}</div>
+          <p className="mt-1 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+            {desc}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Panel({
+  children,
+  className = "",
 }: {
-  label: string;
-  value: number;
-  max: number;
+  children: React.ReactNode;
+  className?: string;
 }) {
-  const percentage = Math.round((value / max) * 100);
+  return (
+    <div className={`self-start rounded-[32px] border border-white/80 bg-white/82 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl transition-all duration-300 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  icon,
+  tone,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  tone: Tone;
+}) {
+  const style = {
+    purple: "border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]",
+    blue: "border-[#DDEEFF] bg-[#EEF6FF] text-[#4DA8FF]",
+    orange: "border-[#FED7AA] bg-[#FFF7ED] text-[#F59E0B]",
+    green: "border-[#D1FAE5] bg-[#ECFDF5] text-[#10B981]",
+  }[tone];
 
   return (
-    <motion.div whileHover={{ scale: 1.02 }} className="rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[14.5px] font-[900] text-[#1A1528]">{label}</div>
-        <div className="text-[12.5px] font-bold text-[#6B6287]">{value} điểm</div>
+    <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] shadow-sm ${style}`}>
+      {icon}
+      {children}
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[22px] border border-white/80 bg-white/82 px-4 py-3 shadow-sm backdrop-blur-xl">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+        {label}
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-[#EFEAFD] shadow-inner">
-        <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: `${percentage}%` }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className="h-full rounded-full bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] shadow-sm"
-        />
+      <div className="mt-1 text-[18px] font-[900] leading-tight text-[#1A1528]">
+        {value}
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+function DarkMiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+        {label}
+      </div>
+      <div className="mt-1 text-[15px] font-[900] text-white">{value}</div>
+    </div>
+  );
+}
+
+function InsightCard({
+  icon,
+  title,
+  value,
+  desc,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  desc: string;
+  tone: "purple" | "green";
+}) {
+  const style =
+    tone === "purple"
+      ? { card: "border-[#E9E5FF] bg-[#F3F0FF]", icon: "bg-white text-[#6F59FF]" }
+      : { card: "border-[#D1FAE5] bg-[#ECFDF5]", icon: "bg-white text-[#10B981]" };
+
+  return (
+    <div className={`rounded-[28px] border p-5 ${style.card}`}>
+      <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${style.icon}`}>
+        {icon}
+      </div>
+      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {title}
+      </div>
+      <div className="mt-2 text-[24px] font-[900] text-[#1A1528]">{value}</div>
+      <p className="mt-2 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+        {desc}
+      </p>
+    </div>
   );
 }
 
 function EmptyState({
+  icon,
   title,
-  text,
+  desc,
   href,
   cta,
+  onAction,
 }: {
+  icon: React.ReactNode;
   title: string;
-  text: string;
-  href: string;
+  desc: string;
+  href?: string;
   cta: string;
+  onAction?: () => void;
 }) {
+  const buttonClass =
+    "mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black";
+
   return (
-    <div className="rounded-[32px] border border-dashed border-[#D9CEFF] bg-white/40 p-10 text-center">
-      <div className="text-[18px] font-[950] tracking-tight text-[#1A1528]">{title}</div>
-      <p className="mx-auto mt-3 max-w-sm text-[14px] font-medium leading-relaxed text-[#615C7A]">
-        {text}
+    <div className="rounded-[28px] border border-[#EEF0F6] bg-[#F8F9FE] p-6 text-center shadow-sm">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/80 bg-white text-[#6F59FF] shadow-sm">
+        {icon}
+      </div>
+      <div className="text-[17px] font-[900] text-[#1A1528]">{title}</div>
+      <p className="mx-auto mt-2 max-w-[360px] text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
+        {desc}
       </p>
-      <Link
-        href={href}
-        className="mt-6 inline-flex min-h-[46px] items-center justify-center rounded-full bg-[#1A1528] px-6 text-[13.5px] font-bold text-white transition hover:-translate-y-0.5 hover:shadow-lg"
-      >
-        {cta}
-      </Link>
+
+      {onAction ? (
+        <button type="button" onClick={onAction} className={buttonClass}>
+          {cta}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <Link href={href || "/planner"} className={buttonClass}>
+          {cta}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      )}
     </div>
   );
+}
+
+function ProgressBar({ value, className = "" }: { value: number; className?: string }) {
+  return (
+    <div className={`h-3 overflow-hidden rounded-full bg-[#EEE9FF] ${className}`}>
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${clamp(value, 0, 100)}%` }}
+        transition={{ duration: 0.55 }}
+        className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
+      />
+    </div>
+  );
+}
+
+function getTone(tone: Tone) {
+  const styles = {
+    purple: {
+      text: "text-[#6F59FF]",
+      card: "from-[#F5F3FF] via-[#EBE4FF] to-[#DED6FF] border-[#D6CBFF]",
+    },
+    blue: {
+      text: "text-[#4DA8FF]",
+      card: "from-[#F0F7FF] via-[#E0EFFF] to-[#CBE4FF] border-[#BFDDFF]",
+    },
+    orange: {
+      text: "text-[#F59E0B]",
+      card: "from-[#FFF8F0] via-[#FFEDD6] to-[#FFE0B2] border-[#FCD34D]",
+    },
+    green: {
+      text: "text-[#10B981]",
+      card: "from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] border-[#6EE7B7]",
+    },
+  };
+
+  return styles[tone];
+}
+
+function getSuggestionStyle(tone: SuggestionTone) {
+  const styles = {
+    warning: {
+      card: "border-[#FFE6C7] bg-[#FFFDF8]",
+      icon: "text-[#F59E0B]",
+      text: "text-[#F59E0B]",
+    },
+    info: {
+      card: "border-[#DDEEFF] bg-[#F8FCFF]",
+      icon: "text-[#4DA8FF]",
+      text: "text-[#4DA8FF]",
+    },
+    success: {
+      card: "border-[#D1FAE5] bg-[#FBFFFE]",
+      icon: "text-[#10B981]",
+      text: "text-[#10B981]",
+    },
+  };
+
+  return styles[tone];
+}
+
+function getRecommendationPill(status: EnergyRecommendation["status"]) {
+  const map: Record<EnergyRecommendation["status"], string> = {
+    aligned: "bg-[#ECFDF5] text-[#10B981]",
+    move_to_peak: "bg-[#FFF7ED] text-[#F59E0B]",
+    recovery: "bg-[#ECFDF5] text-[#10B981]",
+    low_energy_ok: "bg-[#EEF6FF] text-[#4DA8FF]",
+    unscheduled: "bg-[#F8F9FE] text-[#8A84A3]",
+  };
+
+  return map[status];
+}
+
+function normalizeWeek(weekly: NonNullable<DashboardData["weekly"]>) {
+  const fallback = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((label, index) => ({
+    date: String(index),
+    label,
+    focusMinutes: 0,
+    completedTasks: 0,
+    totalTasks: 0,
+    coins: 0,
+    energyScore: null,
+    isToday: false,
+  }));
+
+  if (!weekly.length) return fallback;
+
+  return weekly.slice(0, 7).map((day, index) => ({
+    ...day,
+    label: day.label || fallback[index]?.label || "",
+  }));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function minutesFromTime(time?: string | null) {
+  if (!time) return null;
+
+  const match = time.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function formatMinutes(minutes: number) {
+  const safe = Math.max(0, minutes);
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
+
+  if (h === 0) return `${m} phút`;
+  if (m === 0) return `${h}h`;
+
+  return `${h}h ${m}p`;
+}
+
+function formatMinutesShort(minutes: number) {
+  if (!minutes) return "0p";
+
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+
+  if (h === 0) return `${m}p`;
+  if (m === 0) return `${h}h`;
+
+  return `${h}h${m}`;
+}
+
+function formatElapsed(seconds: number) {
+  const safe = Math.max(0, seconds);
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+
+  if (h > 0) return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}`;
+}
+
+function formatTimeRange(start?: string | null, end?: string | null) {
+  if (!start && !end) return "Chưa đặt giờ";
+  if (start && end) return `${start} – ${end}`;
+
+  return start || end || "Chưa đặt giờ";
+}
+
+function formatEnergyScore(score?: number | null) {
+  if (score == null) return "Chưa check-in";
+  return `${score}%`;
+}
+
+function getEnergyLabel(score?: number | null) {
+  if (score == null) return "Cần check-in năng lượng";
+  if (score >= 80) return "Năng lượng cao";
+  if (score >= 55) return "Năng lượng ổn";
+  if (score >= 35) return "Nên làm việc nhẹ";
+
+  return "Nên hồi phục";
+}
+
+function todayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function getStartFromWindow(windowText: string | null) {
+  if (!windowText) return "";
+  const [start] = windowText.split(" - ");
+  return start || "";
+}
+
+function pad(num: number) {
+  return String(num).padStart(2, "0");
+}
+
+function translateRedemptionStatus(status: string) {
+  const map: Record<string, string> = {
+    PENDING: "Đang chờ",
+    APPROVED: "Đã duyệt",
+    REJECTED: "Từ chối",
+    FULFILLED: "Đã gửi",
+  };
+
+  return map[status] || status;
 }

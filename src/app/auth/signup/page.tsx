@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Header from "@/components/layout/Navbar";
+import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   User,
@@ -13,33 +12,113 @@ import {
   EyeOff,
   BookText,
   ArrowRight,
-  CheckCircle2,
   Users,
   BarChart3,
   CalendarClock,
   ShieldCheck,
   Star,
+  Building2,
+  Megaphone,
+  CheckCircle2,
 } from "lucide-react";
+
+type CustomerType =
+  | "STUDENT"
+  | "WORKER"
+  | "FREELANCER"
+  | "FOUNDER"
+  | "BUSINESS_OWNER"
+  | "COMPANY_EMPLOYEE"
+  | "OTHER";
+
+type SourceChannel =
+  | "FACEBOOK"
+  | "TIKTOK"
+  | "INSTAGRAM"
+  | "FRIEND"
+  | "DIRECT_MEETING"
+  | "COMPANY"
+  | "CLASS_GROUP"
+  | "OTHER";
+
+const CUSTOMER_TYPE_OPTIONS: Array<{ value: CustomerType; label: string }> = [
+  { value: "STUDENT", label: "Sinh viên" },
+  { value: "WORKER", label: "Người đi làm" },
+  { value: "FREELANCER", label: "Freelancer" },
+  { value: "FOUNDER", label: "Founder / startup" },
+  { value: "BUSINESS_OWNER", label: "Chủ kinh doanh" },
+  { value: "COMPANY_EMPLOYEE", label: "Nhân sự doanh nghiệp" },
+  { value: "OTHER", label: "Khác" },
+];
+
+const SOURCE_CHANNEL_OPTIONS: Array<{ value: SourceChannel; label: string }> = [
+  { value: "FACEBOOK", label: "Facebook" },
+  { value: "TIKTOK", label: "TikTok" },
+  { value: "INSTAGRAM", label: "Instagram" },
+  { value: "FRIEND", label: "Bạn bè giới thiệu" },
+  { value: "DIRECT_MEETING", label: "Gặp trực tiếp / demo" },
+  { value: "COMPANY", label: "Doanh nghiệp / công ty" },
+  { value: "CLASS_GROUP", label: "Nhóm lớp / cộng đồng học tập" },
+  { value: "OTHER", label: "Khác" },
+];
+
+function normalizeUtmSource(value: string | null): SourceChannel | "" {
+  const normalized = String(value || "").toLowerCase();
+
+  if (normalized.includes("facebook") || normalized === "fb") return "FACEBOOK";
+  if (normalized.includes("tiktok")) return "TIKTOK";
+  if (normalized.includes("instagram") || normalized === "ig") return "INSTAGRAM";
+  if (normalized.includes("friend")) return "FRIEND";
+  if (normalized.includes("company") || normalized.includes("business")) return "COMPANY";
+  if (normalized.includes("class")) return "CLASS_GROUP";
+
+  return "";
+}
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const inferredSource = useMemo(
+    () => normalizeUtmSource(searchParams.get("utm_source")),
+    [searchParams],
+  );
 
   const [showPassword, setShowPassword] = useState(false);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
+
+  const [customerType, setCustomerType] = useState<CustomerType | "">("");
+  const [sourceChannel, setSourceChannel] = useState<SourceChannel | "">(
+    inferredSource,
+  );
+  const [companyName, setCompanyName] = useState("");
+  const [roleInCompany, setRoleInCompany] = useState("");
+  const [teamSize, setTeamSize] = useState("");
+  const [consentForResearch, setConsentForResearch] = useState(true);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const shouldShowCompanyFields =
+    customerType === "COMPANY_EMPLOYEE" ||
+    customerType === "BUSINESS_OWNER" ||
+    customerType === "FOUNDER" ||
+    sourceChannel === "COMPANY";
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError("");
     setSuccess("");
     setIsSubmitting(true);
 
     try {
+      const parsedTeamSize = Number(teamSize);
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -50,62 +129,91 @@ export default function SignupPage() {
           email,
           password,
           studentId,
+
+          customerType: customerType || undefined,
+          sourceChannel: sourceChannel || undefined,
+          sourceCampaign: searchParams.get("utm_campaign") || undefined,
+          sourceMedium: searchParams.get("utm_medium") || undefined,
+          sourceContent: searchParams.get("utm_content") || undefined,
+          sourceTerm: searchParams.get("utm_term") || undefined,
+
+          companyName,
+          roleInCompany,
+          teamSize:
+            Number.isFinite(parsedTeamSize) && teamSize.trim()
+              ? parsedTeamSize
+              : undefined,
+          consentForResearch,
         }),
       });
 
-      const data = await response.json();
+      const data = (await response.json().catch(() => null)) as {
+        success?: boolean;
+        message?: string;
+      } | null;
 
-      if (!response.ok || !data.success) {
-        setError(data.message || "Đăng ký thất bại.");
+      if (!response.ok || !data?.success) {
+        setError(data?.message || "Đăng ký thất bại.");
         setIsSubmitting(false);
         return;
       }
 
       setSuccess("Tạo tài khoản thành công. Đang chuyển sang trang đăng nhập...");
 
+      window.dispatchEvent(
+        new CustomEvent("chronoflow:analytics", {
+          detail: {
+            event: "signup_completed",
+            customerType,
+            sourceChannel,
+            sourceCampaign: searchParams.get("utm_campaign") || "",
+          },
+        }),
+      );
+
       setTimeout(() => {
         router.push("/auth/login");
       }, 1200);
-    } catch (err) {
+    } catch {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
       setIsSubmitting(false);
       return;
     }
 
     setIsSubmitting(false);
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-[#F4F2FA] text-[#1A1528] selection:bg-[#6F59FF]/20">
+    <main className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
       <AuthBackground />
-      <Header />
 
       <section className="relative z-10 px-4 pb-12 pt-6 lg:px-8">
         <div className="mx-auto max-w-[1280px]">
-          <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_20px_80px_rgba(26,21,40,0.06)]">
-            <div className="grid lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="overflow-hidden rounded-[42px] border border-white bg-white/72 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[52px]">
+            <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
               <div className="relative px-6 py-8 md:px-8 lg:px-10 lg:py-10">
-                <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-[#F8F6FF] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)]">
+              <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5" />
                   Tạo tài khoản
                 </div>
 
-                <h1 className="mb-3 text-[clamp(2.1rem,4vw,3.5rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
-                Đăng kí để 
-                <br/> bắt đầu{" "}
-                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  đúng nhịp.
-                  </span>
-                </h1>
+                <h1 className="mb-3 text-[clamp(2.2rem,4vw,3.8rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
+  Đăng ký để <br className="hidden sm:block" />
+  bắt đầu{" "}
+  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+    đúng nhịp.
+  </span>
+</h1>
 
                 <p className="mb-6 max-w-[560px] text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
                   Tạo tài khoản để mở khóa nhịp năng lượng cá nhân, planner,
-                  pattern theo tuần và một cách làm việc hợp với thời điểm của bạn hơn.
+                  pattern theo tuần và giúp ChronoFlow ghi nhận nguồn khách hàng
+                  phục vụ báo cáo performance.
                 </p>
 
                 <div className="mb-6 flex flex-wrap gap-3">
                   <MiniPill icon={<ShieldCheck className="h-3.5 w-3.5" />}>
-                    Thiết lập cá nhân
+                    Tracking nguồn khách hàng
                   </MiniPill>
                   <MiniPill icon={<Star className="h-3.5 w-3.5" />}>
                     Bắt đầu miễn phí
@@ -158,17 +266,86 @@ export default function SignupPage() {
                     }
                   />
 
-                  {error && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <SelectRow
+                      icon={<Users className="h-4 w-4" />}
+                      value={customerType}
+                      onChange={(value) => setCustomerType(value as CustomerType | "")}
+                      placeholder="Bạn thuộc nhóm khách hàng nào?"
+                      options={CUSTOMER_TYPE_OPTIONS}
+                    />
+
+                    <SelectRow
+                      icon={<Megaphone className="h-4 w-4" />}
+                      value={sourceChannel}
+                      onChange={(value) => setSourceChannel(value as SourceChannel | "")}
+                      placeholder="Bạn biết ChronoFlow qua đâu?"
+                      options={SOURCE_CHANNEL_OPTIONS}
+                    />
+                  </div>
+
+                  {shouldShowCompanyFields ? (
+                    <div className="rounded-[24px] border border-[#EEE9FF] bg-[#FCFBFF] p-4">
+                      <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#6F59FF]">
+                        <Building2 className="h-4 w-4" />
+                        Thông tin doanh nghiệp / team
+                      </div>
+
+                      <div className="grid gap-3">
+                        <InputRow
+                          icon={<Building2 className="h-4 w-4" />}
+                          type="text"
+                          placeholder="Tên công ty / tổ chức"
+                          value={companyName}
+                          onChange={setCompanyName}
+                        />
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <InputRow
+                            icon={<User className="h-4 w-4" />}
+                            type="text"
+                            placeholder="Vai trò của bạn"
+                            value={roleInCompany}
+                            onChange={setRoleInCompany}
+                          />
+
+                          <InputRow
+                            icon={<Users className="h-4 w-4" />}
+                            type="number"
+                            placeholder="Số người trong team"
+                            value={teamSize}
+                            onChange={setTeamSize}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <label className="flex gap-3 rounded-[22px] border border-[#EEE9FF] bg-[#FCFBFF] px-4 py-3 text-[13px] leading-6 text-[#5B566E]">
+                    <input
+                      type="checkbox"
+                      checked={consentForResearch}
+                      onChange={(event) => setConsentForResearch(event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-[#DCD3FF] text-[#6F59FF]"
+                    />
+                    <span>
+                      Tôi đồng ý cho ChronoFlow sử dụng dữ liệu đăng ký, nguồn
+                      biết đến sản phẩm và phản hồi ẩn danh cho báo cáo học
+                      phần/pitching.
+                    </span>
+                  </label>
+
+                  {error ? (
                     <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                       {error}
                     </div>
-                  )}
+                  ) : null}
 
-                  {success && (
+                  {success ? (
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                       {success}
                     </div>
-                  )}
+                  ) : null}
 
                   <button
                     type="submit"
@@ -178,9 +355,9 @@ export default function SignupPage() {
                     <span className="text-[14px] font-bold">
                       {isSubmitting ? "Đang tạo tài khoản..." : "Đăng ký"}
                     </span>
-                    {!isSubmitting && (
+                    {!isSubmitting ? (
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    )}
+                    ) : null}
                   </button>
 
                   <p className="pt-1 text-center text-sm text-[#7A728F]">
@@ -203,26 +380,26 @@ export default function SignupPage() {
                   <div className="mb-6 flex flex-wrap gap-3">
                     <FloatPill
                       icon={<Users className="h-3.5 w-3.5" />}
-                      label="Tài khoản cá nhân"
+                      label="Customer record"
                       tint="purple"
                     />
                     <FloatPill
                       icon={<BarChart3 className="h-3.5 w-3.5" />}
-                      label="Insight theo tuần"
+                      label="Marketing source"
                       tint="blue"
                     />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FeatureCard
-                      title="Nhịp năng lượng cá nhân"
-                      description="Hiểu pattern của bạn và làm việc theo thời điểm hợp hơn."
-                      icon={<CalendarClock className="h-5 w-5 text-[#6F59FF]" />}
+                      title="Nguồn khách hàng"
+                      description="Ghi nhận user đến từ Facebook, TikTok, Instagram, gặp trực tiếp hoặc doanh nghiệp."
+                      icon={<Megaphone className="h-5 w-5 text-[#6F59FF]" />}
                     />
                     <FeatureCard
-                      title="Planner thông minh hơn"
-                      description="Biến insight thành block công việc, routine và lịch trong ngày."
-                      icon={<BarChart3 className="h-5 w-5 text-[#4DA8FF]" />}
+                      title="Nhóm người dùng"
+                      description="Phân loại sinh viên, người đi làm, freelancer hoặc company để làm báo cáo đa dạng khách hàng."
+                      icon={<Users className="h-5 w-5 text-[#4DA8FF]" />}
                     />
                   </div>
 
@@ -230,27 +407,38 @@ export default function SignupPage() {
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A84A3]">
-                          Bắt đầu với
+                          Evidence-ready
                         </div>
                         <div className="text-[16px] font-[900] text-[#1A1528]">
-                          Những gì bạn mở khóa đầu tiên
+                          Dữ liệu phục vụ pitching
                         </div>
                       </div>
-                      <div className="rounded-full bg-[#F3F0FF] px-2.5 py-1 text-[10px] font-bold text-[#6F59FF]">
+                      <div className="rounded-full bg-[#F2EEFF] px-3 py-1 text-[11px] font-black text-[#6F59FF]">
                         Mới
                       </div>
                     </div>
 
                     <div className="space-y-3">
-                      <MockRow title="Bài đánh giá chronotype" meta="Bắt đầu từ nhịp của bạn" done />
-                      <MockRow title="Kết quả cá nhân" meta="Xem khung giờ mạnh nhất" active />
-                      <MockRow title="Flow lập kế hoạch" meta="Áp dụng vào một ngày thực tế" />
+                      <TimelineItem
+                        title="Signup source"
+                        description="Biết user đến từ kênh nào."
+                        active
+                      />
+                      <TimelineItem
+                        title="Customer type"
+                        description="Biết user thuộc nhóm khách hàng nào."
+                        active
+                      />
+                      <TimelineItem
+                        title="Feedback sau trải nghiệm"
+                        description="Dùng cho slide performance và pitching."
+                      />
                     </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <SmallStat value="1 tài khoản" label="để lưu toàn bộ tiến trình" />
-                    <SmallStat value="3 phút" label="để bắt đầu hiểu nhịp của bạn" />
+                    <MetricCard value="100" label="records mục tiêu" />
+                    <MetricCard value="27/4–13/5" label="mốc tracking MKT" />
                   </div>
                 </div>
               </div>
@@ -259,6 +447,38 @@ export default function SignupPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function AuthBackground() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#F4F2FA]">
+      <div
+        className="absolute inset-0 opacity-35"
+        style={{
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      <div className="absolute left-[-12%] top-[8%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/55 blur-[120px]" />
+      <div className="absolute right-[-10%] top-[18%] h-[380px] w-[380px] rounded-full bg-[#D9EAFF]/70 blur-[120px]" />
+      <div className="absolute bottom-[-18%] left-[32%] h-[500px] w-[500px] rounded-full bg-white/70 blur-[110px]" />
+    </div>
+  );
+}
+
+function MiniPill({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-[#EEE9FF] bg-white px-4 py-2 text-[12px] font-bold text-[#5B566E] shadow-sm">
+      <span className="text-[#6F59FF]">{icon}</span>
+      {children}
+    </div>
   );
 }
 
@@ -278,65 +498,49 @@ function InputRow({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[#E9E5FF] bg-[#F8F9FE] px-4 py-4 shadow-sm">
-      <div className="text-[#8A84A3]">{icon}</div>
+    <label className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#E8E2FF] bg-[#FAFAFF] px-4 shadow-[0_8px_20px_rgba(26,21,40,0.04)] transition focus-within:border-[#6F59FF] focus-within:ring-4 focus-within:ring-[#6F59FF]/10">
+      <span className="text-[#9A94B5]">{icon}</span>
       <input
         type={type}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#AAA1BC]"
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#1A1528] outline-none placeholder:text-[#A3A0B8]"
       />
       {trailing}
-    </div>
+    </label>
   );
 }
 
-function SimpleNav() {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-white/80 bg-[#F4F2FA]/80 px-6 py-5 backdrop-blur-md">
-      <div className="mx-auto max-w-6xl">
-        <Link href="/" className="flex w-fit items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#6F59FF]" />
-          <span className="text-xl font-[900] tracking-tight text-[#1A1528]">
-            ChronoFlow
-          </span>
-        </Link>
-      </div>
-    </nav>
-  );
-}
-
-function AuthBackground() {
-  return (
-    <>
-      <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-35 mix-blend-multiply"
-        style={{
-          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-      <div className="pointer-events-none absolute left-0 top-0 z-0 h-full w-full">
-        <div className="absolute left-[10%] top-[-8%] h-[360px] w-[360px] rounded-full bg-[#DCCEFF]/55 blur-[110px]" />
-        <div className="absolute right-[-4%] top-[10%] h-[300px] w-[300px] rounded-full bg-[#D9EAFF]/55 blur-[110px]" />
-      </div>
-    </>
-  );
-}
-
-function MiniPill({
+function SelectRow({
   icon,
-  children,
+  value,
+  onChange,
+  placeholder,
+  options,
 }: {
   icon: React.ReactNode;
-  children: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-2 text-[12px] font-semibold text-[#4F4A68] shadow-sm">
-      <span className="text-[#6F59FF]">{icon}</span>
-      {children}
-    </div>
+    <label className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#E8E2FF] bg-[#FAFAFF] px-4 shadow-[0_8px_20px_rgba(26,21,40,0.04)] transition focus-within:border-[#6F59FF] focus-within:ring-4 focus-within:ring-[#6F59FF]/10">
+      <span className="text-[#9A94B5]">{icon}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#1A1528] outline-none"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -349,102 +553,79 @@ function FloatPill({
   label: string;
   tint: "purple" | "blue";
 }) {
-  const bg =
-    tint === "purple"
-      ? "from-[#6F59FF] to-[#8E7BFF]"
-      : "from-[#4DA8FF] to-[#7DC7FF]";
-
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white bg-white/90 px-3 py-2 text-[11px] font-bold text-[#1A1528] shadow-[0_10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md">
-      <div
-        className={`flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br text-white ${bg}`}
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[12px] font-black text-[#1A1528] shadow-sm">
+      <span
+        className={`grid h-7 w-7 place-items-center rounded-full text-white ${
+          tint === "purple" ? "bg-[#6F59FF]" : "bg-[#4DA8FF]"
+        }`}
       >
         {icon}
-      </div>
+      </span>
       {label}
     </div>
   );
 }
 
 function FeatureCard({
-  icon,
   title,
   description,
+  icon,
 }: {
-  icon: React.ReactNode;
   title: string;
   description: string;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3F0FF]">
+    <div className="rounded-[26px] border border-white/80 bg-white/75 p-5 shadow-[0_14px_34px_rgba(26,21,40,0.05)] backdrop-blur-md">
+      <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-[#F2EEFF]">
         {icon}
       </div>
-      <h3 className="text-[15px] font-[900] text-[#1A1528]">{title}</h3>
-      <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">{description}</p>
+      <div className="text-[15px] font-black text-[#1A1528]">{title}</div>
+      <p className="mt-2 text-[13px] leading-7 text-[#5B566E]">{description}</p>
     </div>
   );
 }
 
-function MockRow({
+function TimelineItem({
   title,
-  meta,
-  done = false,
+  description,
   active = false,
 }: {
   title: string;
-  meta: string;
-  done?: boolean;
+  description: string;
   active?: boolean;
 }) {
   return (
     <div
-      className={`rounded-2xl p-3 transition-all ${
-        active
-          ? "border-2 border-[#6F59FF] bg-white shadow-[0_10px_20px_rgba(111,89,255,0.1)]"
-          : "border border-transparent bg-white/80"
+      className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+        active ? "border border-[#6F59FF] bg-white" : "bg-white/65"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${
-            done
-              ? "bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-white"
-              : active
-              ? "border-2 border-[#6F59FF] bg-[#F3F0FF]"
-              : "border-2 border-gray-200 bg-white"
-          }`}
-        >
-          {done && <CheckCircle2 className="h-3 w-3" />}
-        </div>
-        <div>
-          <div
-            className={`text-[13px] font-[900] ${
-              active ? "text-[#6F59FF]" : "text-[#1A1528]"
-            }`}
-          >
-            {title}
-          </div>
-          <div className="text-[11px] font-medium text-gray-500">{meta}</div>
-        </div>
+      <span
+        className={`grid h-7 w-7 place-items-center rounded-full border ${
+          active
+            ? "border-[#6F59FF] bg-[#6F59FF] text-white"
+            : "border-[#E8E2FF] bg-white text-[#C3BEDA]"
+        }`}
+      >
+        {active ? <CheckCircle2 className="h-4 w-4" /> : null}
+      </span>
+      <div>
+        <div className="text-[13px] font-black text-[#1A1528]">{title}</div>
+        <div className="text-[12px] text-[#6B647C]">{description}</div>
       </div>
     </div>
   );
 }
 
-function SmallStat({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
+function MetricCard({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-[20px] border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur-md">
-      <div className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-[28px] font-[900] leading-none text-transparent">
+    <div className="rounded-[24px] border border-white/80 bg-white/75 p-5 shadow-sm">
+      <div className="text-[1.8rem] font-black leading-none tracking-tight text-[#6F59FF]">
         {value}
       </div>
-      <div className="mt-1 text-[12px] font-medium text-[#6B6287]">{label}</div>
+      <div className="mt-2 text-[13px] font-bold text-[#5B566E]">{label}</div>
     </div>
   );
 }

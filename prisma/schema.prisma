@@ -8,7 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-
 enum UserRole {
   USER
   ADMIN
@@ -42,21 +41,49 @@ enum OrderStatus {
   FULFILLED
 }
 
+enum FocusSessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum RewardRedemptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
 model User {
-  id                     String    @id @default(cuid())
-  name                   String
-  email                  String    @unique
-  passwordHash           String?
-  studentId              String?
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String?
+  studentId    String?
+
   role                   UserRole  @default(USER)
   chronotype             String?
   hasCompletedAssessment Boolean   @default(false)
   lastAssessmentAt       DateTime?
+  coinBalance            Int       @default(0)
   targetSleepTime        String?
   targetWakeTime         String?
   image                  String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+
+  // Tracking for pitching / marketing / customer records
+  customerType       String?
+  sourceChannel      String?
+  sourceCampaign     String?
+  sourceMedium       String?
+  sourceContent      String?
+  sourceTerm         String?
+  companyName        String?
+  roleInCompany      String?
+  teamSize           Int?
+  consentForResearch Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   accounts          Account[]
   sessions          Session[]
@@ -64,6 +91,137 @@ model User {
   tasks             Task[]
   weeklyInsights    WeeklyInsight[]
   orders            Order[]
+  focusSessions     FocusSession[]
+  rewardRedemptions RewardRedemption[]
+  energyCheckins    EnergyCheckin[]
+  streakRewards     StreakReward[]
+  coinTransactions  CoinTransaction[]
+
+  feedbackResponses      FeedbackResponse[]
+  marketingDailyRecords  MarketingDailyRecord[]
+  financialDailyRecords  FinancialDailyRecord[]
+  businessMeetingRecords BusinessMeetingRecord[]
+}
+
+model CoinTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String
+  amount       Int
+  balanceAfter Int
+  sourceType   String?
+  sourceId     String?
+  description  String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model FeedbackResponse {
+  id                 String   @id @default(cuid())
+  userId             String?
+  name               String?
+  email              String?
+  rating             Int
+  userType           String?
+  sourceChannel      String?
+  whatWorked         String
+  whatConfused       String?
+  featureRequest     String?
+  wouldRecommend     Boolean  @default(false)
+  testimonialConsent Boolean  @default(false)
+  contactConsent     Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([rating])
+  @@index([userType])
+  @@index([sourceChannel])
+  @@index([createdAt])
+}
+
+model MarketingDailyRecord {
+  id                    String   @id @default(cuid())
+  date                  DateTime
+  channel               String
+  contentTitle          String
+  contentType           String
+  views                 Int      @default(0)
+  likes                 Int      @default(0)
+  comments              Int      @default(0)
+  shares                Int      @default(0)
+  clicks                Int      @default(0)
+  followersDelta        Int      @default(0)
+  signups               Int      @default(0)
+  assessmentCompletions Int      @default(0)
+  notes                 String?
+  proofUrl              String?
+  createdById           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([channel])
+  @@index([createdById])
+}
+
+model FinancialDailyRecord {
+  id                  String   @id @default(cuid())
+  date                DateTime
+  revenue             Int      @default(0)
+  payingCustomers     Int      @default(0)
+  productPackage      String?
+  paymentMethod       String?
+  transactionCode     String?
+  transactionProofUrl String?
+  marketingCost       Int      @default(0)
+  otherCost           Int      @default(0)
+  profit              Int      @default(0)
+  notes               String?
+  createdById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([paymentMethod])
+  @@index([createdById])
+}
+
+model BusinessMeetingRecord {
+  id              String    @id @default(cuid())
+  meetingDate     DateTime
+  companyName     String
+  contactPerson   String?
+  contactRole     String?
+  demoUsers       Int       @default(0)
+  userCount       Int       @default(0)
+  painPoints      String?
+  feedback        String?
+  featureRequests String?
+  outcome         String?
+  evidenceUrl     String?
+  followUpDate    DateTime?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([meetingDate])
+  @@index([companyName])
+  @@index([outcome])
+  @@index([createdById])
 }
 
 model ChronotypeResult {
@@ -93,7 +251,6 @@ model Task {
   explanation   String
   completed     Boolean  @default(false)
 
-  // NEW
   isBacklog     Boolean @default(false)
   scheduledDate String?
   startTime     String?
@@ -105,10 +262,50 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  focusSessions FocusSession[]
 
   @@index([userId, createdAt])
   @@index([userId, scheduledDate])
+}
+
+model FocusSession {
+  id     String             @id @default(cuid())
+  userId String
+  taskId String?
+  status FocusSessionStatus @default(ACTIVE)
+
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationMinutes Int       @default(0)
+  coinsEarned     Int       @default(0)
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model EnergyCheckin {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int
+  note      String?
+  source    String   @default("MANUAL")
+  checkedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, checkedAt])
+  @@index([source])
 }
 
 model WeeklyInsight {
@@ -175,6 +372,75 @@ model Order {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model RewardItem {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  description String?
+  pointsCost  Int
+  active      Boolean @default(true)
+
+  imageUrl     String?
+  category     String  @default("PHYSICAL")
+  stock        Int?
+  perUserLimit Int     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions RewardRedemption[]
+
+  @@index([active])
+  @@index([category])
+  @@index([pointsCost])
+}
+
+model RewardRedemption {
+  id     String @id @default(cuid())
+  userId String
+
+  rewardItemId String?
+  rewardItem   RewardItem? @relation(fields: [rewardItemId], references: [id], onDelete: SetNull)
+
+  rewardId    String
+  rewardTitle String
+  pointsCost  Int
+
+  recipientName String
+  phone         String
+  address       String
+  note          String?
+
+  status RewardRedemptionStatus @default(PENDING)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([rewardItemId])
+  @@index([rewardId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StreakReward {
+  id          String   @id @default(cuid())
+  userId      String
+  milestone   Int
+  coinsEarned Int
+  awardedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, milestone])
+  @@index([userId])
+  @@index([awardedAt])
 }
 
 model Account {

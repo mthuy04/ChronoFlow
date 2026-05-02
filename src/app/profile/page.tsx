@@ -6,33 +6,91 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import ProfileEditForm from "@/components/profile/ProfileEditForm";
 import {
+  Activity,
   ArrowRight,
   BarChart3,
-  CalendarClock,
   CheckCircle2,
-  Clock3,
+  Coins,
+  Database,
+  Flame,
+  Gift,
+  History,
+  Lock,
   Mail,
   MoonStar,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
   Target,
+  Timer,
   User2,
-  Activity,
   ClipboardList,
-  ShieldCheck,
+  Settings2,
   Zap,
 } from "lucide-react";
 
 type ChronotypeKey = "LION" | "BEAR" | "WOLF" | "DOLPHIN";
 
-function normalizeChronotype(value: string | null | undefined): ChronotypeKey | null {
-  if (!value) return null;
-  const key = String(value).toUpperCase();
-  if (key.includes("LION")) return "LION";
-  if (key.includes("WOLF")) return "WOLF";
-  if (key.includes("DOLPHIN")) return "DOLPHIN";
-  if (key.includes("BEAR")) return "BEAR";
-  return null;
-}
+type CountValue = bigint | number;
+
+type TaskStatsRow = {
+  totalTasks: CountValue;
+  completedTasks: CountValue;
+  pendingTasks: CountValue;
+};
+
+type FocusStatsRow = {
+  totalSessions: CountValue;
+  totalMinutes: CountValue | null;
+  weekMinutes: CountValue | null;
+  averageMinutes: number | null;
+};
+
+type UserWalletRow = {
+  coinBalance: number | null;
+};
+
+type RewardStatsRow = {
+  totalRedemptions: CountValue;
+  pendingRedemptions: CountValue;
+  fulfilledRedemptions: CountValue;
+};
+
+type LatestRedemptionRow = {
+  id: string;
+  rewardTitle: string;
+  pointsCost: number;
+  status: string;
+  createdAt: Date;
+};
+
+type LatestStreakRewardRow = {
+  id: string;
+  milestone: number;
+  coinsEarned: number;
+  awardedAt: Date;
+};
+
+type CoinTransactionRow = {
+  id: string;
+  type: string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  createdAt: Date;
+};
+
+type StreakTaskRow = {
+  id: string;
+  scheduledDate: string | null;
+  scheduledTime: string | null;
+  updatedAt: Date;
+};
+
+type StreakFocusRow = {
+  id: string;
+  startedAt: Date;
+};
 
 const CHRONOTYPE_META: Record<
   ChronotypeKey,
@@ -40,9 +98,6 @@ const CHRONOTYPE_META: Record<
     label: string;
     emoji: string;
     subtitle: string;
-    gradient: string;
-    soft: string;
-    border: string;
     focusWindow: string;
     summary: string;
   }
@@ -51,9 +106,6 @@ const CHRONOTYPE_META: Record<
     label: "Sư tử",
     emoji: "🦁",
     subtitle: "Mạnh vào buổi sáng",
-    gradient: "from-[#F59E0B] via-[#F6B54A] to-[#FCD34D]",
-    soft: "from-[#FFF9F0] via-[#FFF6EA] to-[#FFF1DD]",
-    border: "border-[#F4D6A7]",
     focusWindow: "07:00 - 10:00",
     summary:
       "Bạn thường tỉnh táo sớm, vào việc nhanh ở đầu ngày và hợp với việc khó vào buổi sáng.",
@@ -62,9 +114,6 @@ const CHRONOTYPE_META: Record<
     label: "Gấu",
     emoji: "🐻",
     subtitle: "Nhịp cân bằng ban ngày",
-    gradient: "from-[#6F59FF] via-[#8571FF] to-[#9B8CFF]",
-    soft: "from-[#F8F7FF] via-[#F3F0FF] to-[#ECE8FF]",
-    border: "border-[#D9CEFF]",
     focusWindow: "09:00 - 12:00",
     summary:
       "Bạn hợp với nhịp sống ban ngày, giữ mức năng lượng khá ổn định và phù hợp với lịch tiêu chuẩn.",
@@ -73,9 +122,6 @@ const CHRONOTYPE_META: Record<
     label: "Sói",
     emoji: "🐺",
     subtitle: "Mạnh hơn về chiều và tối",
-    gradient: "from-[#5B46FF] via-[#7564FF] to-[#8D7CFF]",
-    soft: "from-[#F5F5FF] via-[#EFEDFF] to-[#E8E5FF]",
-    border: "border-[#D5D1FF]",
     focusWindow: "14:30 - 18:00",
     summary:
       "Bạn thường lên nhịp chậm hơn vào buổi sáng nhưng mạnh hơn về cuối chiều hoặc tối sớm.",
@@ -84,21 +130,53 @@ const CHRONOTYPE_META: Record<
     label: "Cá heo",
     emoji: "🐬",
     subtitle: "Nhạy giấc ngủ, hợp block gọn",
-    gradient: "from-[#4DA8FF] via-[#62BCFF] to-[#7DD3FC]",
-    soft: "from-[#F9F8FF] via-[#F4F1FF] to-[#EEEAFE]",
-    border: "border-[#DDD4FF]",
     focusWindow: "10:00 - 11:30",
     summary:
       "Bạn nhạy hơn với giấc ngủ và môi trường, phù hợp với planner mềm và các block tập trung ngắn, rõ.",
   },
 };
 
-function formatDateTime(date: Date) {
+function countToNumber(value: CountValue | null | undefined) {
+  if (typeof value === "bigint") return Number(value);
+  if (typeof value === "number") return value;
+  return 0;
+}
+
+function normalizeChronotype(
+  value: string | null | undefined,
+): ChronotypeKey | null {
+  if (!value) return null;
+
+  const key = String(value).toUpperCase();
+
+  if (key.includes("LION")) return "LION";
+  if (key.includes("WOLF")) return "WOLF";
+  if (key.includes("DOLPHIN")) return "DOLPHIN";
+  if (key.includes("BEAR")) return "BEAR";
+
+  return null;
+}
+
+function formatDate(date: Date) {
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   }).format(date);
+}
+
+function formatDateTime(date: Date) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString("vi-VN");
 }
 
 function formatRole(role: string) {
@@ -110,30 +188,97 @@ function getCompletionRate(total: number, completed: number) {
   return Math.round((completed / total) * 100);
 }
 
-function parseTaskDateKey(scheduledTime: string | null | undefined): string | null {
+function toVietnamDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function parseTaskDateKey(
+  scheduledDate: string | null | undefined,
+  scheduledTime: string | null | undefined,
+  updatedAt?: Date,
+): string | null {
+  if (scheduledDate) return scheduledDate.slice(0, 10);
+
   const raw = String(scheduledTime || "").trim();
+
+  if (!raw || raw.toUpperCase() === "BACKLOG") {
+    return updatedAt ? toVietnamDateKey(updatedAt) : null;
+  }
+
+  const pipeParts = raw.split("|");
+
+  if (pipeParts.length === 3) return pipeParts[0];
+
+  const match = raw.match(
+    /^(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$/,
+  );
+
+  if (match) return match[1];
+
+  return updatedAt ? toVietnamDateKey(updatedAt) : null;
+}
+
+function parseTaskStartTime(scheduledTime: string | null | undefined) {
+  const raw = String(scheduledTime || "").trim();
+
   if (!raw || raw.toUpperCase() === "BACKLOG") return null;
 
   const pipeParts = raw.split("|");
-  if (pipeParts.length === 3) return pipeParts[0];
 
-  const match = raw.match(/^(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$/);
+  if (pipeParts.length === 3) return pipeParts[1];
+
+  const match = raw.match(
+    /^\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/,
+  );
+
   if (match) return match[1];
 
   return null;
 }
 
-function parseTaskStartTime(scheduledTime: string | null | undefined): string | null {
-  const raw = String(scheduledTime || "").trim();
-  if (!raw || raw.toUpperCase() === "BACKLOG") return null;
+function computeCurrentStreak(params: {
+  tasks: StreakTaskRow[];
+  focusSessions: StreakFocusRow[];
+}) {
+  const activeDateKeys = new Set<string>();
 
-  const pipeParts = raw.split("|");
-  if (pipeParts.length === 3) return pipeParts[1];
+  params.tasks.forEach((task) => {
+    const dateKey = parseTaskDateKey(
+      task.scheduledDate,
+      task.scheduledTime,
+      task.updatedAt,
+    );
 
-  const match = raw.match(/^\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
-  if (match) return match[1];
+    if (dateKey) activeDateKeys.add(dateKey);
+  });
 
-  return null;
+  params.focusSessions.forEach((session) => {
+    activeDateKeys.add(toVietnamDateKey(session.startedAt));
+  });
+
+  let streak = 0;
+  const today = new Date();
+
+  for (let offset = 0; offset < 365; offset += 1) {
+    const key = toVietnamDateKey(addDays(today, -offset));
+
+    if (!activeDateKeys.has(key)) break;
+
+    streak += 1;
+  }
+
+  return streak;
 }
 
 function getTaskTypeLabel(type: string) {
@@ -145,6 +290,7 @@ function getTaskTypeLabel(type: string) {
     ROUTINE: "Routine",
     PERSONAL: "Cá nhân",
   };
+
   return labels[type] || type;
 }
 
@@ -154,23 +300,24 @@ function getPriorityLabel(priority: string) {
     MEDIUM: "Trung bình",
     LOW: "Thấp",
   };
+
   return labels[priority] || priority;
 }
 
-function getTaskTypeColor(type: string) {
+function getTaskTypeClass(type: string) {
   switch (type) {
     case "DEEP_WORK":
-      return "from-[#6B5BFF] to-[#5B8CFF]";
+      return "border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]";
     case "STUDY":
-      return "from-[#4DA8FF] to-[#60A5FA]";
+      return "border-[#DDEEFF] bg-[#EEF6FF] text-[#4DA8FF]";
     case "CREATIVE":
-      return "from-[#F59E0B] to-[#FBBF24]";
+      return "border-[#FED7AA] bg-[#FFF7ED] text-[#F59E0B]";
     case "ADMIN":
-      return "from-[#94A3B8] to-[#CBD5E1]";
+      return "border-[#EEF0F6] bg-[#F8F9FE] text-[#64748B]";
     case "ROUTINE":
-      return "from-[#10B981] to-[#34D399]";
+      return "border-[#D1FAE5] bg-[#ECFDF5] text-[#10B981]";
     default:
-      return "from-[#EC4899] to-[#F9A8D4]";
+      return "border-[#FBCFE8] bg-[#FFF0F7] text-[#C04778]";
   }
 }
 
@@ -185,8 +332,58 @@ function getScoreMax(result: {
     result.bearScore,
     result.wolfScore,
     result.dolphinScore,
-    1
+    1,
   );
+}
+
+function getRewardStatusLabel(status: string) {
+  const normalized = status.toUpperCase();
+
+  if (normalized === "PENDING") return "Đang xử lý";
+  if (normalized === "APPROVED") return "Đã duyệt";
+  if (normalized === "FULFILLED") return "Đã hoàn tất";
+  if (normalized === "COMPLETED") return "Đã hoàn tất";
+  if (normalized === "REJECTED") return "Bị từ chối";
+  if (normalized === "CANCELLED") return "Đã huỷ";
+
+  return status;
+}
+
+function getRewardStatusClass(status: string) {
+  const normalized = status.toUpperCase();
+
+  if (normalized === "FULFILLED" || normalized === "COMPLETED") {
+    return "bg-[#ECFDF5] text-[#10B981]";
+  }
+
+  if (normalized === "APPROVED") {
+    return "bg-[#EEF6FF] text-[#4DA8FF]";
+  }
+
+  if (normalized === "REJECTED" || normalized === "CANCELLED") {
+    return "bg-[#FFF7F7] text-[#B42318]";
+  }
+
+  return "bg-[#F3F0FF] text-[#6F59FF]";
+}
+
+function getCoinTone(amount: number) {
+  return amount >= 0
+    ? "border-[#D1FAE5] bg-[#ECFDF5] text-[#10B981]"
+    : "border-[#FED7AA] bg-[#FFF7ED] text-[#F59E0B]";
+}
+
+function getCoinIcon(type: string, amount: number) {
+  const normalized = type.toUpperCase();
+
+  if (normalized.includes("TASK")) return <CheckCircle2 className="h-4 w-4" />;
+  if (normalized.includes("FOCUS")) return <Timer className="h-4 w-4" />;
+  if (normalized.includes("STREAK")) return <Flame className="h-4 w-4" />;
+  if (normalized.includes("REWARD") && amount < 0) {
+    return <Gift className="h-4 w-4" />;
+  }
+
+  return <Coins className="h-4 w-4" />;
 }
 
 export default async function ProfilePage() {
@@ -194,36 +391,60 @@ export default async function ProfilePage() {
 
   if (!session?.user?.email) {
     return (
-      <main className="min-h-screen overflow-x-hidden bg-[#F6F4FB] text-[#241F3D]">
+      <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] pb-24 pt-0 text-[#1A1528] selection:bg-[#6F59FF]/20">
         <Navbar />
-        <section className="relative px-6 py-24">
-          <AmbientBg />
-          <div className="relative z-10 mx-auto max-w-3xl rounded-[40px] border border-white/80 bg-white/85 p-10 text-center shadow-[0_30px_90px_rgba(97,76,197,0.10)] backdrop-blur-2xl">
-            <div className="mb-4 inline-flex rounded-full border border-[#E9E5FF] bg-[#F7F4FF] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-              ChronoFlow Profile
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-[#241F3D] md:text-5xl">
-              Bạn cần đăng nhập để xem hồ sơ
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-8 text-[#615C7A]">
-              Đăng nhập để xem thông tin tài khoản, chronotype, thói quen ngủ mục tiêu và các chỉ số sử dụng ChronoFlow của bạn.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/auth/login?callbackUrl=/profile"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] px-6 text-[14px] font-semibold text-white shadow-[0_14px_34px_rgba(108,92,255,0.24)] transition hover:-translate-y-0.5"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                href="/assessment"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-[rgba(124,115,150,0.12)] bg-white px-6 text-[14px] font-semibold text-[#241F3D] transition hover:bg-[#fafafe]"
-              >
-                Làm bài đánh giá
-              </Link>
+        <AmbientBg />
+
+        <section className="relative z-10 mx-auto flex min-h-[70vh] w-full max-w-[1280px] items-center px-4 py-20 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-[40px] border border-white bg-white shadow-[0_22px_80px_rgba(26,21,40,0.06)] md:rounded-[48px]">
+            <div className="relative overflow-hidden rounded-[40px] bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#DCD1FF_100%)] px-6 py-12 text-center md:rounded-[48px] md:px-10 md:py-16">
+              <HeroGlow />
+
+              <div className="relative z-10">
+                <Badge>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  ChronoFlow Profile
+                </Badge>
+
+                <h1 className="mx-auto mt-5 max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-[900] leading-[1.02] tracking-[-0.055em] text-[#1A1528]">
+                  Bạn cần đăng nhập để xem{" "}
+                  <GradientText>hồ sơ cá nhân</GradientText>
+                </h1>
+
+                <p className="mx-auto mt-5 max-w-2xl text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
+                  Đăng nhập để xem thông tin tài khoản, chronotype, mục tiêu
+                  giấc ngủ và các chỉ số sử dụng ChronoFlow của bạn.
+                </p>
+
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                  <Link
+                    href="/auth/login?callbackUrl=/profile"
+                    className="group flex min-h-[58px] items-center gap-3 rounded-2xl bg-[#1A1528] px-6 py-3 text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-black"
+                  >
+                    <User2 className="h-4 w-4 text-[#4DA8FF]" />
+                    <span className="text-[14px] font-bold leading-tight">
+                      Đăng nhập
+                    </span>
+                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                  </Link>
+
+                  <Link
+                    href="/assessment"
+                    className="group flex min-h-[58px] items-center gap-2.5 rounded-2xl border border-white/80 bg-white/85 px-6 py-3 text-[#1A1528] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F3F0FF]">
+                      <RefreshCw className="h-3.5 w-3.5 text-[#6F59FF]" />
+                    </div>
+                    <span className="text-[14px] font-bold leading-tight">
+                      Làm bài đánh giá
+                    </span>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
         <Footer />
       </main>
     );
@@ -241,6 +462,14 @@ export default async function ProfilePage() {
       targetSleepTime: true,
       targetWakeTime: true,
       image: true,
+
+      customerType: true,
+      sourceChannel: true,
+      companyName: true,
+      roleInCompany: true,
+      teamSize: true,
+      consentForResearch: true,
+
       createdAt: true,
       updatedAt: true,
       tasks: {
@@ -253,10 +482,12 @@ export default async function ProfilePage() {
           priority: true,
           duration: true,
           deadline: true,
+          scheduledDate: true,
           scheduledTime: true,
           explanation: true,
           completed: true,
           createdAt: true,
+          updatedAt: true,
         },
       },
       weeklyInsights: {
@@ -288,11 +519,15 @@ export default async function ProfilePage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen overflow-x-hidden bg-[#F6F4FB] text-[#241F3D]">
+      <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] text-[#1A1528] selection:bg-[#6F59FF]/20">
         <Navbar />
-        <section className="px-6 py-24">
-          <div className="mx-auto max-w-3xl rounded-[36px] border border-white/80 bg-white/90 p-10 text-center shadow-[0_20px_60px_rgba(97,76,197,0.08)] backdrop-blur-xl">
-            <h1 className="text-3xl font-black tracking-tight text-[#241F3D]">
+        <AmbientBg />
+        <section className="relative z-10 flex min-h-[70vh] items-center px-6 py-24">
+          <div className="mx-auto max-w-3xl rounded-[40px] border border-white/80 bg-white/82 p-10 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]">
+              <User2 className="h-6 w-6" />
+            </div>
+            <h1 className="mt-5 text-[28px] font-[900] tracking-tight text-[#1A1528]">
               Không tìm thấy tài khoản
             </h1>
           </div>
@@ -302,207 +537,271 @@ export default async function ProfilePage() {
     );
   }
 
-  const chronotype = normalizeChronotype(user.chronotype);
-  const chronotypeMeta = chronotype ? CHRONOTYPE_META[chronotype] : null;
+  const [
+    taskStatsRows,
+    focusStatsRows,
+    walletRows,
+    rewardStatsRows,
+    latestRedemptionRows,
+    latestStreakRows,
+    coinTransactions,
+    completedStreakTasks,
+    completedStreakFocusSessions,
+  ] = await Promise.all([
+    prisma.$queryRaw<TaskStatsRow[]>`
+      SELECT
+        COUNT(*) AS totalTasks,
+        SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS completedTasks,
+        SUM(CASE WHEN completed = 0 THEN 1 ELSE 0 END) AS pendingTasks
+      FROM \`Task\`
+      WHERE userId = ${user.id}
+    `,
+    prisma.$queryRaw<FocusStatsRow[]>`
+      SELECT
+        COUNT(*) AS totalSessions,
+        COALESCE(SUM(durationMinutes), 0) AS totalMinutes,
+        COALESCE(SUM(
+          CASE
+            WHEN startedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            THEN durationMinutes
+            ELSE 0
+          END
+        ), 0) AS weekMinutes,
+        AVG(durationMinutes) AS averageMinutes
+      FROM \`FocusSession\`
+      WHERE userId = ${user.id}
+        AND status = 'COMPLETED'
+    `,
+    prisma.$queryRaw<UserWalletRow[]>`
+      SELECT COALESCE(coinBalance, 0) AS coinBalance
+      FROM \`User\`
+      WHERE id = ${user.id}
+      LIMIT 1
+    `,
+    prisma.$queryRaw<RewardStatsRow[]>`
+      SELECT
+        COUNT(*) AS totalRedemptions,
+        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pendingRedemptions,
+        SUM(CASE WHEN status IN ('FULFILLED', 'COMPLETED') THEN 1 ELSE 0 END) AS fulfilledRedemptions
+      FROM \`RewardRedemption\`
+      WHERE userId = ${user.id}
+    `,
+    prisma.$queryRaw<LatestRedemptionRow[]>`
+      SELECT
+        id,
+        rewardTitle,
+        pointsCost,
+        status,
+        createdAt
+      FROM \`RewardRedemption\`
+      WHERE userId = ${user.id}
+      ORDER BY createdAt DESC
+      LIMIT 1
+    `,
+    prisma.$queryRaw<LatestStreakRewardRow[]>`
+      SELECT
+        id,
+        milestone,
+        coinsEarned,
+        awardedAt
+      FROM \`StreakReward\`
+      WHERE userId = ${user.id}
+      ORDER BY awardedAt DESC
+      LIMIT 1
+    `,
+    prisma.$queryRaw<CoinTransactionRow[]>`
+      SELECT
+        id,
+        type,
+        amount,
+        balanceAfter,
+        description,
+        createdAt
+      FROM \`CoinTransaction\`
+      WHERE userId = ${user.id}
+      ORDER BY createdAt DESC
+      LIMIT 6
+    `,
+    prisma.$queryRaw<StreakTaskRow[]>`
+      SELECT
+        id,
+        scheduledDate,
+        scheduledTime,
+        updatedAt
+      FROM \`Task\`
+      WHERE userId = ${user.id}
+        AND completed = 1
+    `,
+    prisma.$queryRaw<StreakFocusRow[]>`
+      SELECT
+        id,
+        startedAt
+      FROM \`FocusSession\`
+      WHERE userId = ${user.id}
+        AND status = 'COMPLETED'
+    `,
+  ]);
 
-  const totalTasks = user.tasks.length;
-  const completedTasks = user.tasks.filter((task) => task.completed).length;
-  const pendingTasks = user.tasks.filter((task) => !task.completed).length;
+  const taskStats = taskStatsRows[0] ?? {
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+  };
+
+  const focusStats = focusStatsRows[0] ?? {
+    totalSessions: 0,
+    totalMinutes: 0,
+    weekMinutes: 0,
+    averageMinutes: 0,
+  };
+
+  const rewardStats = rewardStatsRows[0] ?? {
+    totalRedemptions: 0,
+    pendingRedemptions: 0,
+    fulfilledRedemptions: 0,
+  };
+
+  const totalTasks = countToNumber(taskStats.totalTasks);
+  const completedTasks = countToNumber(taskStats.completedTasks);
+  const pendingTasks = countToNumber(taskStats.pendingTasks);
   const completionRate = getCompletionRate(totalTasks, completedTasks);
 
+  const totalFocusSessions = countToNumber(focusStats.totalSessions);
+  const totalFocusMinutes = countToNumber(focusStats.totalMinutes);
+  const weekFocusMinutes = countToNumber(focusStats.weekMinutes);
+  const averageFocusMinutes = Math.round(focusStats.averageMinutes ?? 0);
+
+  const coinBalance = walletRows[0]?.coinBalance ?? 0;
+  const totalRedemptions = countToNumber(rewardStats.totalRedemptions);
+  const pendingRedemptions = countToNumber(rewardStats.pendingRedemptions);
+  const fulfilledRedemptions = countToNumber(rewardStats.fulfilledRedemptions);
+  const latestRedemption = latestRedemptionRows[0] ?? null;
+  const latestStreakReward = latestStreakRows[0] ?? null;
+
+  const currentStreak = computeCurrentStreak({
+    tasks: completedStreakTasks,
+    focusSessions: completedStreakFocusSessions,
+  });
+
+  const chronotype = normalizeChronotype(user.chronotype);
+  const chronotypeMeta = chronotype ? CHRONOTYPE_META[chronotype] : null;
   const latestInsight = user.weeklyInsights[0] ?? null;
   const latestResult = user.chronotypeResults[0] ?? null;
   const displayName = user.name?.trim() || "Người dùng";
   const firstName = displayName.split(" ").slice(-1)[0] || displayName;
+  const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "C";
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#F6F4FB] text-[#241F3D]">
+    <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] pb-24 pt-0 text-[#1A1528] selection:bg-[#6F59FF]/20">
       <Navbar />
+      <AmbientBg />
 
-      <section className="relative overflow-hidden px-4 pb-20 pt-4 md:px-6 lg:px-8">
-        <AmbientBg />
+      <div className="relative z-10 mx-auto flex w-full max-w-[1280px] flex-col gap-10 px-4 py-6 lg:px-8">
+        <ProfileHero
+          firstName={firstName}
+          displayName={displayName}
+          email={user.email}
+          role={formatRole(user.role)}
+          studentId={user.studentId}
+          createdAt={user.createdAt}
+          image={user.image}
+          avatarLetter={avatarLetter}
+          coinBalance={coinBalance}
+          currentStreak={currentStreak}
+          chronotypeMeta={chronotypeMeta}
+          completionRate={completionRate}
+        />
 
-        <div className="relative z-10 mx-auto max-w-[1320px] space-y-8">
-          <section className="overflow-hidden rounded-[44px] border border-white/80 bg-white/88 shadow-[0_35px_120px_rgba(97,76,197,0.12)] backdrop-blur-2xl">
-            <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F3EEFF_0%,#ECE5FF_45%,#E7DEFF_100%)] px-5 py-8 md:px-8 md:py-10 xl:px-10">
-              <div className="pointer-events-none absolute inset-0">
-                <div className="absolute left-[6%] top-[-12%] h-[240px] w-[240px] rounded-full bg-[#6F59FF]/15 blur-[100px]" />
-                <div className="absolute right-[8%] top-[8%] h-[180px] w-[180px] rounded-full bg-[#4DA8FF]/15 blur-[100px]" />
-                <div className="absolute bottom-[-10%] left-[35%] h-[160px] w-[160px] rounded-full bg-white/40 blur-[70px]" />
-              </div>
-
-              <div className="relative z-10 grid gap-8 xl:grid-cols-[minmax(0,1.06fr)_430px] xl:items-center">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-[0_8px_22px_rgba(111,89,255,0.08)] backdrop-blur-md">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    ChronoFlow Profile
-                  </div>
-
-                  <h1 className="mt-5 max-w-4xl text-[clamp(2.6rem,5vw,5.2rem)] font-black leading-[0.96] tracking-tight text-[#1A1528]">
-                    Hồ sơ{" "}
-                    <span className="bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] bg-clip-text text-transparent">
-                      cá nhân
-                    </span>{" "}
-                    của {firstName}.
-                  </h1>
-
-                  <p className="mt-5 max-w-3xl text-[15px] leading-8 text-[#615C7A] md:text-[16px]">
-                    Đây là nơi bạn quản lý thông tin tài khoản, chronotype, mục tiêu giấc ngủ và các tín hiệu cá nhân hóa từ ChronoFlow.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <Chip icon={<User2 className="h-4 w-4 text-[#7C5CFA]" />}>
-                      {formatRole(user.role)}
-                    </Chip>
-                    {chronotypeMeta ? (
-                      <Chip icon={<MoonStar className="h-4 w-4 text-[#7C5CFA]" />}>
-                        {chronotypeMeta.label} {chronotypeMeta.emoji}
-                      </Chip>
-                    ) : (
-                      <Chip icon={<Target className="h-4 w-4 text-[#7C5CFA]" />}>
-                        Chưa có chronotype
-                      </Chip>
-                    )}
-                    <Chip icon={<CheckCircle2 className="h-4 w-4 text-[#7C5CFA]" />}>
-                      Completion rate: {completionRate}%
-                    </Chip>
-                  </div>
-
-                  <div className="mt-8 flex flex-wrap items-center gap-4">
-                    <Link
-                      href="/planner"
-                      className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-semibold text-white shadow-[0_18px_40px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5"
-                    >
-                      Mở planner
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                    <Link
-                      href="/assessment"
-                      className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-[rgba(124,115,150,0.12)] bg-white/90 px-6 text-[14px] font-semibold text-[#241F3D] shadow-sm transition hover:bg-white"
-                    >
-                      Cập nhật đánh giá
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="relative mx-auto w-full max-w-[430px]">
-                  <div className="absolute -left-4 top-8 h-[88%] w-[92%] rounded-[34px] bg-white/35 blur-md" />
-                  <div className="absolute -right-3 bottom-3 h-[86%] w-[88%] rounded-[34px] bg-[#DCCEFF]/30 blur-md" />
-
-                  <div className="relative rounded-[34px] border border-white/80 bg-[linear-gradient(180deg,#FFFFFF_0%,#F8F5FF_100%)] p-6 shadow-[0_24px_80px_rgba(97,76,197,0.14)]">
-                    <div className="mb-5 flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-[26px] bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)] text-[28px] font-black text-white shadow-[0_16px_34px_rgba(97,76,197,0.22)]">
-                          {displayName.trim().charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-                            Tài khoản
-                          </div>
-                          <div className="mt-2 text-[1.45rem] font-black tracking-tight text-[#241F3D]">
-                            {displayName}
-                          </div>
-                          <div className="mt-1 text-[13px] font-medium text-[#615C7A]">
-                            Thành viên từ {formatDateTime(user.createdAt)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3F0FF] text-[#6F59FF] shadow-sm">
-                        <Mail className="h-5 w-5" />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3">
-                      <MetricCard
-                        label="Email"
-                        value={user.email}
-                        hint="email đăng nhập hiện tại"
-                        compact
-                      />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <MetricCard
-                          label="Student ID"
-                          value={user.studentId || "Chưa cập nhật"}
-                          hint="mã sinh viên"
-                          compact
-                        />
-                        <MetricCard
-                          label="Vai trò"
-                          value={formatRole(user.role)}
-                          hint="quyền tài khoản"
-                          compact
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <SectionWrapper>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              icon={<ClipboardList className="h-5 w-5" />}
-              title="Tổng task"
-              value={String(totalTasks)}
-              hint="task gần đây trong planner"
+              icon={<Coins className="h-5 w-5" />}
+              title="Coin"
+              value={formatNumber(coinBalance)}
+              hint={`${formatNumber(totalRedemptions)} yêu cầu đổi quà`}
+              tone="orange"
             />
+
             <StatCard
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              title="Hoàn thành"
-              value={String(completedTasks)}
-              hint="task đã xong"
+              icon={<Flame className="h-5 w-5" />}
+              title="Streak"
+              value={`${currentStreak} ngày`}
+              hint="chuỗi productivity hiện tại"
+              tone="green"
             />
+
             <StatCard
-              icon={<Clock3 className="h-5 w-5" />}
-              title="Đang mở"
-              value={String(pendingTasks)}
-              hint="task chưa xong"
+              icon={<Timer className="h-5 w-5" />}
+              title="Focus tuần này"
+              value={`${formatNumber(weekFocusMinutes)}p`}
+              hint={`${formatNumber(totalFocusSessions)} phiên đã ghi nhận`}
+              tone="blue"
             />
+
             <StatCard
               icon={<Activity className="h-5 w-5" />}
               title="Completion"
               value={`${completionRate}%`}
-              hint="tỷ lệ hoàn thành"
+              hint={`${formatNumber(completedTasks)} / ${formatNumber(
+                totalTasks,
+              )} task`}
+              tone="purple"
             />
           </div>
+        </SectionWrapper>
 
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px]">
-            <section className="space-y-8">
-              <GlassSection eyebrow="Chỉnh sửa hồ sơ" title="Cập nhật thông tin cá nhân thật">
-              <ProfileEditForm
-  initialName={user.name}
-  initialStudentId={user.studentId}
-  initialTargetSleepTime={user.targetSleepTime}
-  initialTargetWakeTime={user.targetWakeTime}
-  initialImage={user.image}
-/>
-              </GlassSection>
+        <SectionWrapper>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_370px]">
+            <div className="space-y-6">
+              <Panel
+                eyebrow="Chỉnh sửa hồ sơ"
+                title="Thông tin cá nhân"
+                description="Cập nhật tên hiển thị, avatar, mã sinh viên và mục tiêu giấc ngủ."
+              >
+                <ProfileEditForm
+                  initialName={user.name ?? ""}
+                  initialStudentId={user.studentId}
+                  initialTargetSleepTime={user.targetSleepTime}
+                  initialTargetWakeTime={user.targetWakeTime}
+                  initialImage={user.image}
+                  initialCustomerType={user.customerType}
+                  initialSourceChannel={user.sourceChannel}
+                  initialCompanyName={user.companyName}
+                  initialRoleInCompany={user.roleInCompany}
+                  initialTeamSize={user.teamSize}
+                  initialConsentForResearch={user.consentForResearch}
+                />
+              </Panel>
 
-              <GlassSection eyebrow="Thông tin cá nhân hoá" title="Chronotype và nhịp sinh học của bạn">
+              <Panel
+                eyebrow="Rhythm profile"
+                title="Chronotype & nhịp cá nhân"
+                description="ChronoFlow dùng phần này để cá nhân hóa planner, rhythm và insights."
+              >
                 {chronotypeMeta ? (
-                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className={`rounded-[32px] border ${chronotypeMeta.border} bg-gradient-to-br ${chronotypeMeta.soft} p-6 shadow-[0_16px_36px_rgba(97,76,197,0.06)]`}>
-                      <div className="mb-4 flex items-start justify-between gap-4">
+                  <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+                    <div className="rounded-[30px] border border-[#E9E5FF] bg-[#FBF9FF] p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
+                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
                             Chronotype hiện tại
                           </div>
-                          <div className="mt-2 text-[1.8rem] font-black tracking-tight text-[#241F3D]">
+
+                          <div className="mt-2 text-[1.75rem] font-[900] tracking-tight text-[#1A1528]">
                             {chronotypeMeta.label} {chronotypeMeta.emoji}
                           </div>
-                          <div className="mt-1 text-[14px] font-medium text-[#615C7A]">
+
+                          <div className="mt-1 text-[13px] font-bold text-[#5B566E]">
                             {chronotypeMeta.subtitle}
                           </div>
                         </div>
 
-                        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-[0_16px_34px_rgba(97,76,197,0.22)] ${chronotypeMeta.gradient}`}>
-                          <MoonStar className="h-6 w-6" />
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/80 bg-white text-[#6F59FF] shadow-sm">
+                          <MoonStar className="h-5 w-5" />
                         </div>
                       </div>
 
-                      <p className="text-[14px] leading-7 text-[#615C7A]">
+                      <p className="mt-4 text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
                         {chronotypeMeta.summary}
                       </p>
 
@@ -511,22 +810,20 @@ export default async function ProfilePage() {
                           label="Focus window"
                           value={chronotypeMeta.focusWindow}
                         />
-                        <MiniMetric
-                          label="Trạng thái"
-                          value="Đã cá nhân hoá"
-                        />
+                        <MiniMetric label="Trạng thái" value="Đã cá nhân hóa" />
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      <QuickInfoCard
-                        icon={<MoonStar className="h-5 w-5" />}
+                      <InfoCard
+                        icon={<MoonStar className="h-4 w-4" />}
                         title="Giờ ngủ mục tiêu"
                         value={user.targetSleepTime || "Chưa cập nhật"}
                         text="Dùng để tinh chỉnh trải nghiệm theo nhịp ngủ."
                       />
-                      <QuickInfoCard
-                        icon={<Zap className="h-5 w-5" />}
+
+                      <InfoCard
+                        icon={<Zap className="h-4 w-4" />}
                         title="Giờ thức mục tiêu"
                         value={user.targetWakeTime || "Chưa cập nhật"}
                         text="Giúp planner gợi ý khung hoạt động hợp lý hơn."
@@ -541,277 +838,703 @@ export default async function ProfilePage() {
                     cta="Làm bài đánh giá"
                   />
                 )}
-              </GlassSection>
+              </Panel>
 
-              <GlassSection eyebrow="Recent activity" title="Task gần đây của bạn">
+              <Panel
+                eyebrow="Productivity"
+                title="Tổng quan hiệu suất"
+                description="Các chỉ số này lấy từ task và focus session thật trong tài khoản của bạn."
+              >
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Tổng task"
+                    value={formatNumber(totalTasks)}
+                    hint="toàn bộ planner"
+                  />
+                  <MetricCard
+                    label="Task đang mở"
+                    value={formatNumber(pendingTasks)}
+                    hint="cần xử lý tiếp"
+                  />
+                  <MetricCard
+                    label="Tổng focus"
+                    value={`${formatNumber(totalFocusMinutes)}p`}
+                    hint={`${formatNumber(totalFocusSessions)} phiên`}
+                  />
+                  <MetricCard
+                    label="Trung bình"
+                    value={`${formatNumber(averageFocusMinutes)}p`}
+                    hint="mỗi phiên focus"
+                  />
+                </div>
+              </Panel>
+
+              <Panel
+                eyebrow="Recent activity"
+                title="Task gần đây"
+                description="Một lát cắt nhanh về những task mới nhất trong planner."
+              >
                 {user.tasks.length === 0 ? (
                   <EmptyPanel
                     title="Bạn chưa có task nào"
-                    text="Khi bắt đầu dùng planner, phần hồ sơ sẽ hiển thị rõ hơn pattern làm việc và hoạt động gần đây."
+                    text="Khi bắt đầu dùng planner, activity gần đây sẽ hiển thị tại đây."
                     href="/planner"
                     cta="Mở planner"
                   />
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-3">
                     {user.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="rounded-[28px] border border-white/80 bg-white/84 p-5 shadow-[0_14px_28px_rgba(97,76,197,0.05)]"
-                      >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`inline-flex rounded-full bg-gradient-to-r px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white ${getTaskTypeColor(task.type)}`}
-                              >
-                                {getTaskTypeLabel(task.type)}
-                              </span>
-
-                              <span className="rounded-full border border-gray-100 bg-gray-50 px-3 py-1.5 text-[11px] font-bold text-gray-500">
-                                Ưu tiên {getPriorityLabel(task.priority)}
-                              </span>
-
-                              {task.completed ? (
-                                <span className="rounded-full border border-[#DDF5E7] bg-[#F3FFF8] px-3 py-1.5 text-[11px] font-bold text-[#2E7C59]">
-                                  Đã xong
-                                </span>
-                              ) : (
-                                <span className="rounded-full border border-[#FCE7D3] bg-[#FFF8F1] px-3 py-1.5 text-[11px] font-bold text-[#B86B00]">
-                                  Đang mở
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-3 text-[17px] font-black tracking-tight text-[#241F3D]">
-                              {task.name}
-                            </div>
-
-                            <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] font-medium text-[#615C7A]">
-                              <span className="rounded-md bg-slate-50 px-2 py-1">
-                                {parseTaskDateKey(task.scheduledTime) || "Chưa có ngày"}
-                              </span>
-                              <span className="rounded-md bg-slate-50 px-2 py-1">
-                                {parseTaskStartTime(task.scheduledTime) || "Chưa có giờ"}
-                              </span>
-                              <span className="rounded-md bg-slate-50 px-2 py-1">
-                                {task.duration}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="w-full max-w-[280px] rounded-[20px] border border-[#ECE8FF] bg-[#FAF8FF] px-4 py-3 text-[13px] leading-6 text-[#615C7A]">
-                            {task.explanation || "Task này chưa có ghi chú giải thích."}
-                          </div>
-                        </div>
-                      </div>
+                      <TaskRow key={task.id} task={task} />
                     ))}
                   </div>
                 )}
-              </GlassSection>
-            </section>
+              </Panel>
+            </div>
 
-            <aside className="space-y-8">
-              <SidebarSection eyebrow="Profile info" title="Thông tin nhanh" icon={<User2 className="h-5 w-5" />}>
-                <div className="space-y-4">
-                  <InfoRow label="Họ tên" value={displayName} />
-                  <InfoRow label="Email" value={user.email} />
-                  <InfoRow label="Vai trò" value={formatRole(user.role)} />
-                  <InfoRow label="Student ID" value={user.studentId || "Chưa cập nhật"} />
-                  <InfoRow label="Ngày tạo tài khoản" value={formatDateTime(user.createdAt)} />
-                  <InfoRow label="Cập nhật gần nhất" value={formatDateTime(user.updatedAt)} />
+            <aside className="space-y-6">
+              <SidePanel
+                eyebrow="Reward summary"
+                title="Ví thưởng"
+                icon={<Gift className="h-5 w-5" />}
+              >
+                <div className="rounded-[28px] border border-[#FED7AA] bg-[#FFF7ED] p-5 shadow-sm">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+                    Coin hiện có
+                  </div>
+
+                  <div className="mt-2 flex items-end gap-2">
+                    <span className="text-[2.8rem] font-[900] leading-none tracking-tight text-[#1A1528]">
+                      {formatNumber(coinBalance)}
+                    </span>
+                    <span className="pb-1 text-[13px] font-black text-[#F59E0B]">
+                      coin
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <SmallStat
+                      label="Đã đổi"
+                      value={formatNumber(totalRedemptions)}
+                    />
+                    <SmallStat
+                      label="Đang xử lý"
+                      value={formatNumber(pendingRedemptions)}
+                    />
+                    <SmallStat
+                      label="Hoàn tất"
+                      value={formatNumber(fulfilledRedemptions)}
+                    />
+                  </div>
+
+                  <Link
+                    href="/rewards"
+                    className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5"
+                  >
+                    Mở Rewards
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </div>
-              </SidebarSection>
 
-              <SidebarSection eyebrow="Latest insight" title="Insight gần nhất" icon={<BarChart3 className="h-5 w-5" />}>
+                <div className="mt-4 space-y-3">
+                  <InfoCard
+                    icon={<Gift className="h-4 w-4" />}
+                    title="Đổi quà gần nhất"
+                    value={latestRedemption?.rewardTitle || "Chưa có"}
+                    text={
+                      latestRedemption
+                        ? `${getRewardStatusLabel(
+                            latestRedemption.status,
+                          )} · -${formatNumber(
+                            latestRedemption.pointsCost,
+                          )} coin`
+                        : "Khi bạn đổi quà, trạng thái gần nhất sẽ hiện ở đây."
+                    }
+                    badge={
+                      latestRedemption
+                        ? getRewardStatusLabel(latestRedemption.status)
+                        : undefined
+                    }
+                    badgeClass={
+                      latestRedemption
+                        ? getRewardStatusClass(latestRedemption.status)
+                        : undefined
+                    }
+                  />
+
+                  <InfoCard
+                    icon={<Flame className="h-4 w-4" />}
+                    title="Streak reward"
+                    value={
+                      latestStreakReward
+                        ? `Đã nhận +${latestStreakReward.coinsEarned}`
+                        : "Chưa mở khóa"
+                    }
+                    text={
+                      latestStreakReward
+                        ? `Mốc ${latestStreakReward.milestone} ngày · ${formatDate(
+                            latestStreakReward.awardedAt,
+                          )}`
+                        : "Duy trì 7 ngày liên tiếp để mở khóa +70 coins."
+                    }
+                  />
+                </div>
+              </SidePanel>
+
+              <SidePanel
+                eyebrow="Coin history"
+                title="Giao dịch gần đây"
+                icon={<History className="h-5 w-5" />}
+              >
+                {coinTransactions.length > 0 ? (
+                  <div className="space-y-3">
+                    {coinTransactions.map((item) => (
+                      <CoinRow key={item.id} item={item} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyMini text="Chưa có lịch sử coin. Khi bạn hoàn thành task, focus hoặc đổi quà, giao dịch sẽ hiện ở đây." />
+                )}
+              </SidePanel>
+
+              <SidePanel
+                eyebrow="Latest insight"
+                title="Insight gần nhất"
+                icon={<BarChart3 className="h-5 w-5" />}
+              >
                 {latestInsight ? (
                   <>
-                    <div className="rounded-[24px] border border-[#ECE8FF] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] p-4 text-[13px] leading-7 text-[#615C7A] shadow-sm">
-                      <div className="mb-2 text-[12px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+                    <div className="rounded-[24px] border border-[#E9E5FF] bg-[#FBF9FF] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+                      <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
                         {latestInsight.weekLabel}
                       </div>
                       {latestInsight.summary}
                     </div>
 
                     <div className="mt-4 grid gap-3">
-                      <MiniMetric label="Alignment score" value={String(latestInsight.alignmentScore)} />
-                      <MiniMetric label="Task hoàn thành" value={String(latestInsight.completedCount)} />
-                      <MiniMetric label="Deep work / study" value={String(latestInsight.deepWorkCount)} />
+                      <MiniMetric
+                        label="Alignment"
+                        value={String(latestInsight.alignmentScore)}
+                      />
+                      <MiniMetric
+                        label="Task hoàn thành"
+                        value={String(latestInsight.completedCount)}
+                      />
+                      <MiniMetric
+                        label="Deep work / study"
+                        value={String(latestInsight.deepWorkCount)}
+                      />
                     </div>
                   </>
                 ) : (
-                  <EmptyMini text="Khi bạn dùng planner thường xuyên hơn, phần insight gần nhất sẽ hiện rõ hơn tại đây." />
+                  <EmptyMini text="Khi bạn dùng planner thường xuyên hơn, insight gần nhất sẽ hiện tại đây." />
                 )}
-              </SidebarSection>
+              </SidePanel>
 
-              <SidebarSection eyebrow="Assessment" title="Kết quả gần nhất" icon={<Target className="h-5 w-5" />}>
+              <SidePanel
+                eyebrow="Assessment"
+                title="Kết quả gần nhất"
+                icon={<Target className="h-5 w-5" />}
+              >
                 {latestResult ? (
                   <div className="space-y-3">
-                    <ScoreBar label="Sư tử" value={latestResult.lionScore} max={getScoreMax(latestResult)} />
-                    <ScoreBar label="Gấu" value={latestResult.bearScore} max={getScoreMax(latestResult)} />
-                    <ScoreBar label="Sói" value={latestResult.wolfScore} max={getScoreMax(latestResult)} />
-                    <ScoreBar label="Cá heo" value={latestResult.dolphinScore} max={getScoreMax(latestResult)} />
+                    <ScoreBar
+                      label="Sư tử"
+                      value={latestResult.lionScore}
+                      max={getScoreMax(latestResult)}
+                    />
+                    <ScoreBar
+                      label="Gấu"
+                      value={latestResult.bearScore}
+                      max={getScoreMax(latestResult)}
+                    />
+                    <ScoreBar
+                      label="Sói"
+                      value={latestResult.wolfScore}
+                      max={getScoreMax(latestResult)}
+                    />
+                    <ScoreBar
+                      label="Cá heo"
+                      value={latestResult.dolphinScore}
+                      max={getScoreMax(latestResult)}
+                    />
                   </div>
                 ) : (
                   <EmptyMini text="Chưa có kết quả assessment gần đây để hiển thị." />
                 )}
-              </SidebarSection>
+              </SidePanel>
 
-              <SidebarSection eyebrow="Quick actions" title="Đi tiếp từ đây" icon={<CalendarClock className="h-5 w-5" />}>
+              <SidePanel
+                eyebrow="Data & privacy"
+                title="Dữ liệu đang dùng"
+                icon={<ShieldCheck className="h-5 w-5" />}
+              >
                 <div className="space-y-3">
-                  <ActionLink
-                    href="/planner"
-                    title="Mở planner"
-                    text="Xây lịch làm việc đúng theo nhịp cá nhân."
+                  <PrivacyItem
+                    icon={<ClipboardList className="h-4 w-4" />}
+                    title="Task & Planner"
+                    text="Dùng để tính completion, streak và gợi ý kế hoạch."
                   />
-                  <ActionLink
-                    href="/rhythm"
-                    title="Xem rhythm"
-                    text="Đọc lại focus window và nhịp sinh học của bạn."
+                  <PrivacyItem
+                    icon={<Timer className="h-4 w-4" />}
+                    title="Focus sessions"
+                    text="Dùng để tính focus minutes, coin và insight."
                   />
-                  <ActionLink
-                    href="/dashboard"
-                    title="Về dashboard"
-                    text="Quay lại trang tổng quan chính của tài khoản."
+                  <PrivacyItem
+                    icon={<MoonStar className="h-4 w-4" />}
+                    title="Chronotype"
+                    text="Dùng để cá nhân hóa rhythm và planning window."
+                  />
+                  <PrivacyItem
+                    icon={<Database className="h-4 w-4" />}
+                    title="Reward activity"
+                    text="Dùng để theo dõi coin, đổi quà và lịch sử giao dịch."
                   />
                 </div>
-              </SidebarSection>
+              </SidePanel>
+
+              {user.role === "ADMIN" ? (
+                <SidePanel
+                  eyebrow="Admin"
+                  title="Admin quick access"
+                  icon={<Settings2 className="h-5 w-5" />}
+                >
+                  <div className="space-y-3">
+                    <ActionLink
+                      href="/rewards"
+                      title="Reward Center"
+                      text="Kiểm tra catalog và flow đổi quà hiện tại."
+                    />
+                    <ActionLink
+                      href="/dashboard"
+                      title="Dashboard"
+                      text="Quay lại không gian tổng quan."
+                    />
+                  </div>
+                </SidePanel>
+              ) : null}
+
+              <SidePanel
+                eyebrow="Account"
+                title="Tài khoản"
+                icon={<Lock className="h-5 w-5" />}
+              >
+                <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+                  Email đăng nhập hiện tại là{" "}
+                  <span className="font-black text-[#1A1528]">
+                    {user.email}
+                  </span>
+                  . Tính năng đổi mật khẩu/xuất dữ liệu có thể bổ sung ở phiên
+                  bản sau.
+                </div>
+              </SidePanel>
             </aside>
           </div>
-        </div>
-      </section>
+        </SectionWrapper>
+      </div>
 
       <Footer />
     </main>
   );
 }
 
+function ProfileHero({
+  firstName,
+  displayName,
+  email,
+  role,
+  studentId,
+  createdAt,
+  image,
+  avatarLetter,
+  coinBalance,
+  currentStreak,
+  chronotypeMeta,
+  completionRate,
+}: {
+  firstName: string;
+  displayName: string;
+  email: string;
+  role: string;
+  studentId: string | null;
+  createdAt: Date;
+  image: string | null;
+  avatarLetter: string;
+  coinBalance: number;
+  currentStreak: number;
+  chronotypeMeta:
+    | {
+        label: string;
+        emoji: string;
+        subtitle: string;
+        focusWindow: string;
+        summary: string;
+      }
+    | null;
+  completionRate: number;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[40px] border border-white bg-white font-sans shadow-[0_22px_80px_rgba(26,21,40,0.06)] md:rounded-[48px]">
+      <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#DCD1FF_100%)] px-5 py-12 md:px-10 md:py-16">
+        <HeroGlow />
+
+        <div className="relative z-10 mx-auto max-w-[1080px] text-center">
+          <Badge>
+            <Sparkles className="h-3.5 w-3.5" />
+            ChronoFlow Profile
+          </Badge>
+
+          <h1 className="mx-auto mt-5 max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-black leading-[0.98] tracking-[-0.06em] text-[#1A1528]">
+  Hồ sơ cá nhân của{" "}
+  <GradientText>{firstName} </GradientText> 
+</h1>
+
+          <p className="mx-auto mt-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16.5px]">
+            Quản lý thông tin tài khoản, chronotype, mục tiêu giấc ngủ, ví coin
+            và các tín hiệu cá nhân hóa đang được ChronoFlow dùng để tối ưu
+            planner của bạn.
+          </p>
+
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <SoftChip icon={<User2 className="h-4 w-4" />}>{role}</SoftChip>
+
+            <SoftChip icon={<MoonStar className="h-4 w-4" />}>
+              {chronotypeMeta
+                ? `${chronotypeMeta.label} ${chronotypeMeta.emoji}`
+                : "Chưa có chronotype"}
+            </SoftChip>
+
+            <SoftChip icon={<CheckCircle2 className="h-4 w-4" />}>
+              Completion {completionRate}%
+            </SoftChip>
+
+            <SoftChip icon={<Flame className="h-4 w-4" />}>
+              Streak {currentStreak} ngày
+            </SoftChip>
+          </div>
+
+          <div className="mx-auto mt-10 grid max-w-[1040px] gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
+            <div className="flex flex-col justify-between rounded-[34px] border border-white/80 bg-white/62 p-5 text-left shadow-[0_20px_54px_rgba(31,22,74,0.07)] backdrop-blur-xl md:p-6">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F3F0FF] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
+                  <Target className="h-3.5 w-3.5" />
+                  Không gian cá nhân
+                </div>
+
+                <h2 className="mt-4 text-[1rem] font-black leading-tight tracking-[-0.04em] text-[#1A1528] md:text-[1.7rem]">
+                  Theo dõi danh tính, nhịp sinh học và tiến độ thật.
+                </h2>
+
+                <p className="mt-3 text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
+                  Đây là nơi ChronoFlow gom các dữ liệu nền để cá nhân hóa
+                  planner, rhythm, insights và reward loop cho bạn.
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/planner"
+                  className="group flex min-h-[58px] items-center gap-3 rounded-2xl bg-[#1A1528] px-6 py-3 text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-black"
+                >
+                  <Target className="h-4 w-4 text-[#4DA8FF]" />
+                  <div className="flex flex-col text-left">
+                    <span className="text-[9px] font-bold uppercase leading-none tracking-wider text-gray-400">
+                      Planner
+                    </span>
+                    <span className="text-[14px] font-bold leading-tight">
+                      Mở planner
+                    </span>
+                  </div>
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Link>
+
+                <Link
+                  href="/rewards"
+                  className="group flex min-h-[58px] items-center gap-2.5 rounded-2xl border border-white/80 bg-white/85 px-6 py-3 text-[#1A1528] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FFF7ED]">
+                    <Coins className="h-3.5 w-3.5 text-[#F59E0B]" />
+                  </div>
+                  <span className="text-[14px] font-bold leading-tight">
+                    Reward Center
+                  </span>
+                </Link>
+
+                <Link
+                  href="/assessment"
+                  className="group flex min-h-[58px] items-center gap-2.5 rounded-2xl border border-white/80 bg-white/85 px-6 py-3 text-[#1A1528] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-white"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F3F0FF]">
+                    <RefreshCw className="h-3.5 w-3.5 text-[#6F59FF]" />
+                  </div>
+                  <span className="text-[14px] font-bold leading-tight">
+                    Làm lại assessment
+                  </span>
+                </Link>
+              </div>
+            </div>
+
+            <ProfileIdentityCard
+              displayName={displayName}
+              email={email}
+              role={role}
+              studentId={studentId}
+              createdAt={createdAt}
+              image={image}
+              avatarLetter={avatarLetter}
+              coinBalance={coinBalance}
+              currentStreak={currentStreak}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AmbientBg() {
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10">
-      <div className="absolute left-[-8%] top-[6%] h-[320px] w-[320px] rounded-full bg-purple-100/40 blur-[120px]" />
-      <div className="absolute right-[-6%] top-[14%] h-[260px] w-[260px] rounded-full bg-blue-100/35 blur-[110px]" />
-      <div className="absolute bottom-[-8%] left-[28%] h-[240px] w-[240px] rounded-full bg-fuchsia-100/20 blur-[90px]" />
+    <div className="pointer-events-none absolute inset-0 z-0">
       <div
-        className="absolute inset-0 opacity-25"
+        className="absolute inset-0 opacity-40 mix-blend-multiply"
         style={{
-          backgroundImage: "radial-gradient(#CFC7E8 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
         }}
       />
+      <div className="absolute left-[10%] top-[-5%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/60 blur-[110px]" />
+      <div className="absolute right-[-7%] top-[8%] h-[340px] w-[340px] rounded-full bg-[#D9EAFF]/60 blur-[110px]" />
+      <div className="absolute bottom-[18%] left-[32%] h-[500px] w-[500px] rounded-full bg-white/70 blur-[120px]" />
     </div>
   );
 }
 
-function GlassSection({
-  eyebrow,
-  title,
+function HeroGlow() {
+  return (
+    <>
+      <div className="pointer-events-none absolute left-[8%] top-[-20%] h-[360px] w-[360px] rounded-full bg-white/45 blur-[90px]" />
+      <div className="pointer-events-none absolute right-[-8%] top-[12%] h-[340px] w-[340px] rounded-full bg-[#D9EAFF]/70 blur-[100px]" />
+      <div className="pointer-events-none absolute bottom-[-20%] left-[30%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/45 blur-[110px]" />
+    </>
+  );
+}
+
+function SectionWrapper({
   children,
+  id,
 }: {
-  eyebrow: string;
-  title: string;
   children: React.ReactNode;
+  id?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-[40px] border border-white/80 bg-white/88 shadow-[0_28px_80px_rgba(97,76,197,0.08)] backdrop-blur-2xl">
-      <div className="border-b border-[rgba(124,115,150,0.10)] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] px-6 py-6 md:px-8">
-        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-          {eyebrow}
-        </div>
-        <h2 className="mt-2 text-[1.45rem] font-black tracking-tight text-[#241F3D] md:text-[1.8rem]">
-          {title}
-        </h2>
-      </div>
-      <div className="p-6 md:p-8">{children}</div>
+    <section
+      id={id}
+      className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/62 px-5 py-8 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:px-8 md:py-10"
+    >
+      {children}
     </section>
   );
 }
 
-function SidebarSection({
-  eyebrow,
-  title,
-  icon,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-[36px] border border-white/80 bg-white/88 shadow-[0_24px_70px_rgba(97,76,197,0.08)] backdrop-blur-2xl">
-      <div className="border-b border-[rgba(124,115,150,0.10)] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] px-6 py-6">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-[#F3F0FF] p-3 text-[#7C5CFA] shadow-sm">{icon}</div>
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
-              {eyebrow}
-            </div>
-            <div className="mt-1 text-[1.15rem] font-black tracking-tight text-[#241F3D]">
-              {title}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="p-6">{children}</div>
-    </section>
-  );
-}
-
-function Chip({
-  children,
-  icon,
-}: {
-  children: React.ReactNode;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/90 px-4 py-3 text-[13px] font-bold text-[#5F5A77] shadow-[0_12px_26px_rgba(0,0,0,0.05)] backdrop-blur-md">
-      {icon}
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
       {children}
     </div>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  hint,
-  compact = false,
+function GradientText({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B6DFF] to-[#4DA8FF] bg-clip-text font-black text-transparent">
+      {children}
+    </span>
+  );
+}
+
+function SoftChip({
+  children,
+  icon,
 }: {
-  label: string;
-  value: string;
-  hint: string;
-  compact?: boolean;
+  children: React.ReactNode;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-[24px] border border-white/80 bg-white/82 shadow-[0_12px_28px_rgba(97,76,197,0.05)] ${compact ? "p-4" : "p-5"}`}>
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-        {label}
-      </div>
-      <div className={`mt-2 font-black tracking-tight text-[#241F3D] ${compact ? "text-[1rem]" : "text-[1.35rem]"}`}>
-        {value}
-      </div>
-      <div className="mt-1 text-[12px] leading-6 text-[#6B6287]">{hint}</div>
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/84 px-5 py-3 text-[13.5px] font-bold text-[#5B566E] shadow-[0_10px_24px_rgba(95,90,119,0.05)] backdrop-blur-md">
+      <span className="text-[#6F59FF]">{icon}</span>
+      {children}
     </div>
   );
 }
 
-function MiniMetric({
+function ProfileIdentityCard({
+  displayName,
+  email,
+  role,
+  studentId,
+  createdAt,
+  image,
+  avatarLetter,
+  coinBalance,
+  currentStreak,
+}: {
+  displayName: string;
+  email: string;
+  role: string;
+  studentId: string | null;
+  createdAt: Date;
+  image: string | null;
+  avatarLetter: string;
+  coinBalance: number;
+  currentStreak: number;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/78 p-5 text-left shadow-[0_28px_70px_rgba(65,48,145,0.12)] backdrop-blur-2xl">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#D9EAFF]/80 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 left-10 h-48 w-48 rounded-full bg-[#DCCEFF]/70 blur-3xl" />
+
+      <div className="relative z-10 rounded-[30px] border border-[#E9E5FF] bg-[#FCFBFF]/90 p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-22 w-22 shrink-0 items-center justify-center overflow-hidden rounded-[28px] bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-[32px] font-black text-white shadow-[0_18px_38px_rgba(97,76,197,0.22)]">
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={image}
+                alt={displayName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              avatarLetter
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
+              Tài khoản
+            </div>
+
+            <div className="mt-2 break-words text-[1.55rem] font-black leading-tight tracking-[-0.035em] text-[#1A1528]">
+              {displayName}
+            </div>
+
+            <div className="mt-1 break-words text-[13px] font-semibold text-[#5B566E]">
+              {email}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#F3F0FF] px-3 py-1.5 text-[11px] font-black text-[#6F59FF]">
+                {role}
+              </span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#5B566E] shadow-sm">
+                Từ {formatDate(createdAt)}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]">
+            <Mail className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <IdentityMetric label="Coin" value={formatNumber(coinBalance)} tone="orange" />
+          <IdentityMetric label="Streak" value={`${currentStreak} ngày`} tone="green" />
+          <IdentityMetric label="Student ID" value={studentId || "Chưa cập nhật"} tone="blue" />
+          <IdentityMetric label="Vai trò" value={role} tone="purple" />
+        </div>
+      </div>
+    </div>
+  );
+}
+function IdentityMetric({
   label,
   value,
+  tone,
 }: {
   label: string;
   value: string;
+  tone: "purple" | "blue" | "orange" | "green";
 }) {
+  const style = {
+    purple: "border-[#E9E5FF] bg-[#F3F0FF]",
+    blue: "border-[#DDEEFF] bg-[#EEF6FF]",
+    orange: "border-[#FED7AA] bg-[#FFF7ED]",
+    green: "border-[#D1FAE5] bg-[#ECFDF5]",
+  }[tone];
+
   return (
-    <div className="rounded-[22px] border border-white/80 bg-white/84 p-4 shadow-[0_14px_28px_rgba(97,76,197,0.05)]">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+    <div className={`rounded-[22px] border p-4 shadow-sm ${style}`}>
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
         {label}
       </div>
-      <div className="mt-2 text-[1.1rem] font-black tracking-tight text-[#241F3D]">
+      <div className="mt-1 break-words text-[1.05rem] font-black leading-tight text-[#1A1528]">
         {value}
       </div>
     </div>
+  );
+}
+
+function Panel({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[32px] border border-white/80 bg-white/82 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl">
+      <div className="border-b border-[#EEF0F6] bg-white/70 px-5 py-5 md:px-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F3F0FF] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
+          <Sparkles className="h-3.5 w-3.5" />
+          {eyebrow}
+        </div>
+        <h2 className="mt-4 text-[clamp(1.45rem,2.4vw,1.9rem)] font-[900] leading-tight tracking-tight text-[#1A1528]">
+          {title}
+        </h2>
+        {description ? (
+          <p className="mt-2 max-w-[700px] text-[14px] font-medium leading-relaxed text-[#5B566E]">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
+    </section>
+  );
+}
+
+function SidePanel({
+  eyebrow,
+  title,
+  icon,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[32px] border border-white/80 bg-white/82 shadow-[0_18px_50px_rgba(26,21,40,0.06)] backdrop-blur-xl">
+      <div className="border-b border-[#EEF0F6] bg-white/70 px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl border border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]">
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
+              {eyebrow}
+            </div>
+            <h3 className="mt-1 text-[1.05rem] font-black tracking-tight text-[#1A1528]">
+              {title}
+            </h3>
+          </div>
+        </div>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
   );
 }
 
@@ -820,63 +1543,263 @@ function StatCard({
   title,
   value,
   hint,
+  tone,
 }: {
   icon: React.ReactNode;
   title: string;
   value: string;
   hint: string;
+  tone: "purple" | "blue" | "orange" | "green";
 }) {
+  const style = getTone(tone);
+
   return (
-    <div className="group rounded-[34px] border border-white/80 bg-white/86 p-6 shadow-[0_16px_40px_rgba(97,76,197,0.06)] backdrop-blur-xl transition hover:-translate-y-0.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="rounded-2xl bg-[#F3F0FF] p-3 text-[#7C5CFA] shadow-sm transition group-hover:bg-[#6F59FF] group-hover:text-white">
-          {icon}
-        </div>
-        <div className="text-[2.2rem] font-black tracking-tight text-[#241F3D]">{value}</div>
+    <div
+      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_18px_45px_rgba(26,21,40,0.05)] transition-all duration-300 hover:-translate-y-1 ${style.card}`}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-white/55 blur-3xl" />
+
+      <div className="relative z-10 mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/80 bg-white/90 shadow-sm">
+        <div className={style.text}>{icon}</div>
       </div>
-      <div className="mt-5 text-[16px] font-black tracking-tight text-[#241F3D]">{title}</div>
-      <div className="mt-1 text-[13px] leading-6 text-[#615C7A]">{hint}</div>
+
+      <div className="relative z-10 text-[10px] font-black uppercase tracking-[0.18em] text-[#8A84A3]">
+        {title}
+      </div>
+      <div className="relative z-10 mt-2 text-[30px] font-[900] leading-none text-[#1A1528]">
+        {value}
+      </div>
+      <p className="relative z-10 mt-3 text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
+        {hint}
+      </p>
     </div>
   );
 }
 
-function QuickInfoCard({
+function MetricCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-2 break-words text-[1.25rem] font-black tracking-tight text-[#1A1528]">
+        {value}
+      </div>
+      <div className="mt-1 text-[12px] font-medium leading-relaxed text-[#5B566E]">
+        {hint}
+      </div>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-[#EEF0F6] bg-white/82 p-3 shadow-sm">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-1 break-words text-[0.98rem] font-black text-[#1A1528]">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SmallStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[18px] border border-white/80 bg-white/82 p-3 shadow-sm">
+      <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-1 text-[1rem] font-black text-[#1A1528]">{value}</div>
+    </div>
+  );
+}
+
+function InfoCard({
   icon,
   title,
   value,
   text,
+  badge,
+  badgeClass,
 }: {
   icon: React.ReactNode;
   title: string;
   value: string;
   text: string;
+  badge?: string;
+  badgeClass?: string;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/80 bg-white/84 p-5 shadow-[0_14px_28px_rgba(97,76,197,0.05)]">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="rounded-2xl bg-[#F3F0FF] p-3 text-[#7C5CFA] shadow-sm">{icon}</div>
-        <div className="text-[1rem] font-black tracking-tight text-[#241F3D]">{title}</div>
+    <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+            {icon}
+          </div>
+          <div className="min-w-0 text-[13px] font-black text-[#1A1528]">
+            {title}
+          </div>
+        </div>
+
+        {badge ? (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${
+              badgeClass || "bg-[#F3F0FF] text-[#6F59FF]"
+            }`}
+          >
+            {badge}
+          </span>
+        ) : null}
       </div>
-      <div className="text-[1.15rem] font-black tracking-tight text-[#241F3D]">{value}</div>
-      <div className="mt-2 text-[13px] leading-6 text-[#615C7A]">{text}</div>
+
+      <div className="break-words text-[1.05rem] font-black text-[#1A1528]">
+        {value}
+      </div>
+      <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-[#5B566E]">
+        {text}
+      </p>
     </div>
   );
 }
 
-function InfoRow({
-  label,
-  value,
+function TaskRow({
+  task,
 }: {
-  label: string;
-  value: string;
+  task: {
+    id: string;
+    name: string;
+    type: string;
+    priority: string;
+    duration: string;
+    deadline: string | null;
+    scheduledDate: string | null;
+    scheduledTime: string;
+    explanation: string | null;
+    completed: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  };
 }) {
   return (
-    <div className="rounded-[20px] border border-white/80 bg-white/84 px-4 py-3 shadow-[0_12px_24px_rgba(97,76,197,0.04)]">
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-        {label}
+    <div className="rounded-[26px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-full border px-3 py-1.5 text-[11px] font-black ${getTaskTypeClass(
+                task.type,
+              )}`}
+            >
+              {getTaskTypeLabel(task.type)}
+            </span>
+
+            <span className="rounded-full border border-[#EEF0F6] bg-white px-3 py-1.5 text-[11px] font-bold text-[#5B566E]">
+              Ưu tiên {getPriorityLabel(task.priority)}
+            </span>
+
+            {task.completed ? (
+              <span className="rounded-full bg-[#ECFDF5] px-3 py-1.5 text-[11px] font-bold text-[#10B981]">
+                Đã xong
+              </span>
+            ) : (
+              <span className="rounded-full bg-[#FFF7ED] px-3 py-1.5 text-[11px] font-bold text-[#F59E0B]">
+                Đang mở
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 text-[16px] font-black tracking-tight text-[#1A1528]">
+            {task.name}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-[#5B566E]">
+            <span className="rounded-xl bg-white px-2.5 py-1 shadow-sm">
+              {parseTaskDateKey(
+                task.scheduledDate,
+                task.scheduledTime,
+                task.updatedAt,
+              ) || "Chưa có ngày"}
+            </span>
+            <span className="rounded-xl bg-white px-2.5 py-1 shadow-sm">
+              {parseTaskStartTime(task.scheduledTime) || "Chưa có giờ"}
+            </span>
+            <span className="rounded-xl bg-white px-2.5 py-1 shadow-sm">
+              {task.duration}
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-[280px] rounded-[20px] border border-[#EEF0F6] bg-white/82 px-4 py-3 text-[12px] font-medium leading-relaxed text-[#5B566E] shadow-sm">
+          {task.explanation || "Task này chưa có ghi chú giải thích."}
+        </div>
       </div>
-      <div className="mt-1 break-words text-[14px] font-semibold text-[#241F3D]">
-        {value}
+    </div>
+  );
+}
+
+function CoinRow({ item }: { item: CoinTransactionRow }) {
+  return (
+    <div className="flex gap-3 rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
+      <div
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border ${getCoinTone(
+          item.amount,
+        )}`}
+      >
+        {getCoinIcon(item.type, item.amount)}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-black text-[#1A1528]">
+          {item.description}
+        </div>
+        <div className="mt-1 text-[11px] font-bold text-[#8A84A3]">
+          {formatDateTime(item.createdAt)}
+        </div>
+      </div>
+
+      <div
+        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
+          item.amount >= 0
+            ? "bg-[#ECFDF5] text-[#10B981]"
+            : "bg-[#FFF7ED] text-[#F59E0B]"
+        }`}
+      >
+        {item.amount >= 0 ? "+" : ""}
+        {formatNumber(item.amount)}
+      </div>
+    </div>
+  );
+}
+
+function PrivacyItem({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="flex gap-3 rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <div className="text-[13px] font-black text-[#1A1528]">{title}</div>
+        <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-[#5B566E]">
+          {text}
+        </p>
       </div>
     </div>
   );
@@ -894,16 +1817,18 @@ function ActionLink({
   return (
     <Link
       href={href}
-      className="group block rounded-[24px] border border-white/80 bg-white/84 px-4 py-4 shadow-[0_14px_28px_rgba(97,76,197,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(97,76,197,0.08)]"
+      className="group block rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 transition hover:-translate-y-0.5 hover:bg-white"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[15px] font-black tracking-tight text-[#241F3D]">
+          <div className="text-[14px] font-black tracking-tight text-[#1A1528]">
             {title}
           </div>
-          <div className="mt-1 text-[13px] leading-6 text-[#615C7A]">{text}</div>
+          <div className="mt-1 text-[12.5px] font-medium leading-relaxed text-[#5B566E]">
+            {text}
+          </div>
         </div>
-        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#7C5CFA] transition-transform group-hover:translate-x-1" />
+        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#6F59FF] transition-transform group-hover:translate-x-1" />
       </div>
     </Link>
   );
@@ -911,7 +1836,7 @@ function ActionLink({
 
 function EmptyMini({ text }: { text: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-[#D9CEFF] bg-[#FAF8FF] px-4 py-5 text-[13px] leading-7 text-[#615C7A]">
+    <div className="rounded-[22px] border border-dashed border-[#DCD3FF] bg-[#F8F9FE] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
       {text}
     </div>
   );
@@ -929,14 +1854,16 @@ function EmptyPanel({
   cta: string;
 }) {
   return (
-    <div className="rounded-[32px] border border-dashed border-[#D9CEFF] bg-white/60 p-10 text-center">
-      <div className="text-[20px] font-black tracking-tight text-[#241F3D]">{title}</div>
-      <p className="mx-auto mt-3 max-w-2xl text-[14px] leading-7 text-[#615C7A]">
+    <div className="rounded-[28px] border border-dashed border-[#DCD3FF] bg-[#F8F9FE] p-8 text-center">
+      <div className="text-[1.15rem] font-black tracking-tight text-[#1A1528]">
+        {title}
+      </div>
+      <p className="mx-auto mt-2 max-w-2xl text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
         {text}
       </p>
       <Link
         href={href}
-        className="mt-6 inline-flex min-h-[46px] items-center justify-center rounded-full bg-[#1A1528] px-6 text-[13.5px] font-bold text-white transition hover:-translate-y-0.5 hover:shadow-lg"
+        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#1A1528] px-5 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5"
       >
         {cta}
       </Link>
@@ -956,17 +1883,42 @@ function ScoreBar({
   const percentage = Math.round((value / max) * 100);
 
   return (
-    <div className="rounded-[22px] border border-white/80 bg-white/84 p-4 shadow-[0_14px_28px_rgba(97,76,197,0.05)]">
+    <div className="rounded-[22px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-[14px] font-black text-[#241F3D]">{label}</div>
-        <div className="text-[12px] font-bold text-[#6B6287]">{value} điểm</div>
+        <div className="text-[13px] font-black text-[#1A1528]">{label}</div>
+        <div className="text-[11px] font-bold text-[#5B566E]">
+          {value} điểm
+        </div>
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-[#EFEAFD] shadow-inner">
+      <div className="h-2.5 overflow-hidden rounded-full bg-[#EEE9FF] shadow-inner">
         <div
-          className="h-full rounded-full bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)]"
+          className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
           style={{ width: `${percentage}%` }}
         />
       </div>
     </div>
   );
+}
+
+function getTone(tone: "purple" | "blue" | "orange" | "green") {
+  const styles = {
+    purple: {
+      text: "text-[#6F59FF]",
+      card: "from-[#F5F3FF] via-[#EBE4FF] to-[#DED6FF] border-[#D6CBFF]",
+    },
+    blue: {
+      text: "text-[#4DA8FF]",
+      card: "from-[#F0F7FF] via-[#E0EFFF] to-[#CBE4FF] border-[#BFDDFF]",
+    },
+    orange: {
+      text: "text-[#F59E0B]",
+      card: "from-[#FFF8F0] via-[#FFEDD6] to-[#FFE0B2] border-[#FCD34D]",
+    },
+    green: {
+      text: "text-[#10B981]",
+      card: "from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] border-[#6EE7B7]",
+    },
+  };
+
+  return styles[tone];
 }

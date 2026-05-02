@@ -1,82 +1,117 @@
 "use client";
 
-import { Plus, Zap } from "lucide-react";
-import type { PlannerCalendarEvent, PlannerTask } from "./PlannerBoard";
+import type { DragEvent } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Info,
+  Loader2,
+  MousePointer2,
+  Plus,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
+import type {
+  PlannerCalendarEvent,
+  PlannerConflict,
+  PlannerTask,
+  PlannerTaskType,
+} from "./PlannerBoard";
 
 interface CalendarDayViewProps {
   date: Date;
   events: PlannerCalendarEvent[];
+  conflicts: Record<string, PlannerConflict[]>;
   focusWindow: string;
   isOverloaded: boolean;
+  updatingTaskId: string | null;
   onAddTask: () => void;
   onSelectTask: (task: PlannerTask) => void;
+  onDropTask: (taskId: string, dateKey: string, start: string) => void;
 }
 
-const HOURS = Array.from({ length: 16 }).map((_, i) => i + 6);
-const PX_PER_HOUR = 84;
+const HOURS = Array.from({ length: 16 }).map((_, index) => index + 6);
+const PX_PER_HOUR = 82;
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateKey(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}`;
+}
 
 function getMinutes(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
+  const [hourRaw = "0", minuteRaw = "0"] = time.split(":");
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
+  return hour * 60 + minute;
 }
 
-function getTaskColors(type: PlannerCalendarEvent["type"]) {
+function getTaskColors(type: PlannerTaskType) {
   switch (type) {
     case "DEEP_WORK":
-      return {
-        bg: "bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_45%,#5B8CFF_100%)]",
-        soft: "bg-[#F3F0FF]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_52%,#5B8CFF_100%)]";
     case "STUDY":
-      return {
-        bg: "bg-[linear-gradient(135deg,#5B8CFF_0%,#6AAEFF_100%)]",
-        soft: "bg-[#EEF5FF]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#4F8CFF_0%,#69A7FF_100%)]";
     case "CREATIVE":
-      return {
-        bg: "bg-[linear-gradient(135deg,#F97316_0%,#FDBA74_100%)]",
-        soft: "bg-[#FFF4E9]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#F59E0B_0%,#FDBA74_100%)]";
     case "ADMIN":
-      return {
-        bg: "bg-[linear-gradient(135deg,#94A3B8_0%,#CBD5E1_100%)]",
-        soft: "bg-[#F8FAFC]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#94A3B8_0%,#CBD5E1_100%)]";
     case "ROUTINE":
-      return {
-        bg: "bg-[linear-gradient(135deg,#14B8A6_0%,#5EEAD4_100%)]",
-        soft: "bg-[#ECFEFF]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#14B8A6_0%,#5EEAD4_100%)]";
     case "PERSONAL":
     default:
-      return {
-        bg: "bg-[linear-gradient(135deg,#EC4899_0%,#F9A8D4_100%)]",
-        soft: "bg-[#FDF2F8]",
-        text: "text-white",
-        border: "border-transparent",
-      };
+      return "bg-[linear-gradient(135deg,#EC4899_0%,#F9A8D4_100%)]";
   }
+}
+
+function getConflictBadgeClass(type: PlannerConflict["type"]) {
+  if (type === "OVERLAP") return "bg-[#FFF0F0] text-[#D85B5B]";
+  if (type === "OVERLOADED_DAY") return "bg-[#FFF8EF] text-[#C67713]";
+  return "bg-white/20 text-white";
+}
+
+function extractTaskId(event: DragEvent<HTMLElement>) {
+  return event.dataTransfer.getData("text/plain");
+}
+
+function handleDragStart(event: DragEvent<HTMLElement>, taskId: string) {
+  event.dataTransfer.setData("text/plain", taskId);
+  event.dataTransfer.effectAllowed = "move";
+}
+
+function getDayGuidance(events: PlannerCalendarEvent[], isOverloaded: boolean) {
+  if (events.length === 0) {
+    return "Hãy bắt đầu bằng một task quan trọng nhất, đặt vào focus window trước.";
+  }
+
+  if (isOverloaded) {
+    return "Ngày này đang hơi dày. Kéo task nhẹ về backlog hoặc dời sang ngày khác.";
+  }
+
+  return "Giữ khoảng nghỉ giữa các block. Nếu thêm task mới, ưu tiên slot còn trống thay vì chèn sát task hiện có.";
 }
 
 export default function CalendarDayView({
   date,
   events,
+  conflicts,
   focusWindow,
   isOverloaded,
+  updatingTaskId,
   onAddTask,
   onSelectTask,
+  onDropTask,
 }: CalendarDayViewProps) {
   const totalHeight = HOURS.length * PX_PER_HOUR;
+  const dateKey = formatDateKey(date);
+
   const dayLabel = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
     day: "2-digit",
@@ -91,11 +126,15 @@ export default function CalendarDayView({
           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
             View ngày
           </div>
+
           <h3 className="mt-2 text-[1.2rem] font-black tracking-tight text-[#241F3D]">
             {dayLabel}
           </h3>
+
           <p className="mt-1 text-[13px] leading-6 text-[#615C7A]">
-            Focus window của bạn hôm nay: <span className="font-black text-[#241F3D]">{focusWindow}</span>
+            Focus window:{" "}
+            <span className="font-black text-[#241F3D]">{focusWindow}</span>.
+            Kéo task sang slot mới để đổi lịch.
           </p>
         </div>
 
@@ -122,6 +161,23 @@ export default function CalendarDayView({
         </div>
       </div>
 
+      <div className="border-b border-[#ECE8FF] bg-[#FAF9FF] px-5 py-4">
+        <div className="flex items-start gap-3 rounded-[22px] border border-[#E9E5FF] bg-white px-4 py-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#F3F0FF] text-[#7C5CFA]">
+            <Sparkles className="h-4 w-4" />
+          </div>
+
+          <div>
+            <div className="text-[13px] font-black text-[#241F3D]">
+              Gợi ý cho ngày này
+            </div>
+            <p className="mt-1 text-[12px] leading-6 text-[#6B6287]">
+              {getDayGuidance(events, isOverloaded)}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <div className="min-w-[820px] px-3 py-3 md:px-4 md:py-4">
           <div className="grid grid-cols-[80px_1fr] gap-3">
@@ -132,33 +188,62 @@ export default function CalendarDayView({
                   className="absolute left-0 right-0 text-right text-[12px] font-bold text-[#8A84A3]"
                   style={{ top: index * PX_PER_HOUR - 8 }}
                 >
-                  {String(hour).padStart(2, "0")}:00
+                  {pad(hour)}:00
                 </div>
               ))}
             </div>
 
             <div
-              className="relative rounded-[26px] border border-[#ECE8FF] bg-white"
+              className="relative overflow-hidden rounded-[26px] border border-[#ECE8FF] bg-white"
               style={{ height: totalHeight }}
             >
-              {HOURS.map((hour, index) => (
-                <div
-                  key={hour}
-                  className="absolute left-0 right-0 border-t border-dashed border-[#EFEAFD]"
-                  style={{ top: index * PX_PER_HOUR }}
-                />
-              ))}
+              {HOURS.map((hour, index) => {
+                const start = `${pad(hour)}:00`;
+
+                return (
+                  <div
+                    key={hour}
+                    role="button"
+                    tabIndex={0}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const taskId = extractTaskId(event);
+                      if (taskId) onDropTask(taskId, dateKey, start);
+                    }}
+                    className="absolute left-0 right-0 border-t border-dashed border-[#EFEAFD] transition hover:bg-[#F8F6FF]"
+                    style={{
+                      top: index * PX_PER_HOUR,
+                      height: PX_PER_HOUR,
+                    }}
+                  >
+                    <div className="pointer-events-none ml-4 mt-2 inline-flex items-center gap-2 rounded-full bg-[#FAF9FF] px-3 py-1 text-[10px] font-bold text-[#B0A8CB]">
+                      <Clock3 className="h-3 w-3" />
+                      {start}
+                    </div>
+                  </div>
+                );
+              })}
 
               {events.length === 0 ? (
                 <div className="absolute inset-0 grid place-items-center p-8">
-                  <div className="max-w-md rounded-[28px] border border-[#ECE8FF] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] p-6 text-center">
-                    <div className="text-[1.1rem] font-black tracking-tight text-[#241F3D]">
+                  <div className="max-w-md rounded-[28px] border border-[#ECE8FF] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] p-6 text-center shadow-[0_18px_45px_rgba(97,76,197,0.08)]">
+                    <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#F3F0FF] text-[#7C5CFA]">
+                      <MousePointer2 className="h-5 w-5" />
+                    </div>
+
+                    <div className="mt-4 text-[1.1rem] font-black tracking-tight text-[#241F3D]">
                       Chưa có task nào trong ngày này
                     </div>
+
                     <p className="mt-2 text-[13px] leading-7 text-[#615C7A]">
-                      Hãy thêm task mới hoặc kéo task từ backlog vào một khung giờ cụ thể
-                      để planner trở nên trực quan hơn.
+                      Kéo task từ Backlog hoặc Task board vào một khung giờ cụ thể.
+                      ChronoFlow sẽ cập nhật lịch thật qua API.
                     </p>
+
                     <button
                       type="button"
                       onClick={onAddTask}
@@ -176,33 +261,78 @@ export default function CalendarDayView({
                 const endMinutes = getMinutes(event.end);
                 const top = ((startMinutes - 6 * 60) / 60) * PX_PER_HOUR;
                 const height = Math.max(
-                  56,
-                  ((endMinutes - startMinutes) / 60) * PX_PER_HOUR
+                  62,
+                  ((endMinutes - startMinutes) / 60) * PX_PER_HOUR,
                 );
-                const colors = getTaskColors(event.type);
+                const eventConflicts = conflicts[event.id] ?? [];
+                const isUpdating = updatingTaskId === event.id;
 
                 return (
                   <button
                     key={event.id}
                     type="button"
+                    draggable
+                    onDragStart={(dragEvent) =>
+                      handleDragStart(dragEvent, event.task.id)
+                    }
                     onClick={() => onSelectTask(event.task)}
-                    className={`absolute left-3 right-3 overflow-hidden rounded-[20px] border ${colors.border} ${colors.bg} p-4 text-left shadow-[0_14px_28px_rgba(62,41,170,0.16)] transition hover:scale-[1.01]`}
-                    style={{ top, height }}
+                    className={`absolute left-3 right-3 z-10 overflow-visible rounded-[22px] border border-transparent ${getTaskColors(
+                      event.type,
+                    )} p-4 text-left text-white shadow-[0_14px_28px_rgba(62,41,170,0.16)] transition hover:scale-[1.01] ${
+                      event.completed ? "opacity-70" : ""
+                    }`}
+                    style={{ top, minHeight: height }}
                   >
-                    <div className={`text-[11px] font-black uppercase tracking-[0.14em] ${colors.text} opacity-85`}>
-                      {event.start} - {event.end}
+                    <div className="flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.14em] text-white/85">
+                      <span>
+                        {event.start} - {event.end}
+                      </span>
+
+                      {isUpdating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : event.completed ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : null}
                     </div>
-                    <div className={`mt-2 line-clamp-2 text-[15px] font-black tracking-tight ${colors.text}`}>
+
+                    <div className="mt-2 line-clamp-2 text-[15px] font-black tracking-tight">
                       {event.title}
                     </div>
-                    <div className={`mt-1 text-[12px] ${colors.text} opacity-90`}>
+
+                    <div className="mt-1 text-[12px] opacity-90">
                       {event.duration}
                     </div>
+
                     {event.explanation ? (
-                      <div className={`mt-2 line-clamp-2 text-[12px] leading-6 ${colors.text} opacity-90`}>
+                      <div className="mt-2 line-clamp-2 text-[12px] leading-6 opacity-90">
                         {event.explanation}
                       </div>
                     ) : null}
+
+                    {eventConflicts.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {eventConflicts.map((conflict) => (
+                          <span
+                            key={conflict.type}
+                            className={`group/conflict relative inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] ${getConflictBadgeClass(
+                              conflict.type,
+                            )}`}
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            {conflict.label}
+
+                            <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-64 rounded-2xl border border-white/80 bg-[#17122B] p-3 text-left text-[11px] font-semibold normal-case leading-5 text-white shadow-[0_18px_48px_rgba(23,18,43,0.24)] group-hover/conflict:block">
+                              {conflict.description}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-white/16 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-white">
+                        <Info className="h-3 w-3" />
+                        Không có cảnh báo
+                      </div>
+                    )}
                   </button>
                 );
               })}

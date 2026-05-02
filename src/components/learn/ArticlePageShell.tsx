@@ -44,7 +44,7 @@ export default function ArticlePageShell({
 }: ArticlePageShellProps) {
   return (
     <main className="min-h-screen bg-[#FCFBFF] text-[#1A152E] overflow-x-hidden">
-      <Navbar variant="guest" />
+      <Navbar />
 
       <section className="relative overflow-hidden px-6 pt-16 pb-14 md:pt-24 md:pb-18">
         <div className="pointer-events-none absolute inset-0 -z-10">
