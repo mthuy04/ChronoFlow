@@ -1,6 +1,6 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -9,23 +9,15 @@ type EnergyCheckinBody = {
   note?: string;
 };
 
-type EnergyCheckinRow = {
-  id: string;
-  userId: string;
-  score: number;
-  note: string | null;
-  source: string;
-  checkedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
-      return NextResponse.json({ message: "Bạn cần đăng nhập." }, { status: 401 });
+      return NextResponse.json(
+        { message: "Bạn cần đăng nhập." },
+        { status: 401 },
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -34,52 +26,54 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ message: "Không tìm thấy tài khoản." }, { status: 404 });
+      return NextResponse.json(
+        { message: "Không tìm thấy tài khoản." },
+        { status: 404 },
+      );
     }
 
-    const body = (await request.json()) as EnergyCheckinBody;
-    const score = Number(body.score);
+    const body = (await request.json().catch(() => null)) as
+      | EnergyCheckinBody
+      | null;
+
+    const score = Number(body?.score);
 
     if (!Number.isFinite(score) || score < 0 || score > 100) {
-      return NextResponse.json({ message: "Điểm năng lượng phải nằm trong khoảng 0–100." }, { status: 400 });
+      return NextResponse.json(
+        { message: "Điểm năng lượng phải nằm trong khoảng 0–100." },
+        { status: 400 },
+      );
     }
 
-    const note = String(body.note || "").trim();
-    const checkinId = randomUUID();
+    const note = String(body?.note || "").trim();
 
-    await prisma.$executeRaw`
-      INSERT INTO EnergyCheckin (
-        id,
-        userId,
-        score,
-        note,
-        source,
-        checkedAt,
-        createdAt,
-        updatedAt
-      )
-      VALUES (
-        ${checkinId},
-        ${user.id},
-        ${Math.round(score)},
-        ${note || null},
-        'MANUAL',
-        NOW(),
-        NOW(),
-        NOW()
-      )
-    `;
+    const checkin = await prisma.energyCheckin.create({
+      data: {
+        userId: user.id,
+        score: Math.round(score),
+        note: note || null,
+        source: "MANUAL",
+        checkedAt: new Date(),
+      },
+      select: {
+        id: true,
+        userId: true,
+        score: true,
+        note: true,
+        source: true,
+        checkedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-    const rows = await prisma.$queryRaw<EnergyCheckinRow[]>`
-      SELECT id, userId, score, note, source, checkedAt, createdAt, updatedAt
-      FROM EnergyCheckin
-      WHERE id = ${checkinId}
-      LIMIT 1
-    `;
-
-    return NextResponse.json({ checkin: rows[0] }, { status: 201 });
+    return NextResponse.json({ checkin }, { status: 201 });
   } catch (error) {
     console.error("Energy checkin error:", error);
-    return NextResponse.json({ message: "Không thể lưu check-in năng lượng." }, { status: 500 });
+
+    return NextResponse.json(
+      { message: "Không thể lưu check-in năng lượng." },
+      { status: 500 },
+    );
   }
 }
