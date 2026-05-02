@@ -471,15 +471,11 @@ function getChronotypeKey(
   user: User,
   latestResult: ChronotypeResult | null,
 ): ChronotypeKey | null {
-  const rawValue =
-    latestResult?.dominantType ??
-    user.chronotype ??
-    latestResult?.type ??
-    null;
+  const rawValue = latestResult?.chronotype ?? user.chronotype;
 
   if (!rawValue) return null;
 
-  const value = String(rawValue).toLowerCase();
+  const value = rawValue.toLowerCase();
 
   if (value.includes("lion") || value.includes("sư tử")) return "lion";
   if (value.includes("bear") || value.includes("gấu")) return "bear";
@@ -491,12 +487,6 @@ function getChronotypeKey(
 
 function getConfidence(latestResult: ChronotypeResult | null) {
   if (!latestResult) return null;
-
-  const directConfidence = Number(latestResult.confidence);
-
-  if (Number.isFinite(directConfidence) && directConfidence > 0) {
-    return Math.round(directConfidence);
-  }
 
   const scores = [
     latestResult.lionScore,
