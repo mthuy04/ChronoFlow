@@ -1,9 +1,9 @@
 "use client";
+
 import {
   COIN_LANDED_EVENT,
   type CoinLandedPayload,
 } from "@/lib/coin-reward-events";
-
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -28,11 +28,14 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useEffect, useRef, } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 type NavbarVariant = "loading" | "guest" | "user" | "admin";
+
+type NavbarProps = {
+  variant?: NavbarVariant;
+};
 
 type SessionUserLike = {
   name?: string | null;
@@ -283,7 +286,7 @@ const adminNavItems: NavItem[] = [
   },
 ];
 
-export default function Navbar() {
+export default function Navbar({ variant: requestedVariant }: NavbarProps) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
 
@@ -292,11 +295,13 @@ export default function Navbar() {
 
   const sessionUser = (session?.user ?? null) as SessionUserLike | null;
 
-  const variant: NavbarVariant = useMemo(() => {
+  const sessionVariant: NavbarVariant = useMemo(() => {
     if (status === "loading") return "loading";
     if (!sessionUser) return "guest";
     return sessionUser.role === "ADMIN" ? "admin" : "user";
   }, [sessionUser, status]);
+
+  const variant: NavbarVariant = requestedVariant ?? sessionVariant;
 
   const navItems = useMemo<NavItem[]>(() => {
     if (variant === "admin") return adminNavItems;
@@ -314,15 +319,14 @@ export default function Navbar() {
     typeof sessionUser?.coinBalance === "number"
       ? sessionUser.coinBalance
       : typeof sessionUser?.points === "number"
-      ? sessionUser.points
-      : 0;
+        ? sessionUser.points
+        : 0;
 
   const handleLogout = async () => {
     setProfileOpen(false);
     setMobileOpen(false);
     await signOut({ callbackUrl: "/auth/login" });
   };
-
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-[999] border-b border-[rgba(124,115,150,0.08)] bg-[#F8F8FE]/78 backdrop-blur-xl">
@@ -358,9 +362,9 @@ export default function Navbar() {
           </div>
 
           <div className="hidden shrink-0 items-center gap-2 lg:flex">
-  {variant === "loading" ? (
-    <NavbarLoadingState />
-  ) : variant === "guest" ? (
+            {variant === "loading" ? (
+              <NavbarLoadingState />
+            ) : variant === "guest" ? (
               <>
                 <Link
                   href="/auth/login"
@@ -379,7 +383,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
-              {variant === "user" && <CoinBadge initialBalance={coinBalance} />}
+                {variant === "user" && <CoinBadge initialBalance={coinBalance} />}
 
                 <div className="relative">
                   <button
@@ -443,17 +447,17 @@ export default function Navbar() {
 
         {mobileOpen && (
           <MobileNavigation
-          variant={variant}
-          navItems={navItems}
-          pathname={pathname}
-          displayName={displayName}
-          email={sessionUser?.email ?? null}
-          image={sessionUser?.image ?? null}
-          avatarLetter={avatarLetter}
-          coinBalance={coinBalance}
-          onClose={() => setMobileOpen(false)}
-          onLogout={handleLogout}
-        />
+            variant={variant}
+            navItems={navItems}
+            pathname={pathname}
+            displayName={displayName}
+            email={sessionUser?.email ?? null}
+            image={sessionUser?.image ?? null}
+            avatarLetter={avatarLetter}
+            coinBalance={coinBalance}
+            onClose={() => setMobileOpen(false)}
+            onLogout={handleLogout}
+          />
         )}
       </div>
     </nav>
@@ -517,42 +521,42 @@ function DesktopNavItem({
             </div>
 
             <div className="mt-2 space-y-1">
-  {item.children.map((child) => {
-    const childActive = isHrefActive(child.href, pathname);
+              {item.children.map((child) => {
+                const childActive = isHrefActive(child.href, pathname);
 
-    return (
-      <Link
-        key={child.href}
-        href={child.href}
-        className={`flex gap-3 rounded-[22px] px-4 py-3 transition ${
-          childActive ? "bg-[#F3F0FF]" : "hover:bg-[#F8F6FF]"
-        }`}
-      >
-        <span
-          className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl ${
-            childActive
-              ? "bg-[#7C5CFA] text-white"
-              : "bg-[#F2EEFF] text-[#7C5CFA]"
-          }`}
-        >
-          {child.icon}
-        </span>
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    className={`flex gap-3 rounded-[22px] px-4 py-3 transition ${
+                      childActive ? "bg-[#F3F0FF]" : "hover:bg-[#F8F6FF]"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl ${
+                        childActive
+                          ? "bg-[#7C5CFA] text-white"
+                          : "bg-[#F2EEFF] text-[#7C5CFA]"
+                      }`}
+                    >
+                      {child.icon}
+                    </span>
 
-        <span className="min-w-0">
-          <span className="block text-[14px] font-black text-[#241F3D]">
-            {child.label}
-          </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-black text-[#241F3D]">
+                        {child.label}
+                      </span>
 
-          {child.description && (
-            <span className="mt-1 block text-[12px] leading-relaxed text-[#7B7692]">
-              {child.description}
-            </span>
-          )}
-        </span>
-      </Link>
-    );
-  })}
-</div>
+                      {child.description && (
+                        <span className="mt-1 block text-[12px] leading-relaxed text-[#7B7692]">
+                          {child.description}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -620,6 +624,7 @@ function MobileNavigation({
           {variant === "user" && (
             <Link
               href="/rewards"
+              onClick={onClose}
               className="mt-4 flex items-center justify-between rounded-2xl border border-[#FFE7A8] bg-white/80 px-3 py-3 transition hover:bg-white"
             >
               <div className="flex items-center gap-2">
@@ -651,10 +656,10 @@ function MobileNavigation({
           if (!item.children || item.children.length === 0) {
             return (
               <Link
-  key={item.label}
-  href={item.href}
-  onClick={onClose}
-  className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-semibold transition ${
+                key={item.label}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-semibold transition ${
                   active
                     ? "bg-[#F3F0FF] text-[#6B5BFF]"
                     : "text-[#5F5A77] hover:bg-[#fafafe] hover:text-[#241F3D]"
@@ -701,10 +706,10 @@ function MobileNavigation({
 
                     return (
                       <Link
-                      key={child.href}
-                      href={child.href}
-                      onClick={onClose}
-                      className={`flex gap-3 rounded-[18px] px-3 py-3 transition ${
+                        key={child.href}
+                        href={child.href}
+                        onClick={onClose}
+                        className={`flex gap-3 rounded-[18px] px-3 py-3 transition ${
                           childActive ? "bg-white shadow-sm" : "hover:bg-white"
                         }`}
                       >
@@ -739,10 +744,10 @@ function MobileNavigation({
 
         {variant === "user" && (
           <Link
-          href="/rewards"
-          onClick={onClose}
-          className="flex items-center justify-between rounded-2xl px-4 py-3 text-[15px] font-semibold text-[#5F5A77] transition hover:bg-[#fafafe] hover:text-[#241F3D]"
-        >
+            href="/rewards"
+            onClick={onClose}
+            className="flex items-center justify-between rounded-2xl px-4 py-3 text-[15px] font-semibold text-[#5F5A77] transition hover:bg-[#fafafe] hover:text-[#241F3D]"
+          >
             <span className="flex items-center gap-3">
               <Gift className="h-4 w-4 text-[#9A94B5]" />
               Điểm thưởng
@@ -757,10 +762,10 @@ function MobileNavigation({
 
         {variant !== "guest" && variant !== "loading" && (
           <Link
-          href="/profile"
-          onClick={onClose}
-          className="flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-semibold text-[#5F5A77] transition hover:bg-[#fafafe] hover:text-[#241F3D]"
-        >
+            href="/profile"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-semibold text-[#5F5A77] transition hover:bg-[#fafafe] hover:text-[#241F3D]"
+          >
             <User2 className="h-4 w-4 text-[#9A94B5]" />
             Hồ sơ
           </Link>
@@ -865,10 +870,10 @@ function ProfileDropdown({
 
         {variant === "user" && (
           <Link
-          href="/rewards"
-          onClick={onClose}
-          className="mt-4 flex items-center justify-between rounded-2xl border border-[#FFE7A8] bg-white/80 px-3 py-3 transition hover:bg-white"
-        >
+            href="/rewards"
+            onClick={onClose}
+            className="mt-4 flex items-center justify-between rounded-2xl border border-[#FFE7A8] bg-white/80 px-3 py-3 transition hover:bg-white"
+          >
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[linear-gradient(135deg,#FFD166_0%,#FFB703_100%)] text-white shadow-[0_8px_18px_rgba(255,183,3,0.24)]">
                 <Coins className="h-4 w-4" />
