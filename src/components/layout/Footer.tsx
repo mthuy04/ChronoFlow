@@ -146,7 +146,7 @@ export default function Footer() {
                 Nhịp sinh học
               </Link>
               <Link
-                href="/chrono-kit"
+                href="/kit"
                 className="block transition-colors hover:text-white"
               >
                 Chrono Kit

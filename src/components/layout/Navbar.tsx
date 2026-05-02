@@ -18,6 +18,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Mail,
   Menu,
   Settings,
   Shield,
@@ -89,6 +90,12 @@ const guestNavItems: NavItem[] = [
         description: "Bắt đầu phân tích nhịp năng lượng cá nhân.",
         icon: <Brain className="h-4 w-4" />,
       },
+      {
+        href: "/kit",
+        label: "Chrono Kit",
+        description: "Xem Planner Kit và reward loop vật lý của ChronoFlow.",
+        icon: <Gift className="h-4 w-4" />,
+      },
     ],
   },
   {
@@ -109,10 +116,22 @@ const guestNavItems: NavItem[] = [
         icon: <Brain className="h-4 w-4" />,
       },
       {
+        href: "/chronotypes",
+        label: "Chronotypes",
+        description: "Khám phá 4 nhóm nhịp sinh học: Sư tử, Gấu, Sói, Cá heo.",
+        icon: <Brain className="h-4 w-4" />,
+      },
+      {
         href: "/learn#energy-curve",
         label: "Energy curve",
         description: "Hiểu đường cong năng lượng trong ngày.",
         icon: <BarChart3 className="h-4 w-4" />,
+      },
+      {
+        href: "/faq",
+        label: "FAQ",
+        description: "Các câu hỏi thường gặp về ChronoFlow và cách sử dụng.",
+        icon: <FileText className="h-4 w-4" />,
       },
     ],
   },
@@ -167,6 +186,13 @@ const userNavItems: NavItem[] = [
         description: "Theo dõi focus session và thời gian làm việc thực tế.",
         icon: <Brain className="h-4 w-4" />,
       },
+      {
+        href: "/kit",
+        label: "Chrono Kit",
+        description: "Khám phá Planner Kit và phần thưởng hỗ trợ thói quen.",
+        icon: <Gift className="h-4 w-4" />,
+      },
+      
     ],
   },
   {
@@ -212,10 +238,22 @@ const userNavItems: NavItem[] = [
         icon: <Brain className="h-4 w-4" />,
       },
       {
+        href: "/chronotypes",
+        label: "Chronotypes",
+        description: "Khám phá 4 nhóm nhịp sinh học: Sư tử, Gấu, Sói, Cá heo.",
+        icon: <Brain className="h-4 w-4" />,
+      },
+      {
         href: "/learn#energy-curve",
         label: "Energy curve",
         description: "Ứng dụng đường cong năng lượng vào lịch làm việc.",
         icon: <BarChart3 className="h-4 w-4" />,
+      },
+      {
+        href: "/faq",
+        label: "FAQ",
+        description: "Xem câu hỏi thường gặp và hướng dẫn nhanh.",
+        icon: <FileText className="h-4 w-4" />,
       },
     ],
   },
@@ -910,6 +948,12 @@ function ProfileDropdown({
           label="Cài đặt"
           onClick={onClose}
         />
+        <DropdownLink
+  href="/contact"
+  icon={<Mail className="h-4 w-4" />}
+  label="Liên hệ hỗ trợ"
+  onClick={onClose}
+/>
 
         {variant === "user" && (
           <>
