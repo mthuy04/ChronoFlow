@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarClock,
   CheckCircle2,
@@ -35,8 +34,6 @@ import Footer from "@/components/layout/Footer";
 import RewardRedeemButton from "@/components/rewards/RewardRedeemButton";
 
 type SearchParams = Record<string, string | string[] | undefined>;
-
-
 
 type RewardItemRow = {
   id: string;
@@ -86,7 +83,6 @@ type CoinTransactionRow = {
 
 type RewardFilter = "all" | "available" | "near" | "locked";
 type RewardSort = "cost-asc" | "cost-desc" | "newest";
-
 type RewardTier = "available" | "near" | "locked";
 
 const FILTER_OPTIONS: Array<{ value: RewardFilter; label: string }> = [
@@ -102,10 +98,7 @@ const SORT_OPTIONS: Array<{ value: RewardSort; label: string }> = [
   { value: "newest", label: "Mới nhất" },
 ];
 
-function getFirstParam(
-  params: SearchParams,
-  key: string,
-): string | undefined {
+function getFirstParam(params: SearchParams, key: string): string | undefined {
   const value = params[key];
 
   if (Array.isArray(value)) return value[0];
@@ -175,8 +168,8 @@ function formatDateTime(value: Date) {
   }).format(value);
 }
 
-function normalizeActive(value: number | boolean) {
-  return value === true || value === 1;
+function normalizeActive(value: boolean) {
+  return value;
 }
 
 function getRewardStatusLabel(status: string) {
@@ -328,7 +321,8 @@ function getStatusSteps(status: string) {
       {
         key: "REJECTED",
         label: "Bị từ chối",
-        description: "Yêu cầu không được duyệt. Coin sẽ được hoàn nếu đủ điều kiện.",
+        description:
+          "Yêu cầu không được duyệt. Coin sẽ được hoàn nếu đủ điều kiện.",
       },
     ];
   }
@@ -389,7 +383,9 @@ export default async function RewardsPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const activeFilter = normalizeFilter(getFirstParam(resolvedSearchParams, "filter"));
+  const activeFilter = normalizeFilter(
+    getFirstParam(resolvedSearchParams, "filter"),
+  );
   const activeSort = normalizeSort(getFirstParam(resolvedSearchParams, "sort"));
 
   const session = await getServerSession(authOptions);
@@ -397,26 +393,6 @@ export default async function RewardsPage({
   if (!session?.user?.email) {
     redirect("/auth/login");
   }
-
-  const users = await prisma.$queryRaw<UserCoinRow[]>`
-    SELECT
-      id,
-      name,
-      email,
-      COALESCE(coinBalance, 0) AS coinBalance
-    FROM \`User\`
-    WHERE email = ${session.user.email}
-    LIMIT 1
-  `;
-
-  const user = users[0];
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  const coinBalance = user.coinBalance ?? 0;
-  const displayName = user.name?.trim() || "bạn";
 
   const user = await prisma.user.findUnique({
     where: {
@@ -429,14 +405,14 @@ export default async function RewardsPage({
       coinBalance: true,
     },
   });
-  
+
   if (!user) {
     redirect("/auth/login");
   }
-  
+
   const coinBalance = user.coinBalance ?? 0;
   const displayName = user.name?.trim() || "bạn";
-  
+
   const rewardItemsRaw = await prisma.rewardItem.findMany({
     where: {
       active: true,
@@ -463,7 +439,7 @@ export default async function RewardsPage({
       createdAt: true,
     },
   });
-  
+
   const rewardItems: RewardItemRow[] = rewardItemsRaw.map((item) => ({
     id: item.id,
     slug: item.slug,
@@ -477,7 +453,7 @@ export default async function RewardsPage({
     perUserLimit: item.perUserLimit,
     createdAt: item.createdAt,
   }));
-  
+
   const redemptionsRaw = await prisma.rewardRedemption.findMany({
     where: {
       userId: user.id,
@@ -500,7 +476,7 @@ export default async function RewardsPage({
       updatedAt: true,
     },
   });
-  
+
   const redemptions: RewardRedemptionRow[] = redemptionsRaw.map((item) => ({
     id: item.id,
     rewardItemId: item.rewardItemId,
@@ -514,7 +490,7 @@ export default async function RewardsPage({
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }));
-  
+
   const streakRewardsRaw = await prisma.streakReward.findMany({
     where: {
       userId: user.id,
@@ -530,14 +506,14 @@ export default async function RewardsPage({
       awardedAt: true,
     },
   });
-  
+
   const streakRewards: StreakRewardRow[] = streakRewardsRaw.map((item) => ({
     id: item.id,
     milestone: item.milestone,
     coinsEarned: item.coinsEarned,
     awardedAt: item.awardedAt,
   }));
-  
+
   const coinTransactionsRaw = await prisma.coinTransaction.findMany({
     where: {
       userId: user.id,
@@ -557,7 +533,7 @@ export default async function RewardsPage({
       createdAt: true,
     },
   });
-  
+
   const coinTransactions: CoinTransactionRow[] = coinTransactionsRaw.map(
     (item) => ({
       id: item.id,
@@ -610,8 +586,6 @@ export default async function RewardsPage({
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-8">
-       
-
         <section className="relative overflow-hidden rounded-[42px] border border-white bg-white/72 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[52px]">
           <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
             <div className="absolute -left-[8%] top-[5%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/70 blur-[110px]" />
@@ -628,11 +602,11 @@ export default async function RewardsPage({
                 </div>
 
                 <h1 className="max-w-[880px] text-[clamp(2.25rem,4vw,4rem)] font-black leading-[1.08] tracking-[-0.035em] text-[#1A1528]">
-  Đổi nỗ lực tập trung thành{" "}
-  <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B6DFF] to-[#4DA8FF] bg-clip-text font-black text-transparent drop-shadow-[0_0_0.01px_rgba(26,21,40,0.35)]">
-    phần thưởng 
-  </span>
-</h1>
+                  Đổi nỗ lực tập trung thành{" "}
+                  <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B6DFF] to-[#4DA8FF] bg-clip-text font-black text-transparent drop-shadow-[0_0_0.01px_rgba(26,21,40,0.35)]">
+                    phần thưởng
+                  </span>
+                </h1>
 
                 <p className="mt-5 max-w-[680px] text-[15px] font-medium leading-8 text-[#6B647C] md:text-[16px]">
                   Chào {displayName}, coin được cộng khi bạn hoàn thành task,
@@ -926,7 +900,8 @@ export default async function RewardsPage({
                                 <div className="mt-3 text-[11px] font-bold text-[#8A84A3]">
                                   Giới hạn:{" "}
                                   <span className="font-black text-[#241F3D]">
-                                    {reward.perUserLimit && reward.perUserLimit > 0
+                                    {reward.perUserLimit &&
+                                    reward.perUserLimit > 0
                                       ? `${reward.perUserLimit} lần / tài khoản`
                                       : "Không giới hạn"}
                                   </span>
@@ -940,7 +915,9 @@ export default async function RewardsPage({
                                   canRedeem={canRedeem}
                                   isOutOfStock={rewardOutOfStock}
                                   disabledReason="Chưa đủ coin"
-                                  defaultRecipientName={displayName === "bạn" ? "" : displayName}
+                                  defaultRecipientName={
+                                    displayName === "bạn" ? "" : displayName
+                                  }
                                 />
                               </div>
                             </div>
@@ -1020,8 +997,8 @@ export default async function RewardsPage({
                                 {item.description}
                               </div>
                               <div className="mt-1 text-[11px] font-bold text-[#8A84A3]">
-                                {formatDateTime(item.createdAt)} · Balance after:{" "}
-                                {formatNumber(item.balanceAfter)}
+                                {formatDateTime(item.createdAt)} · Balance
+                                after: {formatNumber(item.balanceAfter)}
                               </div>
                             </div>
                           </div>
@@ -1214,11 +1191,8 @@ function RewardImage({
   if (imageUrl) {
     return (
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[26px] border border-white/80 bg-white shadow-[0_14px_28px_rgba(97,76,197,0.10)]">
-        <img
-          src={imageUrl}
-          alt={title}
-          className="h-full w-full object-cover"
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
       </div>
     );
   }
