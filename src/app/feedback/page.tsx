@@ -1,495 +1,284 @@
-"use client";
-
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { useState } from "react";
 import {
   ArrowRight,
+  BarChart3,
   CheckCircle2,
+  Clock3,
+  HeartHandshake,
+  Mail,
+  MessageCircleHeart,
   MessageSquareHeart,
-  Send,
+  ShieldCheck,
   Sparkles,
   Star,
-  User2,
   Users,
-  Megaphone,
 } from "lucide-react";
 
-type CustomerType =
-  | "STUDENT"
-  | "WORKER"
-  | "FREELANCER"
-  | "FOUNDER"
-  | "BUSINESS_OWNER"
-  | "COMPANY_EMPLOYEE"
-  | "OTHER";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import FeedbackForm from "@/components/feedback/FeedbackForm";
 
-type SourceChannel =
-  | "FACEBOOK"
-  | "TIKTOK"
-  | "INSTAGRAM"
-  | "FRIEND"
-  | "DIRECT_MEETING"
-  | "COMPANY"
-  | "CLASS_GROUP"
-  | "OTHER";
+const CONTACT_EMAIL = "mthuy04.ai@gmail.com";
 
-const CUSTOMER_TYPE_OPTIONS: Array<{ value: CustomerType; label: string }> = [
-  { value: "STUDENT", label: "Sinh viên" },
-  { value: "WORKER", label: "Người đi làm" },
-  { value: "FREELANCER", label: "Freelancer" },
-  { value: "FOUNDER", label: "Founder / startup" },
-  { value: "BUSINESS_OWNER", label: "Chủ kinh doanh" },
-  { value: "COMPANY_EMPLOYEE", label: "Nhân sự doanh nghiệp" },
-  { value: "OTHER", label: "Khác" },
+const feedbackBenefits = [
+  {
+    icon: <MessageSquareHeart className="h-5 w-5" />,
+    title: "Ghi nhận trải nghiệm thật",
+    description:
+      "Bạn có thể chia sẻ phần hữu ích, phần chưa rõ và điều ChronoFlow nên cải thiện tiếp.",
+    tone: "purple",
+  },
+  {
+    icon: <BarChart3 className="h-5 w-5" />,
+    title: "Hỗ trợ báo cáo performance",
+    description:
+      "Feedback giúp ChronoFlow có bằng chứng thực tế cho pitching, cải tiến sản phẩm và phân tích khách hàng.",
+    tone: "blue",
+  },
+  {
+    icon: <ShieldCheck className="h-5 w-5" />,
+    title: "Có quyền đồng ý rõ ràng",
+    description:
+      "Bạn có thể chọn cho phép dùng testimonial hoặc cho phép ChronoFlow liên hệ lại hay không.",
+    tone: "green",
+  },
 ];
 
-const SOURCE_CHANNEL_OPTIONS: Array<{ value: SourceChannel; label: string }> = [
-  { value: "FACEBOOK", label: "Facebook" },
-  { value: "TIKTOK", label: "TikTok" },
-  { value: "INSTAGRAM", label: "Instagram" },
-  { value: "FRIEND", label: "Bạn bè giới thiệu" },
-  { value: "DIRECT_MEETING", label: "Gặp trực tiếp / demo" },
-  { value: "COMPANY", label: "Doanh nghiệp / công ty" },
-  { value: "CLASS_GROUP", label: "Nhóm lớp / cộng đồng học tập" },
-  { value: "OTHER", label: "Khác" },
+const processSteps = [
+  {
+    icon: <Star className="h-4 w-4" />,
+    title: "Bạn gửi đánh giá",
+    description: "Chấm điểm trải nghiệm và chia sẻ cảm nhận thật.",
+  },
+  {
+    icon: <Mail className="h-4 w-4" />,
+    title: "ChronoFlow nhận email",
+    description: "Feedback được gửi về email admin qua SMTP.",
+  },
+  {
+    icon: <CheckCircle2 className="h-4 w-4" />,
+    title: "Đội ngũ tổng hợp",
+    description: "Phản hồi được dùng để cải thiện sản phẩm và báo cáo.",
+  },
 ];
 
 export default function FeedbackPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [rating, setRating] = useState(5);
-  const [userType, setUserType] = useState<CustomerType | "">("");
-  const [sourceChannel, setSourceChannel] = useState<SourceChannel | "">("");
-  const [whatWorked, setWhatWorked] = useState("");
-  const [whatConfused, setWhatConfused] = useState("");
-  const [featureRequest, setFeatureRequest] = useState("");
-  const [wouldRecommend, setWouldRecommend] = useState(true);
-  const [testimonialConsent, setTestimonialConsent] = useState(true);
-  const [contactConsent, setContactConsent] = useState(false);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    setError("");
-    setSuccess("");
-
-    if (!whatWorked.trim() || whatWorked.trim().length < 5) {
-      setError("Bạn giúp mình ghi ít nhất một điều bạn thấy hữu ích nha.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          rating,
-          userType: userType || null,
-          sourceChannel: sourceChannel || null,
-          whatWorked,
-          whatConfused,
-          featureRequest,
-          wouldRecommend,
-          testimonialConsent,
-          contactConsent,
-        }),
-      });
-
-      const data = (await response.json().catch(() => null)) as {
-        success?: boolean;
-        error?: string;
-        message?: string;
-      } | null;
-
-      if (!response.ok || !data?.success) {
-        setError(data?.error || "Không thể gửi feedback.");
-        return;
-      }
-
-      setSuccess(
-        data.message ||
-          "Cảm ơn bạn đã gửi feedback. Phản hồi này giúp ChronoFlow cải thiện sản phẩm và có minh chứng tốt hơn cho pitching.",
-      );
-
-      setWhatWorked("");
-      setWhatConfused("");
-      setFeatureRequest("");
-    } catch {
-      setError("Có lỗi xảy ra khi gửi feedback.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] text-[#1A1528] selection:bg-[#6F59FF]/20">
+    <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
+      <Navbar />
+
+      <AmbientBackground />
+
+      <section className="relative z-10 mx-auto w-full max-w-[1280px] px-4 pb-20 pt-28 lg:px-8">
+        <div className="overflow-hidden rounded-[42px] border border-white bg-white/72 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[52px]">
+          <div className="grid min-h-[720px] lg:grid-cols-[0.95fr_1.05fr]">
+            <aside className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#DCD1FF_100%)] px-6 py-10 md:px-10 lg:py-14">
+              <HeroGlow />
+
+              <div className="relative z-10 flex h-full flex-col justify-between gap-10">
+                <div>
+                  <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/82 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    ChronoFlow Feedback
+                  </div>
+
+                  <h1 className="max-w-[760px] text-[clamp(2.25rem,4.4vw,4.5rem)] font-black leading-[1.02] tracking-[-0.055em] text-[#1A1528]">
+                    Góp ý để ChronoFlow{" "}
+                    <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B6DFF] to-[#4DA8FF] bg-clip-text text-transparent">
+                      tốt hơn mỗi ngày.
+                    </span>
+                  </h1>
+
+                  <p className="mt-5 max-w-[660px] text-[15px] font-medium leading-8 text-[#5B566E] md:text-[16px]">
+                    Phản hồi của bạn giúp tụi mình hiểu trải nghiệm thật: điều
+                    gì đang hữu ích, điều gì còn gây khó hiểu, và sản phẩm nên
+                    ưu tiên cải thiện phần nào tiếp theo.
+                  </p>
+
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <Link
+                      href="/dashboard"
+                      className="group inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_18px_36px_rgba(23,19,41,0.18)] transition hover:-translate-y-0.5 hover:bg-black"
+                    >
+                      Mở Dashboard
+                      <ArrowRight className="h-4 w-4 text-[#4DA8FF] transition group-hover:translate-x-1" />
+                    </Link>
+
+                    <a
+                      href={`mailto:${CONTACT_EMAIL}`}
+                      className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full border border-white/80 bg-white/82 px-6 text-[14px] font-black text-[#241F3D] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+                    >
+                      <Mail className="h-4 w-4 text-[#6F59FF]" />
+                      Email trực tiếp
+                    </a>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {feedbackBenefits.map((item) => (
+                    <BenefitCard
+                      key={item.title}
+                      icon={item.icon}
+                      title={item.title}
+                      description={item.description}
+                      tone={item.tone}
+                    />
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            <section className="relative px-5 py-8 md:px-8 lg:px-10 lg:py-12">
+              <div className="pointer-events-none absolute right-8 top-8 hidden rounded-full border border-[#E9E5FF] bg-[#F8F6FF] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] lg:block">
+                SMTP email enabled
+              </div>
+
+              <div className="mx-auto max-w-[720px]">
+                <FeedbackForm />
+
+                <div className="mt-8 rounded-[30px] border border-[#E9E5FF] bg-[linear-gradient(180deg,#FFFFFF_0%,#F8F9FE_100%)] p-5 shadow-[0_18px_45px_rgba(26,21,40,0.05)]">
+                  <div className="mb-4 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
+                    <HeartHandshake className="h-4 w-4" />
+                    Sau khi bạn gửi feedback
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {processSteps.map((step, index) => (
+                      <ProcessStep
+                        key={step.title}
+                        index={index + 1}
+                        icon={step.icon}
+                        title={step.title}
+                        description={step.description}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-[26px] border border-[#DDEEFF] bg-[#EEF6FF]/72 p-5 text-[13px] font-medium leading-7 text-[#4B5F7A]">
+                  <div className="mb-2 flex items-center gap-2 font-black text-[#1A1528]">
+                    <ShieldCheck className="h-4 w-4 text-[#4DA8FF]" />
+                    Ghi chú minh bạch
+                  </div>
+                  Feedback được dùng để cải thiện ChronoFlow và tổng hợp insight
+                  cho báo cáo học phần/pitching. Những phản hồi dùng làm
+                  testimonial sẽ chỉ được sử dụng theo lựa chọn đồng ý của bạn.
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </main>
+  );
+}
+
+function AmbientBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0">
       <div
-        className="pointer-events-none absolute inset-0 opacity-40 mix-blend-multiply"
+        className="absolute inset-0 opacity-40 mix-blend-multiply"
         style={{
           backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
           backgroundSize: "32px 32px",
         }}
       />
-      <div className="pointer-events-none absolute -left-[12%] top-[8%] h-[460px] w-[460px] rounded-full bg-[#DCCEFF]/55 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-[12%] top-[16%] h-[460px] w-[460px] rounded-full bg-[#D9EAFF]/60 blur-[130px]" />
-
-      <section className="relative z-10 mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-8">
-        <div className="overflow-hidden rounded-[42px] border border-white bg-white/72 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[52px]">
-          <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
-            <aside className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_45%,#DCD1FF_100%)] p-6 md:p-8 lg:p-10">
-              <div className="pointer-events-none absolute left-[10%] top-[8%] h-36 w-36 rounded-full bg-white/20 blur-3xl" />
-              <div className="pointer-events-none absolute right-[8%] top-[20%] h-32 w-32 rounded-full bg-[#D9EAFF]/70 blur-3xl" />
-
-              <div className="relative">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  ChronoFlow Feedback
-                </div>
-
-                <h1 className="mt-5 max-w-[620px] text-[clamp(2.4rem,5vw,4.4rem)] font-black leading-[0.98] tracking-[-0.055em] text-[#1A1528]">
-                  Gửi feedback giúp tụi mình cải thiện sản phẩm.
-                </h1>
-
-                <p className="mt-5 max-w-[560px] text-[15px] font-medium leading-8 text-[#5B566E]">
-                  Phản hồi của bạn sẽ giúp ChronoFlow điều chỉnh tính năng theo
-                  nhu cầu thật và tạo minh chứng người dùng cho buổi pitching.
-                </p>
-
-                <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                  <InfoCard
-                    icon={<MessageSquareHeart className="h-5 w-5" />}
-                    title="Feedback thật"
-                    text="Dùng để cải thiện sản phẩm sau mỗi lần gặp người dùng."
-                  />
-                  <InfoCard
-                    icon={<Users className="h-5 w-5" />}
-                    title="Customer record"
-                    text="Ghi nhận nhóm khách hàng, nguồn biết đến sản phẩm và nhu cầu."
-                  />
-                </div>
-
-                <div className="mt-8 rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-[0_20px_50px_rgba(111,89,255,0.10)] backdrop-blur-md">
-                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
-                    Dùng cho pitching
-                  </div>
-                  <p className="mt-2 text-[13px] leading-7 text-[#5B566E]">
-                    Nếu bạn đồng ý, ChronoFlow có thể dùng feedback ẩn danh hoặc
-                    trích dẫn ngắn trong báo cáo/pitching. Bạn vẫn có thể gửi
-                    feedback mà không đồng ý trích dẫn.
-                  </p>
-                </div>
-              </div>
-            </aside>
-
-            <section className="p-6 md:p-8 lg:p-10">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
-                    Feedback form
-                  </div>
-                  <h2 className="mt-2 text-[1.8rem] font-black tracking-tight text-[#1A1528]">
-                    Trải nghiệm của bạn với ChronoFlow
-                  </h2>
-                  <p className="mt-2 text-[13px] leading-7 text-[#6B647C]">
-                    Form này mất khoảng 1–2 phút. Càng cụ thể càng giúp tụi mình
-                    cải thiện đúng nhu cầu hơn.
-                  </p>
-                </div>
-
-                <section className="rounded-[30px] border border-[#EEE9FF] bg-[#FCFBFF] p-5">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#F2EEFF] text-[#6F59FF]">
-                      <Star className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-[14px] font-black text-[#1A1528]">
-                        Bạn đánh giá ChronoFlow mấy điểm?
-                      </div>
-                      <div className="text-[12px] leading-6 text-[#6B647C]">
-                        1 là chưa phù hợp, 5 là rất hữu ích.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setRating(value)}
-                        className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-[15px] font-black transition ${
-                          rating === value
-                            ? "bg-[#1A1528] text-white shadow-[0_14px_30px_rgba(26,21,40,0.14)]"
-                            : "border border-[#EEE9FF] bg-white text-[#6B647C] hover:bg-[#F8F6FF]"
-                        }`}
-                      >
-                        {value}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="grid gap-4 md:grid-cols-2">
-                  <InputCard
-                    icon={<User2 className="h-5 w-5" />}
-                    label="Tên của bạn"
-                    hint="Không bắt buộc nếu bạn đã đăng nhập."
-                  >
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Nhập tên"
-                      className="h-12 w-full rounded-2xl border border-[#EEE9FF] bg-white px-4 text-[14px] font-semibold text-[#1A1528] outline-none transition focus:border-[#6F59FF] focus:ring-4 focus:ring-[#6F59FF]/10"
-                    />
-                  </InputCard>
-
-                  <InputCard
-                    icon={<User2 className="h-5 w-5" />}
-                    label="Email"
-                    hint="Không bắt buộc, dùng nếu bạn muốn tụi mình follow-up."
-                  >
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="email@example.com"
-                      className="h-12 w-full rounded-2xl border border-[#EEE9FF] bg-white px-4 text-[14px] font-semibold text-[#1A1528] outline-none transition focus:border-[#6F59FF] focus:ring-4 focus:ring-[#6F59FF]/10"
-                    />
-                  </InputCard>
-                </section>
-
-                <section className="grid gap-4 md:grid-cols-2">
-                  <InputCard
-                    icon={<Users className="h-5 w-5" />}
-                    label="Bạn thuộc nhóm khách hàng nào?"
-                    hint="Giúp ChronoFlow hiểu feedback đến từ nhóm nào."
-                  >
-                    <select
-                      value={userType}
-                      onChange={(event) =>
-                        setUserType(event.target.value as CustomerType | "")
-                      }
-                      className="h-12 w-full rounded-2xl border border-[#EEE9FF] bg-white px-4 text-[14px] font-semibold text-[#1A1528] outline-none transition focus:border-[#6F59FF] focus:ring-4 focus:ring-[#6F59FF]/10"
-                    >
-                      <option value="">Chọn nhóm khách hàng</option>
-                      {CUSTOMER_TYPE_OPTIONS.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                  </InputCard>
-
-                  <InputCard
-                    icon={<Megaphone className="h-5 w-5" />}
-                    label="Bạn biết ChronoFlow qua đâu?"
-                    hint="Giúp tụi mình đo hiệu quả marketing."
-                  >
-                    <select
-                      value={sourceChannel}
-                      onChange={(event) =>
-                        setSourceChannel(event.target.value as SourceChannel | "")
-                      }
-                      className="h-12 w-full rounded-2xl border border-[#EEE9FF] bg-white px-4 text-[14px] font-semibold text-[#1A1528] outline-none transition focus:border-[#6F59FF] focus:ring-4 focus:ring-[#6F59FF]/10"
-                    >
-                      <option value="">Chọn nguồn</option>
-                      {SOURCE_CHANNEL_OPTIONS.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                  </InputCard>
-                </section>
-
-                <TextAreaCard
-                  label="Điều bạn thấy hữu ích nhất là gì?"
-                  required
-                  value={whatWorked}
-                  onChange={setWhatWorked}
-                  placeholder="Ví dụ: mình thích phần planner theo nhịp năng lượng vì..."
-                />
-
-                <TextAreaCard
-                  label="Có phần nào gây khó hiểu hoặc chưa mượt không?"
-                  value={whatConfused}
-                  onChange={setWhatConfused}
-                  placeholder="Ví dụ: phần assessment hơi dài, hoặc dashboard cần giải thích rõ hơn..."
-                />
-
-                <TextAreaCard
-                  label="Bạn muốn ChronoFlow cải thiện/thêm tính năng gì?"
-                  value={featureRequest}
-                  onChange={setFeatureRequest}
-                  placeholder="Ví dụ: nhắc lịch, export weekly report, mode dành cho team..."
-                />
-
-                <section className="space-y-3 rounded-[30px] border border-[#EEE9FF] bg-[#FCFBFF] p-5">
-                  <CheckboxRow
-                    checked={wouldRecommend}
-                    onChange={setWouldRecommend}
-                    label="Tôi có thể giới thiệu ChronoFlow cho bạn bè/đồng nghiệp nếu sản phẩm tiếp tục hoàn thiện."
-                  />
-
-                  <CheckboxRow
-                    checked={testimonialConsent}
-                    onChange={setTestimonialConsent}
-                    label="Tôi đồng ý cho ChronoFlow sử dụng feedback này trong báo cáo/pitching dưới dạng ẩn danh hoặc trích dẫn ngắn."
-                  />
-
-                  <CheckboxRow
-                    checked={contactConsent}
-                    onChange={setContactConsent}
-                    label="Tôi đồng ý để ChronoFlow liên hệ lại nếu cần hỏi thêm về feedback."
-                  />
-                </section>
-
-                {error ? (
-                  <div className="rounded-2xl border border-[#FFD8D8] bg-[#FFF7F7] px-4 py-3 text-[13px] font-semibold text-[#B42318]">
-                    {error}
-                  </div>
-                ) : null}
-
-                {success ? (
-                  <div className="rounded-2xl border border-[#DDF5E7] bg-[#F1FFF7] px-4 py-3 text-[13px] font-semibold text-[#23965F]">
-                    {success}
-                  </div>
-                ) : null}
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_14px_30px_rgba(26,21,40,0.14)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Send className="h-4 w-4" />
-                    {isSubmitting ? "Đang gửi..." : "Gửi feedback"}
-                  </button>
-
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border border-[#EEE9FF] bg-white px-6 text-[14px] font-black text-[#1A1528] transition hover:bg-[#F8F6FF]"
-                  >
-                    Về dashboard
-                    <ArrowRight className="h-4 w-4 text-[#6F59FF]" />
-                  </Link>
-                </div>
-              </form>
-            </section>
-          </div>
-        </div>
-      </section>
-    </main>
+      <div className="absolute left-[8%] top-[-5%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/60 blur-[110px]" />
+      <div className="absolute right-[-8%] top-[12%] h-[380px] w-[380px] rounded-full bg-[#D9EAFF]/70 blur-[120px]" />
+      <div className="absolute bottom-[-16%] left-[32%] h-[520px] w-[520px] rounded-full bg-white/75 blur-[120px]" />
+    </div>
   );
 }
 
-function InfoCard({
+function HeroGlow() {
+  return (
+    <>
+      <div className="pointer-events-none absolute left-[8%] top-[-16%] h-[360px] w-[360px] rounded-full bg-white/45 blur-[90px]" />
+      <div className="pointer-events-none absolute right-[-14%] top-[16%] h-[320px] w-[320px] rounded-full bg-[#D9EAFF]/75 blur-[100px]" />
+      <div className="pointer-events-none absolute bottom-[-18%] left-[24%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/45 blur-[110px]" />
+    </>
+  );
+}
+
+function BenefitCard({
   icon,
   title,
-  text,
+  description,
+  tone,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
-  text: string;
+  description: string;
+  tone: string;
 }) {
-  return (
-    <div className="rounded-[26px] border border-white/80 bg-white/75 p-5 shadow-[0_14px_34px_rgba(26,21,40,0.05)] backdrop-blur-md">
-      <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-[#F2EEFF] text-[#6F59FF]">
-        {icon}
-      </div>
-      <div className="text-[15px] font-black text-[#1A1528]">{title}</div>
-      <p className="mt-2 text-[13px] leading-7 text-[#5B566E]">{text}</p>
-    </div>
-  );
-}
+  const style = getToneStyle(tone);
 
-function InputCard({
-  icon,
-  label,
-  hint,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-  children: React.ReactNode;
-}) {
   return (
-    <div className="rounded-[26px] border border-[#EEE9FF] bg-[#FCFBFF] p-5">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#F2EEFF] text-[#6F59FF]">
+    <div className="rounded-[28px] border border-white/80 bg-white/70 p-5 shadow-[0_16px_40px_rgba(97,76,197,0.08)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/82">
+      <div className="flex gap-4">
+        <div
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border shadow-sm ${style.icon}`}
+        >
           {icon}
         </div>
+
         <div>
-          <div className="text-[14px] font-black tracking-tight text-[#1A1528]">
-            {label}
-          </div>
-          <div className="mt-1 text-[12px] leading-6 text-[#6B647C]">
-            {hint}
-          </div>
+          <div className="text-[15px] font-black text-[#1A1528]">{title}</div>
+          <p className="mt-1.5 text-[13px] font-medium leading-7 text-[#5B566E]">
+            {description}
+          </p>
         </div>
       </div>
-      {children}
     </div>
   );
 }
 
-function TextAreaCard({
-  label,
-  value,
-  onChange,
-  placeholder,
-  required = false,
+function ProcessStep({
+  index,
+  icon,
+  title,
+  description,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  required?: boolean;
+  index: number;
+  icon: ReactNode;
+  title: string;
+  description: string;
 }) {
   return (
-    <label className="block rounded-[26px] border border-[#EEE9FF] bg-[#FCFBFF] p-5">
-      <div className="text-[14px] font-black tracking-tight text-[#1A1528]">
-        {label} {required ? <span className="text-[#6F59FF]">*</span> : null}
+    <div className="rounded-[24px] border border-[#EEF0F6] bg-white/82 p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#F3F0FF] text-[#6F59FF]">
+          {icon}
+        </div>
+
+        <div className="rounded-full bg-[#1A1528] px-2.5 py-1 text-[10px] font-black text-white">
+          0{index}
+        </div>
       </div>
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-3 min-h-[110px] w-full resize-none rounded-2xl border border-[#EEE9FF] bg-white px-4 py-3 text-[14px] font-semibold leading-7 text-[#1A1528] outline-none transition focus:border-[#6F59FF] focus:ring-4 focus:ring-[#6F59FF]/10"
-      />
-    </label>
+
+      <div className="text-[13px] font-black text-[#1A1528]">{title}</div>
+      <p className="mt-1.5 text-[12px] font-medium leading-6 text-[#5B566E]">
+        {description}
+      </p>
+    </div>
   );
 }
 
-function CheckboxRow({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex gap-3 rounded-[22px] border border-[#EEE9FF] bg-white px-4 py-3 text-[13px] leading-6 text-[#5B566E]">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 rounded border-[#DCD3FF] text-[#6F59FF]"
-      />
-      <span>{label}</span>
-    </label>
-  );
+function getToneStyle(tone: string) {
+  const styles: Record<string, { icon: string }> = {
+    purple: {
+      icon: "border-[#E9E5FF] bg-[#F3F0FF] text-[#6F59FF]",
+    },
+    blue: {
+      icon: "border-[#DDEEFF] bg-[#EEF6FF] text-[#4DA8FF]",
+    },
+    green: {
+      icon: "border-[#D1FAE5] bg-[#ECFDF5] text-[#10B981]",
+    },
+  };
+
+  return styles[tone] ?? styles.purple;
 }

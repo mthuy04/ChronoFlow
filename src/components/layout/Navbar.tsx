@@ -22,6 +22,7 @@ import {
   Menu,
   Settings,
   Shield,
+  MessageCircleHeart,
   Sparkles,
   User2,
   Users,
@@ -95,6 +96,12 @@ const guestNavItems: NavItem[] = [
         label: "Chrono Kit",
         description: "Xem Planner Kit và reward loop vật lý của ChronoFlow.",
         icon: <Gift className="h-4 w-4" />,
+      },
+      {
+        href: "/feedback",
+        label: "Góp ý sản phẩm",
+        description: "Chia sẻ trải nghiệm để ChronoFlow cải thiện tốt hơn.",
+        icon: <MessageCircleHeart className="h-4 w-4" />,
       },
     ],
   },
@@ -254,6 +261,12 @@ const userNavItems: NavItem[] = [
         label: "FAQ",
         description: "Xem câu hỏi thường gặp và hướng dẫn nhanh.",
         icon: <FileText className="h-4 w-4" />,
+      },
+      {
+        href: "/feedback",
+        label: "Gửi feedback",
+        description: "Chia sẻ trải nghiệm sử dụng ChronoFlow.",
+        icon: <MessageCircleHeart className="h-4 w-4" />,
       },
     ],
   },
@@ -979,6 +992,12 @@ function ProfileDropdown({
               label="Điểm thưởng & đổi quà"
               onClick={onClose}
             />
+            <DropdownLink
+  href="/feedback"
+  icon={<MessageCircleHeart className="h-4 w-4" />}
+  label="Gửi feedback"
+  onClick={onClose}
+/>
           </>
         )}
 
