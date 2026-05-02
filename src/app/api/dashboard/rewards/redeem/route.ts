@@ -29,15 +29,17 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Bạn cần đăng nhập để đổi quà.",
-        },
-        { status: 401 },
-      );
-    }
+if (!session?.user?.email) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Bạn cần đăng nhập để đổi quà.",
+    },
+    { status: 401 },
+  );
+}
+
+const userEmail = session.user.email;
 
     const body = (await request.json().catch(() => null)) as RedeemBody | null;
 
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: {
-          email: session.user.email,
+          email: userEmail,
         },
         select: {
           id: true,
