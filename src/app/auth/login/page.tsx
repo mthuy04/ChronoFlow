@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Header from "@/components/layout/Navbar";
@@ -20,6 +20,29 @@ import {
 } from "lucide-react";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <main className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
+      <AuthBackground />
+      <Header variant="guest" />
+
+      <section className="relative z-10 flex min-h-[70vh] items-center justify-center px-4 pb-12 pt-6 lg:px-8">
+        <div className="rounded-[28px] border border-white bg-white/90 px-6 py-5 text-sm font-semibold text-[#6B647C] shadow-[0_20px_70px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+          Đang tải trang đăng nhập...
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -31,79 +54,79 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError("");
     setIsSubmitting(true);
-  
+
     try {
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
-  
+
       if (!result || result.error) {
         setError("Email hoặc mật khẩu không đúng.");
         setIsSubmitting(false);
         return;
       }
-  
-      // 1) Ưu tiên quay về trang user định vào trước
+
       if (callbackUrl) {
         router.push(callbackUrl);
         return;
       }
-  
-      // 2) Không có callbackUrl thì check user mới / cũ
+
       const meRes = await fetch("/api/me", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
       });
-  
+
       if (!meRes.ok) {
         router.push("/dashboard");
         return;
       }
-  
-      const me = await meRes.json();
-  
-      // user cũ -> dashboard
-      // user mới -> assessment
-      if (me?.hasCompletedAssessment) {
+
+      const me = (await meRes.json()) as {
+        hasCompletedAssessment?: boolean;
+      };
+
+      if (me.hasCompletedAssessment) {
         router.push("/dashboard");
       } else {
         router.push("/assessment");
       }
-    } catch (err) {
+    } catch {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
   return (
-<main className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
+    <main className="min-h-screen bg-[#F4F2FA] font-sans text-[#1A1528] selection:bg-[#6F59FF]/20">
       <AuthBackground />
-      <Header />
+      <Header variant="guest" />
 
       <section className="relative z-10 px-4 pb-12 pt-6 lg:px-8">
         <div className="mx-auto max-w-[1280px]">
           <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_20px_80px_rgba(26,21,40,0.06)]">
             <div className="grid lg:grid-cols-[0.92fr_1.08fr]">
               <div className="relative px-6 py-8 md:px-8 lg:px-10 lg:py-10">
-              <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
+                <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5" />
                   Chào mừng quay lại
                 </div>
 
                 <h1 className="mb-3 text-[clamp(2.2rem,4vw,3.8rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
-  Đăng nhập để <br className="hidden sm:block" />
-  quay lại {" "}
-  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-  đúng nhịp.
-  </span>
-</h1>
+                  Đăng nhập để <br className="hidden sm:block" />
+                  quay lại{" "}
+                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+                    đúng nhịp.
+                  </span>
+                </h1>
+
                 <p className="mb-6 max-w-[560px] text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
                   Truy cập dashboard, planner, insight về nhịp năng lượng và các
                   khung giờ tập trung tốt nhất của bạn để tiếp tục làm việc đúng lúc hơn.
@@ -138,6 +161,7 @@ export default function LoginPage() {
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
                         className="text-[#8A84A3] transition-colors hover:text-[#1A1528]"
+                        aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -233,20 +257,13 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-3">
-                      <MockRow
-                        title="Kết quả chronotype"
-                        meta="Đã lưu sẵn"
-                        done
-                      />
+                      <MockRow title="Kết quả chronotype" meta="Đã lưu sẵn" done />
                       <MockRow
                         title="Planner trong ngày"
                         meta="Tiếp tục flow làm việc"
                         active
                       />
-                      <MockRow
-                        title="Insight theo tuần"
-                        meta="Xem lại pattern của bạn"
-                      />
+                      <MockRow title="Insight theo tuần" meta="Xem lại pattern của bạn" />
                     </div>
                   </div>
 
@@ -286,26 +303,11 @@ function InputRow({
         type={type}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-[#AAA1BC]"
       />
       {trailing}
     </div>
-  );
-}
-
-function SimpleNav() {
-  return (
-    <nav className="sticky top-0 z-50 border-b border-white/80 bg-[#F4F2FA]/80 px-6 py-5 backdrop-blur-md">
-      <div className="mx-auto max-w-6xl">
-        <Link href="/" className="flex w-fit items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#6F59FF]" />
-          <span className="text-xl font-[900] tracking-tight text-[#1A1528]">
-            ChronoFlow
-          </span>
-        </Link>
-      </div>
-    </nav>
   );
 }
 
@@ -413,8 +415,8 @@ function MockRow({
             done
               ? "bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-white"
               : active
-              ? "border-2 border-[#6F59FF] bg-[#F3F0FF]"
-              : "border-2 border-gray-200 bg-white"
+                ? "border-2 border-[#6F59FF] bg-[#F3F0FF]"
+                : "border-2 border-gray-200 bg-white"
           }`}
         >
           {done && <CheckCircle2 className="h-3 w-3" />}
@@ -434,13 +436,7 @@ function MockRow({
   );
 }
 
-function SmallStat({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
+function SmallStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="rounded-[20px] border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur-md">
       <div className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-[28px] font-[900] leading-none text-transparent">
