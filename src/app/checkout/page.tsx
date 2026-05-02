@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -32,6 +32,34 @@ type CreatedOrder = {
 };
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutPageFallback />}>
+      <CheckoutPageContent />
+    </Suspense>
+  );
+}
+
+function CheckoutPageFallback() {
+  return (
+    <main className="min-h-screen bg-[#F4F2FA] px-4 py-16 font-sans text-[#1A1528]">
+      <div
+        className="pointer-events-none fixed inset-0 opacity-35 mix-blend-multiply"
+        style={{
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto flex min-h-[70vh] max-w-xl items-center justify-center">
+        <div className="rounded-[32px] border border-white bg-white/90 px-6 py-5 text-center text-sm font-semibold text-[#6B647C] shadow-[0_24px_70px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+          Đang tải trang thanh toán...
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function CheckoutPageContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan");
   const product = searchParams.get("product");
@@ -63,9 +91,12 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as {
+        message?: string;
+        order?: CreatedOrder;
+      };
 
-      if (!res.ok) {
+      if (!res.ok || !data.order) {
         throw new Error(data.message || "Không tạo được đơn thanh toán.");
       }
 
@@ -92,7 +123,7 @@ export default function CheckoutPage() {
     await navigator.clipboard.writeText(order.transferCode);
     setCopied(true);
 
-    setTimeout(() => setCopied(false), 1600);
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
   async function confirmTransfer() {
@@ -103,6 +134,7 @@ export default function CheckoutPage() {
 
       const formData = new FormData();
       formData.append("orderId", order.orderId);
+
       if (proofFile) {
         formData.append("proof", proofFile);
       }
@@ -112,10 +144,12 @@ export default function CheckoutPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
 
       if (!res.ok) {
-        throw new Error(data.message || "Không xác nhận được giao dịch.");
+        throw new Error(data?.message || "Không xác nhận được giao dịch.");
       }
 
       setConfirmed(true);
@@ -236,6 +270,7 @@ export default function CheckoutPage() {
 
                 {!order && (
                   <button
+                    type="button"
                     onClick={createOrder}
                     disabled={creating}
                     className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
@@ -318,6 +353,7 @@ export default function CheckoutPage() {
                   <div className="grid gap-5 md:grid-cols-[260px_1fr]">
                     <div className="rounded-[28px] border border-[#EEF0F6] bg-[#F8F9FE] p-4">
                       <div className="overflow-hidden rounded-[22px] bg-white p-3 shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={order.qrUrl}
                           alt="QR chuyển khoản ChronoFlow"
@@ -330,7 +366,12 @@ export default function CheckoutPage() {
                       <BankRow label="Ngân hàng" value={order.bank.bankId} />
                       <BankRow label="Số tài khoản" value={order.bank.accountNo} />
                       <BankRow label="Chủ tài khoản" value={order.bank.accountName} />
-                      <BankRow label="Số tiền" value={formatVnd(order.amount)} highlight />
+                      <BankRow
+                        label="Số tiền"
+                        value={formatVnd(order.amount)}
+                        highlight
+                      />
+
                       <div className="rounded-[22px] border border-[#FFE6C7] bg-[#FFF7ED] p-4">
                         <div className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-[#F59E0B]">
                           Nội dung chuyển khoản
@@ -340,6 +381,7 @@ export default function CheckoutPage() {
                             {order.transferCode}
                           </div>
                           <button
+                            type="button"
                             onClick={copyTransferCode}
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#F59E0B] shadow-sm"
                             title="Copy nội dung"
@@ -377,11 +419,14 @@ export default function CheckoutPage() {
                       />
 
                       {proofPreview ? (
-                        <img
-                          src={proofPreview}
-                          alt="Bill preview"
-                          className="mx-auto max-h-[180px] rounded-2xl object-contain"
-                        />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={proofPreview}
+                            alt="Bill preview"
+                            className="mx-auto max-h-[180px] rounded-2xl object-contain"
+                          />
+                        </>
                       ) : (
                         <div className="py-5">
                           <UploadCloud className="mx-auto mb-2 h-8 w-8 text-[#6F59FF]" />
@@ -396,6 +441,7 @@ export default function CheckoutPage() {
                     </label>
 
                     <button
+                      type="button"
                       onClick={confirmTransfer}
                       disabled={confirming}
                       className="mt-5 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
