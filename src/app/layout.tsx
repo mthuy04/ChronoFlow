@@ -1,11 +1,11 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import Script from "next/script";
 import AuthProvider from "@/components/providers/AuthProvider";
 import Navbar from "@/components/layout/Navbar";
 import CoinFlightLayer from "@/components/rewards/CoinFlightLayer";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import MicrosoftClarity from "@/components/analytics/MicrosoftClarity";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 };
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID ?? "G-H4FJW15XEV";
+const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID ?? "wlvx0isghh";
 
 export default function RootLayout({
   children,
@@ -41,8 +42,16 @@ export default function RootLayout({
         </AuthProvider>
 
         <GoogleAnalytics gaId={gaId} />
-        <GoogleAnalytics gaId={gaId} />
-<MicrosoftClarity />
+
+        <Script id="microsoft-clarity" strategy="afterInteractive">
+          {`
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "${clarityId}");
+          `}
+        </Script>
       </body>
     </html>
   );
