@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import CoinFlightLayer from "@/components/rewards/CoinFlightLayer";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import MicrosoftClarity from "@/components/analytics/MicrosoftClarity";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,6 +41,8 @@ export default function RootLayout({
         </AuthProvider>
 
         <GoogleAnalytics gaId={gaId} />
+        <GoogleAnalytics gaId={gaId} />
+<MicrosoftClarity />
       </body>
     </html>
   );
