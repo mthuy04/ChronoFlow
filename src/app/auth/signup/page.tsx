@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import {
   Sparkles,
   User,
@@ -14,7 +15,6 @@ import {
   ArrowRight,
   Users,
   BarChart3,
-  CalendarClock,
   ShieldCheck,
   Star,
   Building2,
@@ -179,7 +179,7 @@ function SignupPageContent() {
         return;
       }
 
-      setSuccess("Tạo tài khoản thành công. Đang chuyển sang trang đăng nhập...");
+      setSuccess("Tạo tài khoản thành công. Đang mở bài assessment...");
 
       window.dispatchEvent(
         new CustomEvent("chronoflow:analytics", {
@@ -192,9 +192,18 @@ function SignupPageContent() {
         }),
       );
 
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 1200);
+      const loginResult = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (!loginResult || loginResult.error) {
+        router.push("/auth/login?callbackUrl=/assessment");
+        return;
+      }
+
+      router.push("/assessment");
     } catch {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
       setIsSubmitting(false);

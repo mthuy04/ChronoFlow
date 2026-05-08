@@ -72,11 +72,6 @@ function LoginPageContent() {
         return;
       }
 
-      if (callbackUrl) {
-        router.push(callbackUrl);
-        return;
-      }
-
       const meRes = await fetch("/api/me", {
         method: "GET",
         credentials: "include",
@@ -92,11 +87,12 @@ function LoginPageContent() {
         hasCompletedAssessment?: boolean;
       };
 
-      if (me.hasCompletedAssessment) {
-        router.push("/dashboard");
-      } else {
+      if (!me.hasCompletedAssessment) {
         router.push("/assessment");
+        return;
       }
+
+      router.push(callbackUrl || "/dashboard");
     } catch {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
     } finally {
