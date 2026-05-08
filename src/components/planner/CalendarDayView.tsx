@@ -32,8 +32,9 @@ interface CalendarDayViewProps {
   onDropTask: (taskId: string, dateKey: string, start: string) => void;
 }
 
-const HOURS = Array.from({ length: 16 }).map((_, index) => index + 6);
-const PX_PER_HOUR = 82;
+const HOUR_LABELS = Array.from({ length: 25 }).map((_, index) => index);
+const DROP_HOURS = Array.from({ length: 24 }).map((_, index) => index);
+const PX_PER_HOUR = 76;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -53,28 +54,46 @@ function getMinutes(time: string) {
   return hour * 60 + minute;
 }
 
-function getTaskColors(type: PlannerTaskType) {
+function getTaskCardClass(type: PlannerTaskType) {
   switch (type) {
     case "DEEP_WORK":
-      return "bg-[linear-gradient(135deg,#6B5BFF_0%,#7C5CFA_52%,#5B8CFF_100%)]";
+      return "border-[#BFE6F8] bg-[#EAF8FF] text-[#172033] shadow-[0_14px_34px_rgba(79,172,216,0.12)]";
     case "STUDY":
-      return "bg-[linear-gradient(135deg,#4F8CFF_0%,#69A7FF_100%)]";
+      return "border-[#C9E7F3] bg-[#EFFAFF] text-[#172033] shadow-[0_14px_34px_rgba(61,160,210,0.10)]";
     case "CREATIVE":
-      return "bg-[linear-gradient(135deg,#F59E0B_0%,#FDBA74_100%)]";
+      return "border-[#F8DCA5] bg-[#FFF8E8] text-[#231A10] shadow-[0_14px_34px_rgba(232,162,46,0.12)]";
     case "ADMIN":
-      return "bg-[linear-gradient(135deg,#94A3B8_0%,#CBD5E1_100%)]";
+      return "border-[#D8DEE8] bg-[#F6F8FC] text-[#1F2937] shadow-[0_14px_34px_rgba(100,116,139,0.10)]";
     case "ROUTINE":
-      return "bg-[linear-gradient(135deg,#14B8A6_0%,#5EEAD4_100%)]";
+      return "border-[#BEEBD8] bg-[#F0FFF8] text-[#102A22] shadow-[0_14px_34px_rgba(46,157,103,0.10)]";
     case "PERSONAL":
     default:
-      return "bg-[linear-gradient(135deg,#EC4899_0%,#F9A8D4_100%)]";
+      return "border-[#F4C7DE] bg-[#FFF0F8] text-[#2A1321] shadow-[0_14px_34px_rgba(236,72,153,0.10)]";
+  }
+}
+
+function getTaskAccentClass(type: PlannerTaskType) {
+  switch (type) {
+    case "DEEP_WORK":
+      return "bg-[#45B7E8]";
+    case "STUDY":
+      return "bg-[#5A9DFF]";
+    case "CREATIVE":
+      return "bg-[#F2A72B]";
+    case "ADMIN":
+      return "bg-[#94A3B8]";
+    case "ROUTINE":
+      return "bg-[#45C08B]";
+    case "PERSONAL":
+    default:
+      return "bg-[#EC6AA7]";
   }
 }
 
 function getConflictBadgeClass(type: PlannerConflict["type"]) {
-  if (type === "OVERLAP") return "bg-[#FFF0F0] text-[#D85B5B]";
-  if (type === "OVERLOADED_DAY") return "bg-[#FFF8EF] text-[#C67713]";
-  return "bg-white/20 text-white";
+  if (type === "OVERLAP") return "border-[#FFD8D8] bg-[#FFF0F0] text-[#D85B5B]";
+  if (type === "OVERLOADED_DAY") return "border-[#FFE4B5] bg-[#FFF8EF] text-[#C67713]";
+  return "border-[#DAD3FF] bg-[#F3F0FF] text-[#6F59FF]";
 }
 
 function extractTaskId(event: DragEvent<HTMLElement>) {
@@ -109,7 +128,7 @@ export default function CalendarDayView({
   onSelectTask,
   onDropTask,
 }: CalendarDayViewProps) {
-  const totalHeight = HOURS.length * PX_PER_HOUR;
+  const totalHeight = 24 * PX_PER_HOUR;
   const dateKey = formatDateKey(date);
 
   const dayLabel = new Intl.DateTimeFormat("vi-VN", {
@@ -178,11 +197,11 @@ export default function CalendarDayView({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="max-h-[760px] overflow-auto overscroll-contain">
         <div className="min-w-[820px] px-3 py-3 md:px-4 md:py-4">
           <div className="grid grid-cols-[80px_1fr] gap-3">
             <div className="relative" style={{ height: totalHeight }}>
-              {HOURS.map((hour, index) => (
+              {HOUR_LABELS.map((hour, index) => (
                 <div
                   key={hour}
                   className="absolute left-0 right-0 text-right text-[12px] font-bold text-[#8A84A3]"
@@ -194,10 +213,10 @@ export default function CalendarDayView({
             </div>
 
             <div
-              className="relative overflow-hidden rounded-[26px] border border-[#ECE8FF] bg-white"
+              className="relative overflow-visible rounded-[26px] border border-[#ECE8FF] bg-white"
               style={{ height: totalHeight }}
             >
-              {HOURS.map((hour, index) => {
+              {DROP_HOURS.map((hour, index) => {
                 const start = `${pad(hour)}:00`;
 
                 return (
@@ -259,7 +278,7 @@ export default function CalendarDayView({
               {events.map((event) => {
                 const startMinutes = getMinutes(event.start);
                 const endMinutes = getMinutes(event.end);
-                const top = ((startMinutes - 6 * 60) / 60) * PX_PER_HOUR;
+                const top = (startMinutes / 60) * PX_PER_HOUR;
                 const height = Math.max(
                   62,
                   ((endMinutes - startMinutes) / 60) * PX_PER_HOUR,
@@ -276,14 +295,20 @@ export default function CalendarDayView({
                       handleDragStart(dragEvent, event.task.id)
                     }
                     onClick={() => onSelectTask(event.task)}
-                    className={`absolute left-3 right-3 z-10 overflow-visible rounded-[22px] border border-transparent ${getTaskColors(
+                    className={`absolute left-3 right-3 z-10 overflow-visible rounded-[20px] border ${getTaskCardClass(
                       event.type,
-                    )} p-4 text-left text-white shadow-[0_14px_28px_rgba(62,41,170,0.16)] transition hover:scale-[1.01] ${
+                    )} p-4 pl-5 text-left transition hover:z-30 hover:scale-[1.01] ${
                       event.completed ? "opacity-70" : ""
                     }`}
                     style={{ top, minHeight: height }}
                   >
-                    <div className="flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.14em] text-white/85">
+                    <span
+                      className={`absolute bottom-0 left-0 top-0 w-1.5 rounded-l-[20px] ${getTaskAccentClass(
+                        event.type,
+                      )}`}
+                    />
+
+                    <div className="flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#6B7280]">
                       <span>
                         {event.start} - {event.end}
                       </span>
@@ -299,12 +324,12 @@ export default function CalendarDayView({
                       {event.title}
                     </div>
 
-                    <div className="mt-1 text-[12px] opacity-90">
+                    <div className="mt-1 text-[12px] font-semibold text-[#6B7280]">
                       {event.duration}
                     </div>
 
                     {event.explanation ? (
-                      <div className="mt-2 line-clamp-2 text-[12px] leading-6 opacity-90">
+                      <div className="mt-2 line-clamp-2 text-[12px] leading-6 text-[#5B6475]">
                         {event.explanation}
                       </div>
                     ) : null}
@@ -314,21 +339,22 @@ export default function CalendarDayView({
                         {eventConflicts.map((conflict) => (
                           <span
                             key={conflict.type}
-                            className={`group/conflict relative inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] ${getConflictBadgeClass(
+                            title={conflict.description}
+                            className={`group/conflict relative inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] ${getConflictBadgeClass(
                               conflict.type,
                             )}`}
                           >
                             <AlertTriangle className="h-3 w-3" />
                             {conflict.label}
 
-                            <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-64 rounded-2xl border border-white/80 bg-[#17122B] p-3 text-left text-[11px] font-semibold normal-case leading-5 text-white shadow-[0_18px_48px_rgba(23,18,43,0.24)] group-hover/conflict:block">
+                            <span className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-64 rounded-2xl border border-white/80 bg-[#17122B] p-3 text-left text-[11px] font-semibold normal-case leading-5 text-white shadow-[0_18px_48px_rgba(23,18,43,0.24)] group-hover/conflict:block">
                               {conflict.description}
                             </span>
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-white/16 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-white">
+                      <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-[#DAD3FF] bg-white/80 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-[#6F59FF]">
                         <Info className="h-3 w-3" />
                         Không có cảnh báo
                       </div>
