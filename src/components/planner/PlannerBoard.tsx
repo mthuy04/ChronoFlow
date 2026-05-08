@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Coffee,
   Coins,
   Layers3,
@@ -360,6 +359,19 @@ function buildWeekDates(selectedDate: Date) {
   });
 }
 
+function parseDateKey(dateKey: string) {
+  const [yearRaw, monthRaw, dayRaw] = dateKey.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return new Date();
+  }
+
+  return new Date(year, month - 1, day);
+}
+
 function getDisplayDate(date: Date) {
   return new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -576,6 +588,7 @@ interface PlannerBoardProps {
   chronotype: PlannerChronotype;
   initialTasks: PlannerTask[];
   latestInsight: PlannerInsight | null;
+  initialDateKey: string;
 }
 
 export default function PlannerBoard({
@@ -583,10 +596,13 @@ export default function PlannerBoard({
   chronotype,
   initialTasks,
   latestInsight,
+  initialDateKey,
 }: PlannerBoardProps) {
   const [tasks, setTasks] = useState<PlannerTask[]>(initialTasks);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() =>
+    parseDateKey(initialDateKey),
+  );
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<PlannerTask | null>(null);
   const [taskFilter, setTaskFilter] = useState<TaskFilter>("ALL");

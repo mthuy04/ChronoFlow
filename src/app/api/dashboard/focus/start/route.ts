@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -14,12 +13,14 @@ type ActiveFocusRow = {
   taskId: string | null;
   status: "ACTIVE" | "COMPLETED" | "CANCELLED";
   startedAt: Date;
-  task_id: string | null;
-  task_name: string | null;
-  task_type: string | null;
-  task_startTime: string | null;
-  task_endTime: string | null;
-  task_duration: string | null;
+  task: {
+    id: string;
+    name: string;
+    type: string;
+    startTime: string | null;
+    endTime: string | null;
+    duration: string | null;
+  } | null;
 };
 
 function mapFocusRow(row: ActiveFocusRow) {
@@ -29,14 +30,14 @@ function mapFocusRow(row: ActiveFocusRow) {
     taskId: row.taskId,
     status: row.status,
     startedAt: row.startedAt,
-    task: row.task_id
+    task: row.task
       ? {
-          id: row.task_id,
-          name: row.task_name || "Task",
-          type: row.task_type || "DEEP_WORK",
-          startTime: row.task_startTime,
-          endTime: row.task_endTime,
-          duration: row.task_duration,
+          id: row.task.id,
+          name: row.task.name || "Task",
+          type: row.task.type || "DEEP_WORK",
+          startTime: row.task.startTime,
+          endTime: row.task.endTime,
+          duration: row.task.duration,
         }
       : null,
   };
@@ -76,81 +77,61 @@ export async function POST(request: Request) {
       }
     }
 
-    const activeRows = await prisma.$queryRaw<ActiveFocusRow[]>`
-      SELECT
-        fs.id,
-        fs.userId,
-        fs.taskId,
-        fs.status,
-        fs.startedAt,
-        t.id AS task_id,
-        t.name AS task_name,
-        t.type AS task_type,
-        t.startTime AS task_startTime,
-        t.endTime AS task_endTime,
-        t.duration AS task_duration
-      FROM FocusSession fs
-      LEFT JOIN Task t ON t.id = fs.taskId
-      WHERE fs.userId = ${user.id}
-        AND fs.status = 'ACTIVE'
-      ORDER BY fs.startedAt DESC
-      LIMIT 1
-    `;
+    const activeFocusSession = await prisma.focusSession.findFirst({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
+      include: {
+        task: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            startTime: true,
+            endTime: true,
+            duration: true,
+          },
+        },
+      },
+    });
 
-    if (activeRows[0]) {
+    if (activeFocusSession) {
       return NextResponse.json({
         message: "Bạn đang có một phiên focus đang chạy.",
-        focusSession: mapFocusRow(activeRows[0]),
+        focusSession: mapFocusRow(activeFocusSession),
       });
     }
 
-    const focusSessionId = randomUUID();
-
-    await prisma.$executeRaw`
-      INSERT INTO FocusSession (
-        id,
-        userId,
+    const focusSession = await prisma.focusSession.create({
+      data: {
+        userId: user.id,
         taskId,
-        status,
-        startedAt,
-        durationMinutes,
-        coinsEarned,
-        createdAt,
-        updatedAt
-      )
-      VALUES (
-        ${focusSessionId},
-        ${user.id},
-        ${taskId},
-        'ACTIVE',
-        NOW(),
-        0,
-        0,
-        NOW(),
-        NOW()
-      )
-    `;
+        status: "ACTIVE",
+        durationMinutes: 0,
+        coinsEarned: 0,
+      },
+      include: {
+        task: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            startTime: true,
+            endTime: true,
+            duration: true,
+          },
+        },
+      },
+    });
 
-    const createdRows = await prisma.$queryRaw<ActiveFocusRow[]>`
-      SELECT
-        fs.id,
-        fs.userId,
-        fs.taskId,
-        fs.status,
-        fs.startedAt,
-        t.id AS task_id,
-        t.name AS task_name,
-        t.type AS task_type,
-        t.startTime AS task_startTime,
-        t.endTime AS task_endTime,
-        t.duration AS task_duration
-      FROM FocusSession fs
-      LEFT JOIN Task t ON t.id = fs.taskId
-      WHERE fs.id = ${focusSessionId}
-      LIMIT 1
-    `;
-
-    return NextResponse.json({ focusSession: createdRows[0] ? mapFocusRow(createdRows[0]) : null }, { status: 201 });
+    return NextResponse.json(
+      { focusSession: mapFocusRow(focusSession) },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Start focus error:", error);
     return NextResponse.json({ message: "Không thể bắt đầu focus session." }, { status: 500 });
