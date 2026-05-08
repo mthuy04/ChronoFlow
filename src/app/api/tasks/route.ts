@@ -15,6 +15,45 @@ type CreateTaskBody = {
   completed?: boolean;
 };
 
+function getScheduleFields(scheduledTime: string) {
+  const value = scheduledTime.trim();
+
+  if (!value || value.toUpperCase() === "BACKLOG") {
+    return {
+      scheduledTime: "BACKLOG",
+      isBacklog: true,
+      scheduledDate: null,
+      startTime: null,
+      endTime: null,
+    };
+  }
+
+  const parts = value.split("|");
+
+  if (parts.length === 3) {
+    const [scheduledDate, startTime, endTime] = parts;
+
+    return {
+      scheduledTime: value,
+      isBacklog: false,
+      scheduledDate: scheduledDate || null,
+      startTime: startTime || null,
+      endTime: endTime || null,
+    };
+  }
+
+  const dateMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  const timeMatches = value.match(/\b\d{2}:\d{2}\b/g);
+
+  return {
+    scheduledTime: value,
+    isBacklog: false,
+    scheduledDate: dateMatch?.[1] ?? null,
+    startTime: timeMatches?.[0] ?? null,
+    endTime: timeMatches?.[1] ?? null,
+  };
+}
+
 function isValidTaskType(value: string): value is TaskType {
   return Object.values(TaskType).includes(value as TaskType);
 }
@@ -113,6 +152,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const scheduleFields = getScheduleFields(scheduledTime);
+
     const task = await prisma.task.create({
       data: {
         userId: user.id,
@@ -121,7 +162,7 @@ export async function POST(req: Request) {
         priority,
         duration,
         deadline,
-        scheduledTime,
+        ...scheduleFields,
         explanation,
         completed,
       },

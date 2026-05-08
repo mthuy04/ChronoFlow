@@ -17,22 +17,6 @@ type UpdateTaskBody = {
   completed?: boolean;
 };
 
-type TaskUpdateData = {
-  name?: string;
-  type?: TaskType;
-  priority?: Priority;
-  duration?: string;
-  deadline?: string | null;
-  scheduledTime?: string;
-  explanation?: string;
-  completed?: boolean;
-};
-
-type UserCoinRow = {
-  id: string;
-  coinBalance: number | null;
-};
-
 type StreakActivityTaskRow = {
   id: string;
   scheduledDate: string | null;
@@ -44,10 +28,6 @@ type StreakActivityTaskRow = {
 type StreakActivityFocusRow = {
   id: string;
   startedAt: Date;
-};
-
-type BalanceRow = {
-  coinBalance: number | null;
 };
 
 type StreakRewardResult = {
@@ -93,6 +73,45 @@ function normalizePriority(value?: string): Priority | null {
 
 function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getScheduleFields(scheduledTime: string) {
+  const value = scheduledTime.trim();
+
+  if (!value || value.toUpperCase() === "BACKLOG") {
+    return {
+      scheduledTime: "BACKLOG",
+      isBacklog: true,
+      scheduledDate: null,
+      startTime: null,
+      endTime: null,
+    };
+  }
+
+  const parts = value.split("|");
+
+  if (parts.length === 3) {
+    const [scheduledDate, startTime, endTime] = parts;
+
+    return {
+      scheduledTime: value,
+      isBacklog: false,
+      scheduledDate: scheduledDate || null,
+      startTime: startTime || null,
+      endTime: endTime || null,
+    };
+  }
+
+  const dateMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  const timeMatches = value.match(/\b\d{2}:\d{2}\b/g);
+
+  return {
+    scheduledTime: value,
+    isBacklog: false,
+    scheduledDate: dateMatch?.[1] ?? null,
+    startTime: timeMatches?.[0] ?? null,
+    endTime: timeMatches?.[1] ?? null,
+  };
 }
 
 function calculateTaskCoins(task: {
@@ -189,14 +208,13 @@ function computeProductivityStreak(params: {
 }
 
 async function getAuthorizedUserAndTask(taskId: string, email: string) {
-  const users = await prisma.$queryRaw<UserCoinRow[]>`
-    SELECT id, COALESCE(coinBalance, 0) AS coinBalance
-    FROM \`User\`
-    WHERE email = ${email}
-    LIMIT 1
-  `;
-
-  const user = users[0];
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      coinBalance: true,
+    },
+  });
 
   if (!user) {
     return { user: null, task: null };
@@ -216,14 +234,16 @@ async function getCurrentCoinBalance(params: {
   tx: Prisma.TransactionClient;
   userId: string;
 }) {
-  const balanceRows = await params.tx.$queryRaw<BalanceRow[]>`
-    SELECT COALESCE(coinBalance, 0) AS coinBalance
-    FROM \`User\`
-    WHERE id = ${params.userId}
-    LIMIT 1
-  `;
+  const user = await params.tx.user.findUnique({
+    where: {
+      id: params.userId,
+    },
+    select: {
+      coinBalance: true,
+    },
+  });
 
-  return balanceRows[0]?.coinBalance ?? 0;
+  return user?.coinBalance ?? 0;
 }
 
 async function insertCoinTransaction(params: {
@@ -397,7 +417,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found." }, { status: 404 });
     }
 
-    const data: TaskUpdateData = {};
+    const data: Prisma.TaskUpdateInput = {};
 
     if (body.name !== undefined) {
       const name = normalizeString(body.name);
@@ -468,7 +488,7 @@ export async function PATCH(
         );
       }
 
-      data.scheduledTime = scheduledTime;
+      Object.assign(data, getScheduleFields(scheduledTime));
     }
 
     if (body.explanation !== undefined) {
