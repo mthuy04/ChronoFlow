@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
+import { RewardRedemptionStatus } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,34 +10,11 @@ type UpdateRedemptionBody = {
   adminNote?: string;
 };
 
-type AdminUserRow = {
-  id: string;
-  role: string;
-};
-
-type RedemptionRow = {
-  id: string;
-  userId: string;
-  rewardItemId: string | null;
-  rewardTitle: string;
-  pointsCost: number;
-  status: string;
-};
-
-type UserBalanceRow = {
-  coinBalance: number | null;
-};
-
-type RefundTransactionRow = {
-  id: string;
-};
-
-const VALID_STATUSES = new Set([
+const VALID_STATUSES = new Set<RewardRedemptionStatus>([
   "PENDING",
   "APPROVED",
   "FULFILLED",
   "REJECTED",
-  "CANCELLED",
 ]);
 
 function normalizeString(value: unknown) {
@@ -45,14 +22,15 @@ function normalizeString(value: unknown) {
 }
 
 async function getAdminUser(email: string) {
-  const users = await prisma.$queryRaw<AdminUserRow[]>`
-    SELECT id, role
-    FROM \`User\`
-    WHERE email = ${email}
-    LIMIT 1
-  `;
-
-  const user = users[0];
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+    select: {
+      id: true,
+      role: true,
+    },
+  });
 
   if (!user || user.role !== "ADMIN") return null;
 
@@ -87,7 +65,9 @@ export async function PATCH(
       | UpdateRedemptionBody
       | null;
 
-    const nextStatus = normalizeString(body?.status).toUpperCase();
+    const nextStatus = normalizeString(
+      body?.status,
+    ).toUpperCase() as RewardRedemptionStatus;
     const adminNote = normalizeString(body?.adminNote);
 
     if (!VALID_STATUSES.has(nextStatus)) {
@@ -97,20 +77,20 @@ export async function PATCH(
       );
     }
 
-    const redemptions = await prisma.$queryRaw<RedemptionRow[]>`
-      SELECT
-        id,
-        userId,
-        rewardItemId,
-        rewardTitle,
-        pointsCost,
-        status
-      FROM \`RewardRedemption\`
-      WHERE id = ${redemptionId}
-      LIMIT 1
-    `;
-
-    const redemption = redemptions[0];
+    const redemption = await prisma.rewardRedemption.findUnique({
+      where: {
+        id: redemptionId,
+      },
+      select: {
+        id: true,
+        userId: true,
+        rewardItemId: true,
+        rewardTitle: true,
+        pointsCost: true,
+        status: true,
+        note: true,
+      },
+    });
 
     if (!redemption) {
       return NextResponse.json(
@@ -122,20 +102,19 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       const shouldRefund =
         nextStatus === "REJECTED" &&
-        redemption.status !== "REJECTED" &&
-        redemption.status !== "CANCELLED";
+        redemption.status !== "REJECTED";
 
-      await tx.$executeRaw`
-        UPDATE \`RewardRedemption\`
-        SET
-          status = ${nextStatus},
-          note = CASE
-            WHEN ${adminNote} <> '' THEN CONCAT(COALESCE(note, ''), '\nAdmin note: ', ${adminNote})
-            ELSE note
-          END,
-          updatedAt = NOW()
-        WHERE id = ${redemption.id}
-      `;
+      await tx.rewardRedemption.update({
+        where: {
+          id: redemption.id,
+        },
+        data: {
+          status: nextStatus,
+          note: adminNote
+            ? `${redemption.note ? `${redemption.note}\n` : ""}Admin note: ${adminNote}`
+            : undefined,
+        },
+      });
 
       if (!shouldRefund) {
         return {
@@ -144,79 +123,68 @@ export async function PATCH(
         };
       }
 
-      const existingRefunds = await tx.$queryRaw<RefundTransactionRow[]>`
-        SELECT id
-        FROM \`CoinTransaction\`
-        WHERE userId = ${redemption.userId}
-          AND sourceType = 'RewardRedemption'
-          AND sourceId = ${redemption.id}
-          AND type = 'REWARD_REFUND'
-        LIMIT 1
-      `;
+      const existingRefund = await tx.coinTransaction.findFirst({
+        where: {
+          userId: redemption.userId,
+          sourceType: "RewardRedemption",
+          sourceId: redemption.id,
+          type: "REWARD_REFUND",
+        },
+        select: {
+          id: true,
+        },
+      });
 
-      if (existingRefunds.length > 0) {
+      if (existingRefund) {
         return {
           refunded: false,
           nextCoinBalance: null as number | null,
         };
       }
 
-      await tx.$executeRaw`
-        UPDATE \`User\`
-        SET
-          coinBalance = COALESCE(coinBalance, 0) + ${redemption.pointsCost},
-          updatedAt = NOW()
-        WHERE id = ${redemption.userId}
-      `;
+      const updatedUser = await tx.user.update({
+        where: {
+          id: redemption.userId,
+        },
+        data: {
+          coinBalance: {
+            increment: redemption.pointsCost,
+          },
+        },
+        select: {
+          coinBalance: true,
+        },
+      });
 
       if (redemption.rewardItemId) {
-        await tx.$executeRaw`
-          UPDATE \`RewardItem\`
-          SET
-            stock = CASE
-              WHEN stock IS NULL THEN NULL
-              ELSE stock + 1
-            END,
-            updatedAt = NOW()
-          WHERE id = ${redemption.rewardItemId}
-        `;
+        await tx.rewardItem.updateMany({
+          where: {
+            id: redemption.rewardItemId,
+            stock: {
+              not: null,
+            },
+          },
+          data: {
+            stock: {
+              increment: 1,
+            },
+          },
+        });
       }
 
-      const balances = await tx.$queryRaw<UserBalanceRow[]>`
-        SELECT COALESCE(coinBalance, 0) AS coinBalance
-        FROM \`User\`
-        WHERE id = ${redemption.userId}
-        LIMIT 1
-      `;
+      const nextCoinBalance = updatedUser.coinBalance ?? 0;
 
-      const nextCoinBalance = balances[0]?.coinBalance ?? 0;
-
-      await tx.$executeRaw`
-        INSERT INTO \`CoinTransaction\`
-          (
-            id,
-            userId,
-            type,
-            amount,
-            balanceAfter,
-            sourceType,
-            sourceId,
-            description,
-            createdAt
-          )
-        VALUES
-          (
-            ${randomUUID()},
-            ${redemption.userId},
-            'REWARD_REFUND',
-            ${redemption.pointsCost},
-            ${nextCoinBalance},
-            'RewardRedemption',
-            ${redemption.id},
-            ${`Hoàn coin do yêu cầu đổi "${redemption.rewardTitle}" bị từ chối.`},
-            NOW()
-          )
-      `;
+      await tx.coinTransaction.create({
+        data: {
+          userId: redemption.userId,
+          type: "REWARD_REFUND",
+          amount: redemption.pointsCost,
+          balanceAfter: nextCoinBalance,
+          sourceType: "RewardRedemption",
+          sourceId: redemption.id,
+          description: `Hoàn coin do yêu cầu đổi "${redemption.rewardTitle}" bị từ chối.`,
+        },
+      });
 
       return {
         refunded: true,

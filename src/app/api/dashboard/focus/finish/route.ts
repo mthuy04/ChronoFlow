@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma, Priority, TaskType } from "@prisma/client";
@@ -9,28 +8,6 @@ import { prisma } from "@/lib/prisma";
 type FinishFocusBody = {
   focusSessionId?: string;
   completeTask?: boolean;
-};
-
-type UserCoinRow = {
-  id: string;
-  coinBalance: number | null;
-};
-
-type FocusSessionRow = {
-  id: string;
-  userId: string;
-  taskId: string | null;
-  status: "ACTIVE" | "COMPLETED" | "CANCELLED";
-  startedAt: Date;
-};
-
-type FocusLinkedTaskRow = {
-  id: string;
-  name: string;
-  type: TaskType;
-  priority: Priority;
-  duration: string;
-  completed: number | boolean;
 };
 
 type StreakActivityTaskRow = {
@@ -44,10 +21,6 @@ type StreakActivityTaskRow = {
 type StreakActivityFocusRow = {
   id: string;
   startedAt: Date;
-};
-
-type BalanceRow = {
-  coinBalance: number | null;
 };
 
 type StreakRewardResult = {
@@ -175,14 +148,16 @@ async function getCurrentCoinBalance(params: {
   tx: Prisma.TransactionClient;
   userId: string;
 }) {
-  const balanceRows = await params.tx.$queryRaw<BalanceRow[]>`
-    SELECT COALESCE(coinBalance, 0) AS coinBalance
-    FROM \`User\`
-    WHERE id = ${params.userId}
-    LIMIT 1
-  `;
+  const user = await params.tx.user.findUnique({
+    where: {
+      id: params.userId,
+    },
+    select: {
+      coinBalance: true,
+    },
+  });
 
-  return balanceRows[0]?.coinBalance ?? 0;
+  return user?.coinBalance ?? 0;
 }
 
 async function insertCoinTransaction(params: {
@@ -195,32 +170,17 @@ async function insertCoinTransaction(params: {
   sourceId: string;
   description: string;
 }) {
-  await params.tx.$executeRaw`
-    INSERT INTO \`CoinTransaction\`
-      (
-        id,
-        userId,
-        type,
-        amount,
-        balanceAfter,
-        sourceType,
-        sourceId,
-        description,
-        createdAt
-      )
-    VALUES
-      (
-        ${randomUUID()},
-        ${params.userId},
-        ${params.type},
-        ${params.amount},
-        ${params.balanceAfter},
-        ${params.sourceType},
-        ${params.sourceId},
-        ${params.description},
-        NOW()
-      )
-  `;
+  await params.tx.coinTransaction.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      amount: params.amount,
+      balanceAfter: params.balanceAfter,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      description: params.description,
+    },
+  });
 }
 
 async function awardSevenDayStreakRewardIfEligible(params: {
@@ -228,26 +188,30 @@ async function awardSevenDayStreakRewardIfEligible(params: {
   userId: string;
   currentCoinBalance: number;
 }): Promise<StreakRewardResult> {
-  const tasks = await params.tx.$queryRaw<StreakActivityTaskRow[]>`
-    SELECT
-      id,
-      scheduledDate,
-      scheduledTime,
-      completed,
-      updatedAt
-    FROM \`Task\`
-    WHERE userId = ${params.userId}
-      AND completed = 1
-  `;
+  const tasks = await params.tx.task.findMany({
+    where: {
+      userId: params.userId,
+      completed: true,
+    },
+    select: {
+      id: true,
+      scheduledDate: true,
+      scheduledTime: true,
+      completed: true,
+      updatedAt: true,
+    },
+  });
 
-  const focusSessions = await params.tx.$queryRaw<StreakActivityFocusRow[]>`
-    SELECT
-      id,
-      startedAt
-    FROM \`FocusSession\`
-    WHERE userId = ${params.userId}
-      AND status = 'COMPLETED'
-  `;
+  const focusSessions = await params.tx.focusSession.findMany({
+    where: {
+      userId: params.userId,
+      status: "COMPLETED",
+    },
+    select: {
+      id: true,
+      startedAt: true,
+    },
+  });
 
   const currentStreak = computeProductivityStreak({
     tasks,
@@ -264,24 +228,19 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  const streakRewardId = randomUUID();
+  const existingReward = await params.tx.streakReward.findUnique({
+    where: {
+      userId_milestone: {
+        userId: params.userId,
+        milestone: STREAK_REWARD_MILESTONE,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const insertedRows = await params.tx.$executeRaw`
-    INSERT IGNORE INTO \`StreakReward\`
-      (id, userId, milestone, coinsEarned, awardedAt, createdAt, updatedAt)
-    VALUES
-      (
-        ${streakRewardId},
-        ${params.userId},
-        ${STREAK_REWARD_MILESTONE},
-        ${STREAK_REWARD_COINS},
-        NOW(),
-        NOW(),
-        NOW()
-      )
-  `;
-
-  if (insertedRows === 0) {
+  if (existingReward) {
     return {
       awarded: false,
       milestone: STREAK_REWARD_MILESTONE,
@@ -291,15 +250,32 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  await params.tx.$executeRaw`
-    UPDATE \`User\`
-    SET
-      coinBalance = COALESCE(coinBalance, 0) + ${STREAK_REWARD_COINS},
-      updatedAt = NOW()
-    WHERE id = ${params.userId}
-  `;
+  const streakReward = await params.tx.streakReward.create({
+    data: {
+      userId: params.userId,
+      milestone: STREAK_REWARD_MILESTONE,
+      coinsEarned: STREAK_REWARD_COINS,
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const nextCoinBalance = params.currentCoinBalance + STREAK_REWARD_COINS;
+  const updatedUser = await params.tx.user.update({
+    where: {
+      id: params.userId,
+    },
+    data: {
+      coinBalance: {
+        increment: STREAK_REWARD_COINS,
+      },
+    },
+    select: {
+      coinBalance: true,
+    },
+  });
+
+  const nextCoinBalance = updatedUser.coinBalance ?? 0;
 
   await insertCoinTransaction({
     tx: params.tx,
@@ -308,7 +284,7 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     amount: STREAK_REWARD_COINS,
     balanceAfter: nextCoinBalance,
     sourceType: "StreakReward",
-    sourceId: streakRewardId,
+    sourceId: streakReward.id,
     description: "Mở khóa streak 7 ngày.",
   });
 
@@ -332,14 +308,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const users = await prisma.$queryRaw<UserCoinRow[]>`
-      SELECT id, COALESCE(coinBalance, 0) AS coinBalance
-      FROM \`User\`
-      WHERE email = ${session.user.email}
-      LIMIT 1
-    `;
-
-    const user = users[0];
+    const user = await prisma.user.findUnique({
+      where: {
+        email: session.user.email,
+      },
+      select: {
+        id: true,
+        coinBalance: true,
+      },
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -358,16 +335,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const rows = await prisma.$queryRaw<FocusSessionRow[]>`
-      SELECT id, userId, taskId, status, startedAt
-      FROM \`FocusSession\`
-      WHERE id = ${focusSessionId}
-        AND userId = ${user.id}
-        AND status = 'ACTIVE'
-      LIMIT 1
-    `;
-
-    const focusSession = rows[0];
+    const focusSession = await prisma.focusSession.findFirst({
+      where: {
+        id: focusSessionId,
+        userId: user.id,
+        status: "ACTIVE",
+      },
+      select: {
+        id: true,
+        userId: true,
+        taskId: true,
+        status: true,
+        startedAt: true,
+      },
+    });
 
     if (!focusSession) {
       return NextResponse.json(
@@ -383,29 +364,36 @@ export async function POST(request: Request) {
     const completeTaskValue = body.completeTask ?? true;
 
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`
-        UPDATE \`FocusSession\`
-        SET
-          status = 'COMPLETED',
-          endedAt = ${endedAt},
-          durationMinutes = ${durationMinutes},
-          coinsEarned = ${focusCoinsEarned},
-          updatedAt = NOW()
-        WHERE id = ${focusSession.id}
-      `;
+      await tx.focusSession.update({
+        where: {
+          id: focusSession.id,
+        },
+        data: {
+          status: "COMPLETED",
+          endedAt,
+          durationMinutes,
+          coinsEarned: focusCoinsEarned,
+        },
+      });
 
       let nextCoinBalance = user.coinBalance ?? 0;
 
       if (focusCoinsEarned > 0) {
-        await tx.$executeRaw`
-          UPDATE \`User\`
-          SET
-            coinBalance = COALESCE(coinBalance, 0) + ${focusCoinsEarned},
-            updatedAt = NOW()
-          WHERE id = ${user.id}
-        `;
+        const updatedUser = await tx.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            coinBalance: {
+              increment: focusCoinsEarned,
+            },
+          },
+          select: {
+            coinBalance: true,
+          },
+        });
 
-        nextCoinBalance += focusCoinsEarned;
+        nextCoinBalance = updatedUser.coinBalance ?? nextCoinBalance + focusCoinsEarned;
 
         await insertCoinTransaction({
           tx,
@@ -422,32 +410,34 @@ export async function POST(request: Request) {
       let taskCoinsEarned = 0;
 
       if (focusSession.taskId) {
-        const linkedTasks = await tx.$queryRaw<FocusLinkedTaskRow[]>`
-          SELECT
-            id,
-            name,
-            type,
-            priority,
-            duration,
-            completed
-          FROM \`Task\`
-          WHERE id = ${focusSession.taskId}
-            AND userId = ${user.id}
-          LIMIT 1
-        `;
-
-        const linkedTask = linkedTasks[0];
+        const linkedTask = await tx.task.findFirst({
+          where: {
+            id: focusSession.taskId,
+            userId: user.id,
+          },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            priority: true,
+            duration: true,
+            completed: true,
+          },
+        });
 
         if (completeTaskValue) {
-          await tx.$executeRaw`
-            UPDATE \`Task\`
-            SET
-              focusMinutes = COALESCE(focusMinutes, 0) + ${durationMinutes},
-              completed = 1,
-              updatedAt = NOW()
-            WHERE id = ${focusSession.taskId}
-              AND userId = ${user.id}
-          `;
+          await tx.task.updateMany({
+            where: {
+              id: focusSession.taskId,
+              userId: user.id,
+            },
+            data: {
+              focusMinutes: {
+                increment: durationMinutes,
+              },
+              completed: true,
+            },
+          });
 
           const shouldAwardTaskCoins =
             linkedTask && Boolean(linkedTask.completed) === false;
@@ -456,15 +446,22 @@ export async function POST(request: Request) {
             taskCoinsEarned = calculateTaskCoins(linkedTask);
 
             if (taskCoinsEarned > 0) {
-              await tx.$executeRaw`
-                UPDATE \`User\`
-                SET
-                  coinBalance = COALESCE(coinBalance, 0) + ${taskCoinsEarned},
-                  updatedAt = NOW()
-                WHERE id = ${user.id}
-              `;
+              const updatedUser = await tx.user.update({
+                where: {
+                  id: user.id,
+                },
+                data: {
+                  coinBalance: {
+                    increment: taskCoinsEarned,
+                  },
+                },
+                select: {
+                  coinBalance: true,
+                },
+              });
 
-              nextCoinBalance += taskCoinsEarned;
+              nextCoinBalance =
+                updatedUser.coinBalance ?? nextCoinBalance + taskCoinsEarned;
 
               await insertCoinTransaction({
                 tx,
@@ -479,14 +476,17 @@ export async function POST(request: Request) {
             }
           }
         } else {
-          await tx.$executeRaw`
-            UPDATE \`Task\`
-            SET
-              focusMinutes = COALESCE(focusMinutes, 0) + ${durationMinutes},
-              updatedAt = NOW()
-            WHERE id = ${focusSession.taskId}
-              AND userId = ${user.id}
-          `;
+          await tx.task.updateMany({
+            where: {
+              id: focusSession.taskId,
+              userId: user.id,
+            },
+            data: {
+              focusMinutes: {
+                increment: durationMinutes,
+              },
+            },
+          });
         }
       }
 

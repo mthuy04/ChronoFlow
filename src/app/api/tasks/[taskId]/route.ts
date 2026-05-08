@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma, Priority, TaskType } from "@prisma/client";
@@ -256,32 +255,17 @@ async function insertCoinTransaction(params: {
   sourceId: string;
   description: string;
 }) {
-  await params.tx.$executeRaw`
-    INSERT INTO \`CoinTransaction\`
-      (
-        id,
-        userId,
-        type,
-        amount,
-        balanceAfter,
-        sourceType,
-        sourceId,
-        description,
-        createdAt
-      )
-    VALUES
-      (
-        ${randomUUID()},
-        ${params.userId},
-        ${params.type},
-        ${params.amount},
-        ${params.balanceAfter},
-        ${params.sourceType},
-        ${params.sourceId},
-        ${params.description},
-        NOW()
-      )
-  `;
+  await params.tx.coinTransaction.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      amount: params.amount,
+      balanceAfter: params.balanceAfter,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      description: params.description,
+    },
+  });
 }
 
 async function awardSevenDayStreakRewardIfEligible(params: {
@@ -289,26 +273,30 @@ async function awardSevenDayStreakRewardIfEligible(params: {
   userId: string;
   currentCoinBalance: number;
 }): Promise<StreakRewardResult> {
-  const tasks = await params.tx.$queryRaw<StreakActivityTaskRow[]>`
-    SELECT
-      id,
-      scheduledDate,
-      scheduledTime,
-      completed,
-      updatedAt
-    FROM \`Task\`
-    WHERE userId = ${params.userId}
-      AND completed = 1
-  `;
+  const tasks = await params.tx.task.findMany({
+    where: {
+      userId: params.userId,
+      completed: true,
+    },
+    select: {
+      id: true,
+      scheduledDate: true,
+      scheduledTime: true,
+      completed: true,
+      updatedAt: true,
+    },
+  });
 
-  const focusSessions = await params.tx.$queryRaw<StreakActivityFocusRow[]>`
-    SELECT
-      id,
-      startedAt
-    FROM \`FocusSession\`
-    WHERE userId = ${params.userId}
-      AND status = 'COMPLETED'
-  `;
+  const focusSessions = await params.tx.focusSession.findMany({
+    where: {
+      userId: params.userId,
+      status: "COMPLETED",
+    },
+    select: {
+      id: true,
+      startedAt: true,
+    },
+  });
 
   const currentStreak = computeProductivityStreak({
     tasks,
@@ -325,24 +313,19 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  const streakRewardId = randomUUID();
+  const existingReward = await params.tx.streakReward.findUnique({
+    where: {
+      userId_milestone: {
+        userId: params.userId,
+        milestone: STREAK_REWARD_MILESTONE,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const insertedRows = await params.tx.$executeRaw`
-    INSERT IGNORE INTO \`StreakReward\`
-      (id, userId, milestone, coinsEarned, awardedAt, createdAt, updatedAt)
-    VALUES
-      (
-        ${streakRewardId},
-        ${params.userId},
-        ${STREAK_REWARD_MILESTONE},
-        ${STREAK_REWARD_COINS},
-        NOW(),
-        NOW(),
-        NOW()
-      )
-  `;
-
-  if (insertedRows === 0) {
+  if (existingReward) {
     return {
       awarded: false,
       milestone: STREAK_REWARD_MILESTONE,
@@ -352,15 +335,32 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     };
   }
 
-  await params.tx.$executeRaw`
-    UPDATE \`User\`
-    SET
-      coinBalance = COALESCE(coinBalance, 0) + ${STREAK_REWARD_COINS},
-      updatedAt = NOW()
-    WHERE id = ${params.userId}
-  `;
+  const streakReward = await params.tx.streakReward.create({
+    data: {
+      userId: params.userId,
+      milestone: STREAK_REWARD_MILESTONE,
+      coinsEarned: STREAK_REWARD_COINS,
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  const nextCoinBalance = params.currentCoinBalance + STREAK_REWARD_COINS;
+  const updatedUser = await params.tx.user.update({
+    where: {
+      id: params.userId,
+    },
+    data: {
+      coinBalance: {
+        increment: STREAK_REWARD_COINS,
+      },
+    },
+    select: {
+      coinBalance: true,
+    },
+  });
+
+  const nextCoinBalance = updatedUser.coinBalance ?? 0;
 
   await insertCoinTransaction({
     tx: params.tx,
@@ -369,7 +369,7 @@ async function awardSevenDayStreakRewardIfEligible(params: {
     amount: STREAK_REWARD_COINS,
     balanceAfter: nextCoinBalance,
     sourceType: "StreakReward",
-    sourceId: streakRewardId,
+    sourceId: streakReward.id,
     description: "Mở khóa streak 7 ngày.",
   });
 
@@ -527,15 +527,21 @@ export async function PATCH(
       let nextCoinBalance = user.coinBalance ?? 0;
 
       if (shouldAwardCoins && awardedCoins > 0) {
-        await tx.$executeRaw`
-          UPDATE \`User\`
-          SET
-            coinBalance = COALESCE(coinBalance, 0) + ${awardedCoins},
-            updatedAt = NOW()
-          WHERE id = ${user.id}
-        `;
+        const updatedUser = await tx.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            coinBalance: {
+              increment: awardedCoins,
+            },
+          },
+          select: {
+            coinBalance: true,
+          },
+        });
 
-        nextCoinBalance += awardedCoins;
+        nextCoinBalance = updatedUser.coinBalance ?? nextCoinBalance + awardedCoins;
 
         await insertCoinTransaction({
           tx,
