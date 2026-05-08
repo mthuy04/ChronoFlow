@@ -127,9 +127,13 @@ export default function PrivacyPage() {
 
           <div className="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
             <div>
-              <h1 className="max-w-4xl text-[clamp(2.5rem,7vw,5.8rem)] font-black leading-[0.95] tracking-tight text-[#1A1528]">
-                Chính sách bảo mật ChronoFlow
-              </h1>
+             
+              <h1 className="mb-6 text-[clamp(2.35rem,4.6vw,3.65rem)] font-[900] leading-[1.04] tracking-[-0.04em]">
+              Chính sách bảo mật {" "}
+                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+                  ChronoFlow
+                  </span>
+                </h1>
               <p className="mt-6 max-w-3xl text-base font-medium leading-8 text-[#5B566E] md:text-lg">
                 Tài liệu này giải thích cách ChronoFlow thu thập, sử dụng, lưu
                 trữ và bảo vệ dữ liệu của bạn khi bạn sử dụng website, tài khoản,

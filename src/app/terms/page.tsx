@@ -158,9 +158,13 @@ export default function TermsPage() {
 
           <div className="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
             <div>
-              <h1 className="max-w-4xl text-[clamp(2.5rem,7vw,5.8rem)] font-black leading-[0.95] tracking-tight text-[#1A1528]">
-                Điều khoản sử dụng ChronoFlow
-              </h1>
+             
+              <h1 className="mb-6 text-[clamp(2.35rem,4.6vw,3.65rem)] font-[900] leading-[1.04] tracking-[-0.04em]">
+              Điều khoản sử dụng {" "}
+                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+                  ChronoFlow
+                  </span>
+                </h1>
               <p className="mt-6 max-w-3xl text-base font-medium leading-8 text-[#5B566E] md:text-lg">
                 Điều khoản này quy định cách bạn sử dụng ChronoFlow, bao gồm tài
                 khoản, assessment, planner, rhythm, rewards, thanh toán, planner
