@@ -221,12 +221,6 @@ const userNavItems: NavItem[] = [
         icon: <BookOpen className="h-4 w-4" />,
       },
       {
-        href: "/learn/chronotype-basics",
-        label: "Chronotype basics",
-        description: "Hiểu kiểu nhịp sinh học của bạn.",
-        icon: <Brain className="h-4 w-4" />,
-      },
-      {
         href: "/chronotypes",
         label: "Chronotypes",
         description: "Khám phá 4 nhóm nhịp sinh học: Sư tử, Gấu, Sói, Cá heo.",
