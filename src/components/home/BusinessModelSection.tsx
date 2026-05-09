@@ -13,7 +13,6 @@ import {
   Gift,
   Package,
   Sparkles,
-  Star,
   Zap,
 } from "lucide-react";
 
@@ -36,11 +35,7 @@ const plans = [
       "Tạo task và gắn loại năng lượng",
       "Tích coin giới hạn mỗi ngày",
     ],
-    mutedFeatures: [
-      "Chưa có weekly insights",
-      "Chưa có full report PDF",
-      "Chưa có recommendation nâng cao",
-    ],
+    mutedFeatures: [],
   },
   {
     name: "Plus",
@@ -56,20 +51,19 @@ const plans = [
     trial: "7 ngày dùng thử",
     features: [
       "Tất cả tính năng của Free",
-      "Weekly insights theo nhịp năng lượng",
-      "Lịch sử focus session",
-      "Gợi ý deep work, admin, recovery",
-      "Coin cap cao hơn mỗi ngày",
-      "Streak và badge duy trì thói quen",
+      "Phân tích tuần theo nhịp năng lượng",
+      "Lịch sử phiên tập trung",
+      "Gợi ý việc sâu, việc nhẹ và hồi phục",
+      "Chuỗi duy trì và huy hiệu thói quen",
     ],
-    mutedFeatures: ["Chưa có full report PDF", "Recommendation chưa chuyên sâu"],
+    mutedFeatures: [],
   },
   {
     name: "Pro",
     badge: "Phân tích chuyên sâu",
     price: "59.000đ",
     period: "/ tháng",
-    desc: "Dành cho người muốn xem báo cáo đầy đủ, tải report và nhận recommendation rõ ràng hơn.",
+    desc: "Dành cho người muốn xem báo cáo đầy đủ, tải PDF và nhận gợi ý cá nhân hóa rõ ràng hơn.",
     icon: FileText,
     gradient: "from-[#4DA8FF] to-[#38BDF8]",
     cta: "Dùng thử Pro",
@@ -78,10 +72,10 @@ const plans = [
     trial: "7 ngày dùng thử",
     features: [
       "Tất cả tính năng của Plus",
-      "Full Chronotype Report",
-      "Tải báo cáo PDF",
-      "Recommendation cá nhân hóa nâng cao",
-      "Phân tích energy curve theo tuần/tháng",
+      "Báo cáo chronotype đầy đủ",
+      "Báo cáo đầy đủ dạng PDF",
+      "Gợi ý cá nhân hóa nâng cao",
+      "Phân tích đường năng lượng theo tuần/tháng",
       "Gợi ý điều chỉnh lịch học/làm chi tiết",
     ],
     mutedFeatures: [],
@@ -90,9 +84,9 @@ const plans = [
 
 const kitFeatures = [
   "Chrono Planner theo tuần",
-  "Energy Cards",
-  "Reflection Sheets",
-  "Habit & Focus Tracker",
+  "Thẻ năng lượng",
+  "Phiếu nhìn lại",
+  "Theo dõi thói quen & tập trung",
   "Sticker ghi chú năng lượng",
   "Hướng dẫn dùng cùng web app",
 ];
@@ -119,7 +113,7 @@ export default function PricingSection() {
             <div className="mx-auto mb-12 max-w-4xl text-center">
               <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)]">
                 <Sparkles className="h-3.5 w-3.5" />
-                Pricing
+                Gói sử dụng
               </div>
 
               <h2 className="mb-4 text-[clamp(2.2rem,4.4vw,3.55rem)] font-[900] leading-[1.04] tracking-[-0.04em] text-[#1A1528]">
@@ -132,7 +126,7 @@ export default function PricingSection() {
 
               <p className="mx-auto max-w-[740px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
                 Bắt đầu miễn phí, dùng thử Plus/Pro trong 7 ngày và chỉ nâng cấp khi
-                bạn thật sự cần insight sâu hơn, báo cáo đầy đủ hoặc recommendation cá nhân hóa.
+                bạn thật sự cần phân tích sâu hơn, báo cáo đầy đủ hoặc gợi ý cá nhân hóa.
               </p>
             </div>
 
@@ -151,7 +145,7 @@ export default function PricingSection() {
                   >
                     {plan.featured && (
                       <div className="absolute right-5 top-5 rounded-full bg-[#F59E0B] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-md">
-                        Best value
+                        Phổ biến nhất
                       </div>
                     )}
 
@@ -226,7 +220,7 @@ export default function PricingSection() {
                 <div>
                   <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#F3F0FF] px-3 py-1.5 text-[11px] font-[900] uppercase tracking-[0.13em] text-[#6F59FF]">
                     <Package className="h-3.5 w-3.5" />
-                    Planner Kit Add-on
+                    Planner Kit tùy chọn
                   </div>
 
                   <h3 className="text-[26px] font-[900] leading-tight tracking-[-0.03em] text-[#1A1528]">
@@ -234,7 +228,7 @@ export default function PricingSection() {
                   </h3>
 
                   <p className="mt-2 max-w-[720px] text-[14px] font-semibold leading-relaxed text-[#5B566E]">
-                    Chrono Planner Kit gồm planner, energy cards và reflection sheets
+                    Chrono Planner Kit gồm planner, thẻ năng lượng và phiếu nhìn lại
                     để bạn duy trì thói quen lập kế hoạch ngoài đời thực.
                   </p>
                 </div>
@@ -296,13 +290,13 @@ export default function PricingSection() {
               />
               <MiniNote
                 icon={<Download className="h-4 w-4" />}
-                title="Pro có full report"
-                desc="Gói Pro phù hợp khi người dùng cần tải báo cáo PDF và nhận recommendation chi tiết hơn."
+                title="Pro có báo cáo đầy đủ"
+                desc="Gói Pro phù hợp khi người dùng cần tải báo cáo PDF và nhận gợi ý chi tiết hơn."
               />
               <MiniNote
                 icon={<Coins className="h-4 w-4" />}
-                title="Coin có giá trị thật"
-                desc="Coin tích từ focus session có thể dùng để đổi ưu đãi hoặc Planner Kit."
+                title="Coin dùng để đổi ưu đãi"
+                desc="Coin tích từ phiên tập trung có thể dùng để đổi ưu đãi hoặc Planner Kit."
               />
             </div>
           </div>

@@ -6,7 +6,6 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
-  CheckCircle2,
   Clock3,
   FileText,
   FlaskConical,
@@ -18,7 +17,6 @@ import {
   Sparkles,
   Newspaper,
   Video,
-  ExternalLink,
 } from "lucide-react";
 
 const articles = [
@@ -37,7 +35,7 @@ const articles = [
   {
     title: "Vì sao năng lượng lên xuống?",
     description:
-      "Tìm hiểu energy curve, nhịp sinh học và lý do hiệu suất không thể giữ nguyên ở mọi khung giờ trong ngày.",
+      "Tìm hiểu đường năng lượng, nhịp sinh học và lý do hiệu suất không thể giữ nguyên ở mọi khung giờ trong ngày.",
     icon: <Brain className="h-5 w-5 text-[#4DA8FF]" />,
     tag: "Giải thích",
     accent: "from-[#FBFDFF] via-[#EEF6FF] to-[#E2F0FF]",
@@ -62,7 +60,7 @@ const articles = [
 
 const knowledgeItems = [
   {
-    title: "Blog ngắn",
+    title: "Bài viết dễ đọc",
     desc: "Đọc nhanh các khái niệm nền tảng về chronotype và năng lượng.",
     icon: Newspaper,
     color: "text-[#6F59FF]",
@@ -76,7 +74,7 @@ const knowledgeItems = [
     bg: "bg-[#EEF6FF]",
   },
   {
-    title: "Nguồn tham khảo",
+    title: "Tài liệu tham khảo",
     desc: "Tổng hợp tài liệu và nghiên cứu liên quan đến nhịp sinh học.",
     icon: FileText,
     color: "text-[#10B981]",
@@ -128,7 +126,7 @@ export default function LearnSection() {
               <div className="text-center lg:text-left">
                 <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Learning Hub
+                  Thư viện kiến thức
                 </div>
 
                 <h2 className="mb-6 text-[clamp(2.35rem,4.6vw,3.65rem)] font-[900] leading-[1.04] tracking-[-0.04em]">
@@ -139,15 +137,15 @@ export default function LearnSection() {
                 </h2>
 
                 <p className="mx-auto mb-8 max-w-[620px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px] lg:mx-0">
-                  Learning Hub là nơi tổng hợp blog, video ngắn và tài liệu tham khảo
-                  giúp người dùng hiểu chronotype, energy curve và cách áp dụng vào
+                  Thư viện kiến thức là nơi tổng hợp bài viết, video ngắn và tài liệu
+                  tham khảo giúp người dùng hiểu chronotype, đường năng lượng và cách áp dụng vào
                   lịch trình hằng ngày.
                 </p>
 
                 <div className="mb-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
                   <Chip
                     icon={<BookOpen className="h-4 w-4 text-[#6F59FF]" />}
-                    label="Blog dễ đọc"
+                    label="Bài viết dễ đọc"
                   />
                   <Chip
                     icon={<Video className="h-4 w-4 text-[#4DA8FF]" />}
@@ -155,7 +153,7 @@ export default function LearnSection() {
                   />
                   <Chip
                     icon={<FlaskConical className="h-4 w-4 text-[#F59E0B]" />}
-                    label="Nguồn tham khảo"
+                    label="Tài liệu tham khảo"
                   />
                 </div>
 
@@ -164,7 +162,7 @@ export default function LearnSection() {
                     href="/learn"
                     className="group inline-flex min-h-[54px] items-center justify-center gap-3 rounded-full bg-[#1A1528] px-7 text-[14px] font-[900] text-white shadow-[0_15px_30px_rgba(26,21,40,0.15)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_20px_40px_rgba(111,89,255,0.18)]"
                   >
-                    Vào Learning Hub
+                    Mở thư viện kiến thức
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
 
@@ -325,7 +323,7 @@ function LearningMockup() {
                   </h3>
 
                   <p className="text-[12.5px] font-semibold leading-relaxed text-[#6B647C]">
-                    Xem nhanh cách chronotype và energy curve ảnh hưởng đến lịch học,
+                    Xem nhanh cách chronotype và đường năng lượng ảnh hưởng đến lịch học,
                     lịch làm và thời điểm nên nghỉ.
                   </p>
                 </div>

@@ -7,28 +7,24 @@ import { ChevronDown, Sparkles } from "lucide-react";
 
 const faqs = [
   {
-    q: "ChronoFlow có phải công cụ chẩn đoán sức khỏe không?",
-    a: "Không. ChronoFlow là công cụ hỗ trợ lập kế hoạch và tự quan sát năng lượng cá nhân. Ứng dụng không thay thế tư vấn y tế hay chẩn đoán chuyên môn.",
-  },
-  {
-    q: "Nếu tôi chưa biết chronotype của mình thì sao?",
-    a: "Bạn có thể bắt đầu bằng bài test ngắn để nhận gợi ý ban đầu, sau đó điều chỉnh dần theo dữ liệu sử dụng thực tế.",
-  },
-  {
-    q: "Điểm thưởng được tính như thế nào?",
-    a: "Điểm dựa trên focus session, thời lượng, loại task và giới hạn hợp lý mỗi ngày để tránh spam hoặc gian lận điểm.",
-  },
-  {
-    q: "Planner Kit dùng để làm gì?",
-    a: "Planner Kit giúp chuyển hệ thống từ app ra đời thực bằng planner, energy cards và reflection sheets để duy trì thói quen tốt hơn.",
-  },
-  {
     q: "ChronoFlow khác gì Google Calendar, Todoist hay Notion?",
-    a: "Các công cụ đó rất mạnh về quản lý công việc và thông tin. ChronoFlow khác ở chỗ ưu tiên năng lượng cá nhân, chronotype, focus session và hệ thống reward để bạn làm đúng việc vào đúng thời điểm.",
+    a: "Các công cụ đó thường giúp bạn ghi việc và đặt lịch. ChronoFlow tập trung vào câu hỏi: việc này nên làm vào lúc nào để hợp với nhịp năng lượng của bạn hơn.",
   },
   {
-    q: "Team version có theo dõi cá nhân không?",
-    a: "Không nên theo hướng giám sát. Team mini chỉ nên hiển thị xu hướng tổng quan và gợi ý khung làm việc phù hợp hơn cho nhóm.",
+    q: "Làm bài đánh giá mất bao lâu?",
+    a: "Khoảng 2–3 phút. Sau đó bạn sẽ có kết quả chronotype và khung giờ tham khảo để bắt đầu lập kế hoạch.",
+  },
+  {
+    q: "ChronoFlow có miễn phí không?",
+    a: "Có. Bạn có thể bắt đầu miễn phí với bài đánh giá, kết quả cơ bản và một số tính năng lập kế hoạch ban đầu.",
+  },
+  {
+    q: "ChronoFlow có phải công cụ chẩn đoán sức khỏe không?",
+    a: "Không. ChronoFlow là công cụ hỗ trợ tự quan sát năng lượng và lập kế hoạch cá nhân, không thay thế tư vấn y tế hay chẩn đoán chuyên môn.",
+  },
+  {
+    q: "Có cần đăng nhập để dùng không?",
+    a: "Bạn có thể xem thông tin cơ bản trên website, nhưng cần đăng nhập để lưu kết quả, task, lịch làm việc, coin và dữ liệu cá nhân hóa.",
   },
 ];
 

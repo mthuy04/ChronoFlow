@@ -53,16 +53,16 @@ const painPoints: PainPoint[] = [
     key: "focus",
     title: "Khó tập trung dù đã ngồi vào bàn",
     shortTitle: "Khó tập trung",
-    label: "Focus mismatch",
+    label: "Sai nhịp tập trung",
     problem:
-      "Bạn đã mở laptop, đã có task trước mắt, nhưng não vẫn ì ạch và rất khó vào trạng thái làm việc sâu.",
+      "Bạn đã mở laptop và có việc trước mắt, nhưng vẫn khó vào trạng thái học hoặc làm sâu.",
     impact:
-      "Bạn mất nhiều thời gian để bắt đầu, dễ mở mạng xã hội, đổi task liên tục và cuối cùng vẫn thấy mình chưa làm được gì đáng kể.",
+      "Bạn mất thời gian khởi động, dễ đổi việc liên tục và cuối ngày vẫn thấy chưa làm được phần quan trọng.",
     solution:
-      "ChronoFlow giúp bạn nhận diện khung giờ tập trung tốt hơn, sau đó gợi ý đưa deep work vào đúng thời điểm năng lượng cao.",
+      "ChronoFlow giúp nhận diện khung tập trung tốt hơn và gợi ý đưa việc sâu vào lúc năng lượng phù hợp.",
     insight:
       "Không phải bạn lười. Có thể bạn đang bắt đầu việc khó vào sai nhịp năng lượng.",
-    metric: "09:00",
+    metric: "Sáng",
     metricLabel: "Khung tập trung gợi ý",
     icon: Brain,
     emoji: "🧠",
@@ -76,16 +76,16 @@ const painPoints: PainPoint[] = [
     key: "wrongTime",
     title: "Việc quan trọng bị đẩy vào lúc đã mệt",
     shortTitle: "Sai thời điểm",
-    label: "Energy mismatch",
+    label: "Lệch nhịp năng lượng",
     problem:
       "Những việc cần nhiều năng lượng như học sâu, viết báo cáo hay phân tích thường bị để đến cuối ngày.",
     impact:
-      "Khi năng lượng đã giảm, task khó trở nên nặng hơn bình thường. Bạn dễ trì hoãn, làm qua loa hoặc phải thức khuya để bù.",
+      "Khi năng lượng đã giảm, việc khó trở nên nặng hơn. Bạn dễ trì hoãn, làm qua loa hoặc phải thức khuya để bù.",
     solution:
-      "ChronoFlow phân loại task theo mức năng lượng và gợi ý thời điểm phù hợp: deep work lúc tỉnh táo, admin khi năng lượng vừa, recovery khi cần reset.",
+      "ChronoFlow phân loại việc theo mức năng lượng và gợi ý: việc sâu lúc tỉnh táo, việc nhẹ khi năng lượng vừa, nghỉ khi cần hồi phục.",
     insight: "Một task đúng nhưng đặt sai giờ vẫn có thể khiến bạn kiệt sức.",
-    metric: "2.5x",
-    metricLabel: "Cảm giác tốn sức hơn",
+    metric: "Đúng lúc",
+    metricLabel: "Giảm cảm giác gắng sức",
     icon: BatteryWarning,
     emoji: "🔋",
     accentText: "text-[#F59E0B]",
@@ -98,7 +98,7 @@ const painPoints: PainPoint[] = [
     key: "priority",
     title: "Lịch học/làm dày nhưng thiếu ưu tiên",
     shortTitle: "Thiếu ưu tiên",
-    label: "Priority overload",
+    label: "Quá tải ưu tiên",
     problem:
       "Task nào cũng có vẻ quan trọng, deadline nào cũng gấp, nhưng bạn không biết nên xử lý việc nào trước.",
     impact:
@@ -107,7 +107,7 @@ const painPoints: PainPoint[] = [
       "ChronoFlow giúp bạn nhìn lịch theo từng khối năng lượng, từ đó chọn task phù hợp với từng thời điểm thay vì chỉ xếp task theo deadline.",
     insight:
       "Một lịch tốt không chỉ nhiều task, mà phải biết task nào nên nằm ở thời điểm nào.",
-    metric: "4",
+    metric: "Theo nhịp",
     metricLabel: "Khối năng lượng chính",
     icon: CalendarX2,
     emoji: "📅",
@@ -121,7 +121,7 @@ const painPoints: PainPoint[] = [
     key: "burnout",
     title: "Cố làm liên tục nhưng càng ngày càng đuối",
     shortTitle: "Dễ kiệt sức",
-    label: "Burnout loop",
+    label: "Vòng lặp kiệt sức",
     problem:
       "Bạn cố duy trì năng suất bằng cách làm nhiều hơn, nhưng lại bỏ qua thời điểm cơ thể cần nghỉ và phục hồi.",
     impact:
@@ -130,7 +130,7 @@ const painPoints: PainPoint[] = [
       "ChronoFlow đưa recovery thành một phần của lịch trình, giúp bạn nghỉ đúng lúc thay vì chỉ nghỉ khi đã quá tải.",
     insight:
       "Nghỉ không phải là mất năng suất. Nghỉ đúng lúc là điều kiện để làm việc bền hơn.",
-    metric: "15:00",
+    metric: "Nghỉ đúng",
     metricLabel: "Khung phục hồi gợi ý",
     icon: Coffee,
     emoji: "☕",
@@ -144,17 +144,17 @@ const painPoints: PainPoint[] = [
     key: "planner",
     title: "Planner dễ bị bỏ quên sau vài ngày",
     shortTitle: "Khó duy trì",
-    label: "Habit drop-off",
+    label: "Đứt nhịp thói quen",
     problem:
       "Viết kế hoạch thì dễ, nhưng duy trì mỗi ngày lại khó, nhất là khi planner giấy không có nhắc nhở hay phản hồi.",
     impact:
       "Bạn bắt đầu rất hào hứng, sau đó bỏ dở vì không thấy tiến bộ rõ ràng hoặc không biết lịch hiện tại có thật sự hợp với mình không.",
     solution:
-      "ChronoFlow kết nối web app với Planner Kit bằng focus session, điểm thưởng, streak và reflection để việc lập kế hoạch dễ duy trì hơn.",
+      "ChronoFlow kết nối web app với Planner Kit bằng phiên tập trung, điểm thưởng, chuỗi duy trì và nhìn lại để việc lập kế hoạch dễ theo hơn.",
     insight:
       "Planner chỉ hiệu quả khi có vòng lặp phản hồi: lên kế hoạch, làm, nhìn lại, rồi điều chỉnh.",
-    metric: "+XP",
-    metricLabel: "Điểm focus tích lũy",
+    metric: "Duy trì",
+    metricLabel: "Điểm tập trung tích lũy",
     icon: Trophy,
     emoji: "🏆",
     accentText: "text-[#10B981]",
@@ -167,16 +167,16 @@ const painPoints: PainPoint[] = [
     key: "system",
     title: "Có nhiều công cụ nhưng thiếu một hệ thống rõ ràng",
     shortTitle: "Thiếu hệ thống",
-    label: "Scattered workflow",
+    label: "Quy trình rời rạc",
     problem:
       "Bạn có thể dùng Notion, lịch, to-do list, ghi chú giấy, nhưng mỗi thứ nằm một nơi và không kết nối với nhịp sinh học của bạn.",
     impact:
       "Thông tin bị phân tán, lịch dễ rối, task dễ trôi và bạn mất thêm năng lượng chỉ để quyết định hôm nay nên làm gì.",
     solution:
-      "ChronoFlow gom chronotype test, energy map, smart scheduling, dashboard và planner kit vào cùng một flow dễ theo dõi.",
+      "ChronoFlow gom bài đánh giá chronotype, bản đồ năng lượng, gợi ý lịch, dashboard và Planner Kit vào cùng một flow dễ theo dõi.",
     insight:
       "Công cụ riêng lẻ không đủ. Bạn cần một hệ thống giúp ra quyết định mỗi ngày.",
-    metric: "1 flow",
+    metric: "Một flow",
     metricLabel: "Từ insight đến hành động",
     icon: Layers3,
     emoji: "🧩",
@@ -328,7 +328,7 @@ export default function PainPointsSection() {
             >
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Pain Points
+                Vấn đề thường gặp
               </div>
 
               <h2 className="mb-5 text-[clamp(2.25rem,4.6vw,3.75rem)] font-[900] leading-[1.04] tracking-[-0.04em] text-[#1A1528]">
@@ -339,9 +339,9 @@ export default function PainPointsSection() {
               </h2>
 
               <p className="mx-auto max-w-[720px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
-                Nhiều người không thiếu cố gắng. Vấn đề là lịch học, lịch làm và
-                cách ưu tiên task thường bỏ qua thời điểm cơ thể thật sự tỉnh táo,
-                cần nghỉ hoặc chỉ nên xử lý việc nhẹ.
+                Bạn không chỉ cần thêm thời gian — bạn cần đúng thời điểm. Lịch
+                học, lịch làm và cách ưu tiên task thường bỏ qua lúc cơ thể thật
+                sự tỉnh táo, cần nghỉ hoặc chỉ nên xử lý việc nhẹ.
               </p>
             </motion.div>
 
@@ -434,8 +434,8 @@ export default function PainPointsSection() {
                           </div>
                           <p className="text-[13px] font-semibold leading-relaxed text-[#5B566E]">
                             ChronoFlow không chỉ hỏi “hôm nay bạn cần làm gì?”,
-                            mà còn giúp trả lời câu quan trọng hơn: “nên làm việc
-                            này vào lúc nào để ít tốn sức và dễ duy trì hơn?”
+                            mà còn giúp trả lời câu quan trọng hơn: “việc này nên
+                            làm vào lúc nào để ít tốn sức và dễ duy trì hơn?”
                           </p>
                         </div>
                       </motion.div>
@@ -447,7 +447,7 @@ export default function PainPointsSection() {
                   <FloatingBadge
                     className="left-5 top-5"
                     icon={<Clock3 className="h-4 w-4 text-[#6F59FF]" />}
-                    text="Sai lúc = tốn sức"
+                    text="Sai lúc dễ tốn sức"
                   />
 
                   <FloatingBadge
@@ -674,13 +674,13 @@ function PainMockup({ activePain }: { activePain: PainPoint }) {
                 <div className="space-y-2.5">
                   <MiniScheduleRow
                     time="09:00"
-                    title="Deep work"
+                    title="Học/làm sâu"
                     desc="Đặt vào khung năng lượng cao"
                     tone="purple"
                   />
                   <MiniScheduleRow
                     time="13:30"
-                    title="Admin / review"
+                    title="Việc nhẹ / nhìn lại"
                     desc="Xử lý task nhẹ hơn"
                     tone="blue"
                   />
@@ -695,8 +695,8 @@ function PainMockup({ activePain }: { activePain: PainPoint }) {
 
               <div className="grid grid-cols-3 gap-2">
                 <MetricCard value="3p" label="Bài test" />
-                <MetricCard value="4" label="Nhịp độ" />
-                <MetricCard value="+XP" label="Focus" />
+                  <MetricCard value="4" label="Nhóm nhịp" />
+                  <MetricCard value="+XP" label="Tập trung" />
               </div>
             </div>
           </div>

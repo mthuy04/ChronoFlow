@@ -30,10 +30,10 @@ type TargetUser = {
 const users: TargetUser[] = [
   {
     title: "Học sinh, sinh viên",
-    subtitle: "Quản lý deadline và phiên học sâu",
-    desc: "Phù hợp với người cần sắp xếp lịch học, bài tập nhóm, ôn thi và tránh học việc khó vào lúc đã kiệt sức.",
-    bestFor: "Khi bạn có nhiều môn, nhiều deadline và cần biết lúc nào nên học sâu.",
-    tags: ["Deadline", "Ôn thi", "Học sâu"],
+    subtitle: "Quản lý hạn nộp và phiên học sâu",
+    desc: "Phù hợp với người cần sắp xếp lịch học, ôn tập, bài tập nhóm và hạn nộp mà không dồn việc khó vào lúc đã mệt.",
+    bestFor: "Khi bạn có nhiều môn, nhiều hạn nộp và cần biết lúc nào nên học sâu.",
+    tags: ["Hạn nộp", "Ôn tập", "Học sâu"],
     icon: GraduationCap,
     emoji: "🎓",
     gradient: "from-[#6F59FF] to-[#8B5CF6]",
@@ -44,9 +44,9 @@ const users: TargetUser[] = [
   {
     title: "Người đi làm",
     subtitle: "Cân bằng deep work, họp và việc nhẹ",
-    desc: "Dành cho người có nhiều task trong ngày, dễ bị gián đoạn bởi họp, email, tin nhắn và admin work.",
+    desc: "Dành cho người có nhiều việc trong ngày, dễ bị gián đoạn bởi họp, email, tin nhắn và các đầu việc nhẹ.",
     bestFor: "Khi bạn muốn bảo vệ thời gian tập trung và không để việc quan trọng trôi về cuối ngày.",
-    tags: ["Deep work", "Meetings", "Admin"],
+    tags: ["Deep work", "Họp", "Email", "Việc nhẹ"],
     icon: Briefcase,
     emoji: "💼",
     gradient: "from-[#4DA8FF] to-[#38BDF8]",
@@ -55,11 +55,11 @@ const users: TargetUser[] = [
     border: "border-[#DDEEFF]",
   },
   {
-    title: "Giảng viên & người làm giáo dục",
-    subtitle: "Sắp lịch dạy, soạn bài và nghiên cứu",
-    desc: "Phù hợp với người cần cân bằng lịch giảng dạy, chuẩn bị tài liệu, chấm bài, nghiên cứu và lịch cá nhân.",
-    bestFor: "Khi lịch dạy và công việc học thuật chồng chéo, cần chia khối việc rõ hơn.",
-    tags: ["Lịch dạy", "Soạn bài", "Nghiên cứu"],
+    title: "Giáo dục, mentoring và team",
+    subtitle: "Hiểu nhịp học/làm của từng người",
+    desc: "Phù hợp với người hỗ trợ học tập, mentoring hoặc làm việc nhóm cần hiểu nhịp năng lượng để phân bổ việc và phản hồi tốt hơn.",
+    bestFor: "Khi bạn muốn hỗ trợ từng người theo nhịp học/làm thực tế, thay vì chỉ nhìn deadline.",
+    tags: ["Mentoring", "Hỗ trợ học tập", "Làm việc nhóm"],
     icon: Presentation,
     emoji: "👩‍🏫",
     gradient: "from-[#F59E0B] to-[#FBBF24]",
@@ -70,9 +70,9 @@ const users: TargetUser[] = [
   {
     title: "Người muốn tối ưu lịch trình cá nhân",
     subtitle: "Tự quản thời gian theo năng lượng",
-    desc: "Dành cho freelancer, creator, người tự học hoặc bất kỳ ai muốn xây dựng routine bền hơn theo nhịp cá nhân.",
+    desc: "Dành cho freelancer, người sáng tạo, người tự học hoặc bất kỳ ai muốn xây dựng thói quen bền hơn theo nhịp cá nhân.",
     bestFor: "Khi bạn có nhiều vai trò trong ngày và muốn biến mục tiêu thành lịch thực tế hơn.",
-    tags: ["Self-growth", "Creator", "Routine"],
+    tags: ["Phát triển bản thân", "Sáng tạo", "Thói quen"],
     icon: Route,
     emoji: "🧭",
     gradient: "from-[#10B981] to-[#34D399]",
@@ -127,7 +127,7 @@ export default function TargetUsersSection() {
             >
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                 <Target className="h-3.5 w-3.5" />
-                Target Users
+                Nhóm người dùng
               </div>
 
               <h2 className="mb-5 text-[clamp(2.25rem,4.6vw,3.65rem)] font-[900] leading-[1.04] tracking-[-0.04em] text-[#1A1528]">
@@ -201,10 +201,10 @@ export default function TargetUsersSection() {
 
                           <div>
                             <div className={`text-[13px] font-[900] ${item.accentText}`}>
-                              Energy-fit
+                              Lập lịch
                             </div>
                             <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A84A3]">
-                              planning
+                              theo năng lượng
                             </div>
                           </div>
                         </div>
@@ -280,7 +280,7 @@ export default function TargetUsersSection() {
 
                 <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-[#1A1528] px-5 py-3 text-[13px] font-bold text-white shadow-xl">
                   <Target className="h-4 w-4 text-[#4DA8FF]" />
-                  Energy-first planning
+                  Lập lịch theo năng lượng
                 </div>
               </div>
             </motion.div>

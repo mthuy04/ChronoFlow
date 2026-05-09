@@ -47,9 +47,8 @@ export default function HeroSection() {
               </h1>
 
               <p className="mx-auto mb-6 max-w-[640px] text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
-                Bạn không lười. Có thể bạn chỉ đang cố làm việc vào sai thời điểm.
-                Khám phá chronotype, hiểu đường năng lượng trong ngày và nhận gợi ý
-                lịch làm việc cá nhân hoá theo lúc bạn tập trung tốt nhất.
+                Không chỉ ghi việc cần làm, ChronoFlow gợi ý thời điểm phù hợp để
+                làm việc đó dựa trên chronotype và nhịp năng lượng cá nhân.
               </p>
 
               <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
@@ -87,7 +86,7 @@ export default function HeroSection() {
               <div className="absolute left-[3%] top-[6%] z-40 hidden animate-[bounce_4s_infinite] sm:block">
                 <FloatPill
                   icon={<Zap className="h-3.5 w-3.5" />}
-                  label="Peak focus: 07:00"
+                  label="Đỉnh tập trung: 07:00"
                   tint="purple"
                 />
               </div>
