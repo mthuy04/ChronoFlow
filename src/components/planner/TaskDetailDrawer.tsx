@@ -44,9 +44,21 @@ type TaskPatchPayload = {
   priority?: PlannerPriority;
   duration?: string;
   deadline?: string | null;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   scheduledTime?: string;
+  isBacklog?: boolean;
   explanation?: string;
   completed?: boolean;
+};
+
+type SchedulePatchPayload = {
+  scheduledTime: string;
+  scheduledDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  isBacklog: boolean;
 };
 
 type StreakRewardResponse = {
@@ -248,6 +260,45 @@ function buildDraftFromTask(task: PlannerTask): TaskDraft {
 
 function buildScheduledTime(dateKey: string, start: string, end: string) {
   return `${dateKey}|${start}|${end}`;
+}
+
+function buildSchedulePatchPayload(scheduledTime: string): SchedulePatchPayload {
+  const value = scheduledTime.trim();
+
+  if (!value || value.toUpperCase() === "BACKLOG") {
+    return {
+      scheduledTime: "BACKLOG",
+      scheduledDate: null,
+      startTime: null,
+      endTime: null,
+      isBacklog: true,
+    };
+  }
+
+  const pipeParts = value.split("|");
+
+  if (pipeParts.length === 3) {
+    const [scheduledDate, startTime, endTime] = pipeParts;
+
+    return {
+      scheduledTime: value,
+      scheduledDate: scheduledDate || null,
+      startTime: startTime || null,
+      endTime: endTime || null,
+      isBacklog: false,
+    };
+  }
+
+  const dateMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  const timeMatches = value.match(/\b\d{2}:\d{2}\b/g);
+
+  return {
+    scheduledTime: value,
+    scheduledDate: dateMatch?.[1] ?? null,
+    startTime: timeMatches?.[0] ?? null,
+    endTime: timeMatches?.[1] ?? null,
+    isBacklog: false,
+  };
 }
 
 function buildScheduledTimeFromSlot(task: PlannerTask, slot: string) {
@@ -469,6 +520,7 @@ export default function TaskDetailDrawer({
         safeDraft.start,
         safeDraft.end,
       );
+      const schedulePayload = buildSchedulePatchPayload(scheduledTime);
 
       await patchTask({
         name,
@@ -476,7 +528,7 @@ export default function TaskDetailDrawer({
         priority: safeDraft.priority,
         duration,
         deadline: safeDraft.deadline.trim() ? safeDraft.deadline.trim() : null,
-        scheduledTime,
+        ...schedulePayload,
         explanation: safeDraft.explanation.trim(),
       });
 
@@ -566,7 +618,7 @@ export default function TaskDetailDrawer({
     try {
       setIsSaving(true);
       setMessage("");
-      await patchTask({ scheduledTime: "BACKLOG" });
+      await patchTask(buildSchedulePatchPayload("BACKLOG"));
       onClose();
     } catch (error) {
       setMessage(
@@ -583,7 +635,7 @@ export default function TaskDetailDrawer({
       setMessage("");
 
       const scheduledTime = buildScheduledTimeFromSlot(activeTask, slot);
-      await patchTask({ scheduledTime });
+      await patchTask(buildSchedulePatchPayload(scheduledTime));
 
       const updatedParsed = parseScheduledTime({
         ...activeTask,

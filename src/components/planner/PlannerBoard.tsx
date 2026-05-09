@@ -57,6 +57,13 @@ export interface PlannerTask {
   duration: string;
   deadline: string | null;
   scheduledTime: string;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  focusMode?: string | null;
+  focusMinutes?: number | null;
+  isBacklog?: boolean;
+  orderIndex?: number;
   explanation: string;
   completed: boolean;
   createdAt?: string;
@@ -135,6 +142,14 @@ type UndoAction = {
   message: string;
   taskId: string;
   previousScheduledTime: string;
+};
+
+type SchedulePatchPayload = {
+  scheduledTime: string;
+  scheduledDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  isBacklog: boolean;
 };
 
 const CHRONOTYPE_META: Record<
@@ -441,6 +456,45 @@ function buildScheduledTime(dateKey: string, start: string, duration: string) {
   const end = addMinutesToTime(start, durationMinutes);
 
   return `${dateKey}|${start}|${end}`;
+}
+
+function buildSchedulePatchPayload(scheduledTime: string): SchedulePatchPayload {
+  const value = scheduledTime.trim();
+
+  if (!value || value.toUpperCase() === "BACKLOG") {
+    return {
+      scheduledTime: "BACKLOG",
+      scheduledDate: null,
+      startTime: null,
+      endTime: null,
+      isBacklog: true,
+    };
+  }
+
+  const pipeParts = value.split("|");
+
+  if (pipeParts.length === 3) {
+    const [scheduledDate, startTime, endTime] = pipeParts;
+
+    return {
+      scheduledTime: value,
+      scheduledDate: scheduledDate || null,
+      startTime: startTime || null,
+      endTime: endTime || null,
+      isBacklog: false,
+    };
+  }
+
+  const dateMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  const timeMatches = value.match(/\b\d{2}:\d{2}\b/g);
+
+  return {
+    scheduledTime: value,
+    scheduledDate: dateMatch?.[1] ?? null,
+    startTime: timeMatches?.[0] ?? null,
+    endTime: timeMatches?.[1] ?? null,
+    isBacklog: false,
+  };
 }
 
 function getPrimaryStart(chronotype: PlannerChronotype) {
@@ -825,15 +879,14 @@ export default function PlannerBoard({
 
   async function updateTaskSchedule(task: PlannerTask, dateKey: string, start: string) {
     const nextScheduledTime = buildScheduledTime(dateKey, start, task.duration);
+    const schedulePayload = buildSchedulePatchPayload(nextScheduledTime);
 
     const response = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        scheduledTime: nextScheduledTime,
-      }),
+      body: JSON.stringify(schedulePayload),
     });
 
     const payload = (await response.json().catch(() => null)) as
@@ -847,7 +900,13 @@ export default function PlannerBoard({
     const updatedTask: PlannerTask = {
       ...task,
       ...(payload?.task ?? {}),
-      scheduledTime: payload?.task?.scheduledTime ?? nextScheduledTime,
+      ...schedulePayload,
+      scheduledTime: payload?.task?.scheduledTime ?? schedulePayload.scheduledTime,
+      scheduledDate:
+        payload?.task?.scheduledDate ?? schedulePayload.scheduledDate,
+      startTime: payload?.task?.startTime ?? schedulePayload.startTime,
+      endTime: payload?.task?.endTime ?? schedulePayload.endTime,
+      isBacklog: payload?.task?.isBacklog ?? schedulePayload.isBacklog,
     };
 
     await handleUpdateTask(updatedTask);
@@ -976,15 +1035,16 @@ export default function PlannerBoard({
 
     try {
       setIsUndoing(true);
+      const schedulePayload = buildSchedulePatchPayload(
+        undoAction.previousScheduledTime,
+      );
 
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          scheduledTime: undoAction.previousScheduledTime,
-        }),
+        body: JSON.stringify(schedulePayload),
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -998,8 +1058,13 @@ export default function PlannerBoard({
       const restoredTask: PlannerTask = {
         ...task,
         ...(payload?.task ?? {}),
-        scheduledTime:
-          payload?.task?.scheduledTime ?? undoAction.previousScheduledTime,
+        ...schedulePayload,
+        scheduledTime: payload?.task?.scheduledTime ?? schedulePayload.scheduledTime,
+        scheduledDate:
+          payload?.task?.scheduledDate ?? schedulePayload.scheduledDate,
+        startTime: payload?.task?.startTime ?? schedulePayload.startTime,
+        endTime: payload?.task?.endTime ?? schedulePayload.endTime,
+        isBacklog: payload?.task?.isBacklog ?? schedulePayload.isBacklog,
       };
 
       await handleUpdateTask(restoredTask);
@@ -1028,13 +1093,14 @@ export default function PlannerBoard({
 
     try {
       setUpdatingTaskId(taskId);
+      const schedulePayload = buildSchedulePatchPayload("BACKLOG");
 
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ scheduledTime: "BACKLOG" }),
+        body: JSON.stringify(schedulePayload),
       });
 
       const payload = (await response.json().catch(() => null)) as
@@ -1048,7 +1114,13 @@ export default function PlannerBoard({
       const updatedTask: PlannerTask = {
         ...task,
         ...(payload?.task ?? {}),
-        scheduledTime: payload?.task?.scheduledTime ?? "BACKLOG",
+        ...schedulePayload,
+        scheduledTime: payload?.task?.scheduledTime ?? schedulePayload.scheduledTime,
+        scheduledDate:
+          payload?.task?.scheduledDate ?? schedulePayload.scheduledDate,
+        startTime: payload?.task?.startTime ?? schedulePayload.startTime,
+        endTime: payload?.task?.endTime ?? schedulePayload.endTime,
+        isBacklog: payload?.task?.isBacklog ?? schedulePayload.isBacklog,
       };
 
       await handleUpdateTask(updatedTask);

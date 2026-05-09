@@ -527,16 +527,35 @@ export async function PATCH(
       body.endTime !== undefined ||
       body.isBacklog !== undefined
     ) {
+      const hasScheduledTimeInput = body.scheduledTime !== undefined;
       const scheduledTime =
-        body.scheduledTime !== undefined
+        hasScheduledTimeInput
           ? normalizeString(body.scheduledTime)
           : task.scheduledTime;
       const scheduledDate =
-        body.scheduledDate !== undefined ? body.scheduledDate : task.scheduledDate;
-      const startTime = body.startTime !== undefined ? body.startTime : task.startTime;
-      const endTime = body.endTime !== undefined ? body.endTime : task.endTime;
+        body.scheduledDate !== undefined
+          ? body.scheduledDate
+          : hasScheduledTimeInput
+            ? null
+            : task.scheduledDate;
+      const startTime =
+        body.startTime !== undefined
+          ? body.startTime
+          : hasScheduledTimeInput
+            ? null
+            : task.startTime;
+      const endTime =
+        body.endTime !== undefined
+          ? body.endTime
+          : hasScheduledTimeInput
+            ? null
+            : task.endTime;
       const isBacklog =
-        typeof body.isBacklog === "boolean" ? body.isBacklog : task.isBacklog;
+        typeof body.isBacklog === "boolean"
+          ? body.isBacklog
+          : hasScheduledTimeInput
+            ? !scheduledTime || scheduledTime.toUpperCase() === "BACKLOG"
+            : task.isBacklog;
 
       if (!scheduledTime && !isBacklog) {
         return NextResponse.json(
