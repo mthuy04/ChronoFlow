@@ -21,6 +21,9 @@ type PlannerTaskDto = {
   explanation: string;
   completed: boolean;
   isBacklog: boolean;
+  focusMode: string | null;
+  focusMinutes: number | null;
+  orderIndex: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -184,7 +187,15 @@ export async function GET() {
     const meta = getChronotypeMeta(chronotypeKey);
 
     const tasks: PlannerTaskDto[] = taskRows.map((task) => {
-      const schedule = extractSchedule(task.scheduledTime);
+      const extractedSchedule = extractSchedule(task.scheduledTime);
+      const isBacklog = task.isBacklog || extractedSchedule.isBacklog;
+      const scheduledDate = isBacklog
+        ? null
+        : task.scheduledDate ?? extractedSchedule.scheduledDate;
+      const startTime = isBacklog
+        ? null
+        : task.startTime ?? extractedSchedule.startTime;
+      const endTime = isBacklog ? null : task.endTime ?? extractedSchedule.endTime;
 
       return {
         id: task.id,
@@ -195,12 +206,15 @@ export async function GET() {
         durationMinutes: parseDurationToMinutes(task.duration),
         deadline: task.deadline,
         scheduledTime: task.scheduledTime,
-        scheduledDate: schedule.scheduledDate,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
+        scheduledDate,
+        startTime,
+        endTime,
         explanation: task.explanation ?? "",
         completed: task.completed,
-        isBacklog: schedule.isBacklog,
+        isBacklog,
+        focusMode: task.focusMode,
+        focusMinutes: task.focusMinutes,
+        orderIndex: task.orderIndex,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
       };

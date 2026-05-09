@@ -25,6 +25,22 @@ function getVietnamDateKey(date = new Date()) {
   }).format(date);
 }
 
+function getPersistedScheduledTime(task: {
+  isBacklog: boolean;
+  scheduledDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  scheduledTime: string;
+}) {
+  if (task.isBacklog) return "BACKLOG";
+
+  if (task.scheduledDate && task.startTime && task.endTime) {
+    return `${task.scheduledDate}|${task.startTime}|${task.endTime}`;
+  }
+
+  return task.scheduledTime;
+}
+
 export default async function PlannerPage() {
   const session = await getServerSession(authOptions);
 
@@ -127,9 +143,16 @@ export default async function PlannerPage() {
     priority: task.priority,
     duration: task.duration,
     deadline: task.deadline,
-    scheduledTime: task.scheduledTime,
+    scheduledTime: getPersistedScheduledTime(task),
     explanation: task.explanation,
     completed: task.completed,
+    isBacklog: task.isBacklog,
+    scheduledDate: task.scheduledDate,
+    startTime: task.startTime,
+    endTime: task.endTime,
+    focusMode: task.focusMode,
+    focusMinutes: task.focusMinutes,
+    orderIndex: task.orderIndex,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   }));

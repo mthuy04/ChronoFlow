@@ -11,8 +11,15 @@ type UpdateTaskBody = {
   priority?: string;
   duration?: string;
   deadline?: string | null;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   scheduledTime?: string;
   explanation?: string;
+  focusMode?: string | null;
+  focusMinutes?: number | null;
+  isBacklog?: boolean;
+  orderIndex?: number;
   completed?: boolean;
 };
 
@@ -74,16 +81,51 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function getScheduleFields(scheduledTime: string) {
-  const value = scheduledTime.trim();
+function normalizeNullableString(value: unknown): string | null {
+  const normalized = normalizeString(value);
+  return normalized ? normalized : null;
+}
 
-  if (!value || value.toUpperCase() === "BACKLOG") {
+function normalizeOptionalNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.round(value);
+}
+
+function getScheduleFields({
+  scheduledTime,
+  scheduledDate,
+  startTime,
+  endTime,
+  isBacklog,
+}: {
+  scheduledTime: string;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  isBacklog?: boolean;
+}) {
+  const value = scheduledTime.trim();
+  const explicitDate = normalizeNullableString(scheduledDate);
+  const explicitStart = normalizeNullableString(startTime);
+  const explicitEnd = normalizeNullableString(endTime);
+
+  if (isBacklog || !value || value.toUpperCase() === "BACKLOG") {
     return {
       scheduledTime: "BACKLOG",
       isBacklog: true,
       scheduledDate: null,
       startTime: null,
       endTime: null,
+    };
+  }
+
+  if (explicitDate && explicitStart && explicitEnd) {
+    return {
+      scheduledTime: `${explicitDate}|${explicitStart}|${explicitEnd}`,
+      isBacklog: false,
+      scheduledDate: explicitDate,
+      startTime: explicitStart,
+      endTime: explicitEnd,
     };
   }
 
@@ -478,21 +520,64 @@ export async function PATCH(
           : null;
     }
 
-    if (body.scheduledTime !== undefined) {
-      const scheduledTime = normalizeString(body.scheduledTime);
+    if (
+      body.scheduledTime !== undefined ||
+      body.scheduledDate !== undefined ||
+      body.startTime !== undefined ||
+      body.endTime !== undefined ||
+      body.isBacklog !== undefined
+    ) {
+      const scheduledTime =
+        body.scheduledTime !== undefined
+          ? normalizeString(body.scheduledTime)
+          : task.scheduledTime;
+      const scheduledDate =
+        body.scheduledDate !== undefined ? body.scheduledDate : task.scheduledDate;
+      const startTime = body.startTime !== undefined ? body.startTime : task.startTime;
+      const endTime = body.endTime !== undefined ? body.endTime : task.endTime;
+      const isBacklog =
+        typeof body.isBacklog === "boolean" ? body.isBacklog : task.isBacklog;
 
-      if (!scheduledTime) {
+      if (!scheduledTime && !isBacklog) {
         return NextResponse.json(
           { error: "Scheduled time cannot be empty." },
           { status: 400 },
         );
       }
 
-      Object.assign(data, getScheduleFields(scheduledTime));
+      Object.assign(
+        data,
+        getScheduleFields({
+          scheduledTime: scheduledTime || "BACKLOG",
+          scheduledDate,
+          startTime,
+          endTime,
+          isBacklog,
+        }),
+      );
     }
 
     if (body.explanation !== undefined) {
       data.explanation = normalizeString(body.explanation);
+    }
+
+    if (body.focusMode !== undefined) {
+      data.focusMode = normalizeNullableString(body.focusMode);
+    }
+
+    if (body.focusMinutes !== undefined) {
+      data.focusMinutes = normalizeOptionalNumber(body.focusMinutes);
+    }
+
+    if (body.orderIndex !== undefined) {
+      if (typeof body.orderIndex !== "number" || !Number.isFinite(body.orderIndex)) {
+        return NextResponse.json(
+          { error: "Order index must be a finite number." },
+          { status: 400 },
+        );
+      }
+
+      data.orderIndex = Math.round(body.orderIndex);
     }
 
     if (body.completed !== undefined) {

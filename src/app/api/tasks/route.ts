@@ -10,21 +10,53 @@ type CreateTaskBody = {
   priority?: string;
   duration?: string;
   deadline?: string | null;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   scheduledTime?: string;
   explanation?: string;
+  focusMode?: string | null;
+  focusMinutes?: number | null;
+  isBacklog?: boolean;
+  orderIndex?: number;
   completed?: boolean;
 };
 
-function getScheduleFields(scheduledTime: string) {
+function getScheduleFields({
+  scheduledTime,
+  scheduledDate,
+  startTime,
+  endTime,
+  isBacklog,
+}: {
+  scheduledTime: string;
+  scheduledDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  isBacklog?: boolean;
+}) {
   const value = scheduledTime.trim();
+  const explicitDate = normalizeNullableString(scheduledDate);
+  const explicitStart = normalizeNullableString(startTime);
+  const explicitEnd = normalizeNullableString(endTime);
 
-  if (!value || value.toUpperCase() === "BACKLOG") {
+  if (isBacklog || !value || value.toUpperCase() === "BACKLOG") {
     return {
       scheduledTime: "BACKLOG",
       isBacklog: true,
       scheduledDate: null,
       startTime: null,
       endTime: null,
+    };
+  }
+
+  if (explicitDate && explicitStart && explicitEnd) {
+    return {
+      scheduledTime: `${explicitDate}|${explicitStart}|${explicitEnd}`,
+      isBacklog: false,
+      scheduledDate: explicitDate,
+      startTime: explicitStart,
+      endTime: explicitEnd,
     };
   }
 
@@ -78,6 +110,62 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeNullableString(value: unknown): string | null {
+  const normalized = normalizeString(value);
+  return normalized ? normalized : null;
+}
+
+function normalizeOptionalNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.round(value);
+}
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized." },
+        { status: 401 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "User not found." },
+        { status: 404 },
+      );
+    }
+
+    const tasks = await prisma.task.findMany({
+      where: { userId: user.id },
+      orderBy: [{ completed: "asc" }, { orderIndex: "asc" }, { createdAt: "desc" }],
+    });
+
+    return NextResponse.json({
+      success: true,
+      tasks,
+    });
+  } catch (error) {
+    console.error("GET TASKS ERROR:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to load tasks.",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -93,7 +181,7 @@ export async function POST(req: Request) {
 
     const name = normalizeString(body.name);
     const duration = normalizeString(body.duration);
-    const scheduledTime = normalizeString(body.scheduledTime);
+    const requestedScheduledTime = normalizeString(body.scheduledTime);
     const explanation = normalizeString(body.explanation);
     const type = normalizeTaskType(body.type);
     const priority = normalizePriority(body.priority);
@@ -104,6 +192,9 @@ export async function POST(req: Request) {
         : null;
 
     const completed = typeof body.completed === "boolean" ? body.completed : false;
+    const isBacklog = typeof body.isBacklog === "boolean" ? body.isBacklog : false;
+    const focusMode = normalizeNullableString(body.focusMode);
+    const focusMinutes = normalizeOptionalNumber(body.focusMinutes);
 
     if (!name) {
       return NextResponse.json(
@@ -133,7 +224,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!scheduledTime) {
+    if (!requestedScheduledTime && !isBacklog) {
       return NextResponse.json(
         { error: "Scheduled time is required." },
         { status: 400 }
@@ -152,7 +243,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const scheduleFields = getScheduleFields(scheduledTime);
+    const scheduleFields = getScheduleFields({
+      scheduledTime: requestedScheduledTime || "BACKLOG",
+      scheduledDate: body.scheduledDate,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      isBacklog,
+    });
 
     const task = await prisma.task.create({
       data: {
@@ -164,6 +261,12 @@ export async function POST(req: Request) {
         deadline,
         ...scheduleFields,
         explanation,
+        focusMode,
+        focusMinutes,
+        orderIndex:
+          typeof body.orderIndex === "number" && Number.isFinite(body.orderIndex)
+            ? Math.round(body.orderIndex)
+            : 0,
         completed,
       },
     });
