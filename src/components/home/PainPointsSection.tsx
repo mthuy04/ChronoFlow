@@ -236,9 +236,9 @@ export default function PainPointsSection() {
               </div>
 
               <h2 className="mx-auto max-w-[860px] text-[clamp(2rem,4vw,3.25rem)] font-[900] leading-[1.08] tracking-tight text-[#1A1528]">
-                Bạn không chỉ cần thêm thời gian {" "}
+                Bạn đang làm việc {" "}
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  bạn cần đúng thời điểm.
+                  sai thời điểm.
                 </span>
               </h2>
 
