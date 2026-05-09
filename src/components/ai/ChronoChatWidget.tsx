@@ -28,7 +28,7 @@ const suggestedPrompts = [
   "Hôm nay mình nên bắt đầu từ đâu?",
   "Lịch hôm nay có quá tải không?",
   "Mình hay trì hoãn buổi tối thì nên làm gì?",
-  "Giải thích peak focus window cho mình.",
+  "Giải thích chronotype cho mình.",
 ];
 
 function createMessageId() {
@@ -131,7 +131,7 @@ export default function ChronoChatWidget() {
           setIsMinimized(false);
           window.setTimeout(() => inputRef.current?.focus(), 120);
         }}
-        className="fixed bottom-5 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#6F59FF] via-[#7C6CFF] to-[#4DA8FF] text-white shadow-[0_18px_50px_rgba(89,79,255,0.35)] transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(89,79,255,0.45)]"
+        className="fixed bottom-5 right-5 z-[90] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#6F59FF] via-[#7C6CFF] to-[#4DA8FF] text-white shadow-[0_18px_50px_rgba(89,79,255,0.35)] transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(89,79,255,0.45)]"
         aria-label="Mở Chrono AI Coach"
       >
         <MessageCircle className="h-6 w-6" />
@@ -144,30 +144,30 @@ export default function ChronoChatWidget() {
 
   return (
     <section
-      className="fixed bottom-5 right-5 z-[70] w-[calc(100vw-2.5rem)] max-w-[390px] overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_28px_90px_rgba(45,36,96,0.22)] backdrop-blur-2xl"
+      className="fixed bottom-5 right-5 z-[90] flex max-h-[calc(100vh-7rem)] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden rounded-[2rem] border border-white/80 bg-white/95 shadow-[0_28px_90px_rgba(45,36,96,0.22)] backdrop-blur-2xl"
       aria-label="Chrono AI Coach"
     >
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#F2EDFF] via-[#E9E2FF] to-[#DCEBFF] px-5 py-4">
+      <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-[#F2EDFF] via-[#E9E2FF] to-[#DCEBFF] px-5 py-4">
         <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/45 blur-2xl" />
         <div className="absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-[#9FB6FF]/30 blur-2xl" />
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/85 text-[#6F59FF] shadow-sm">
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[#6F59FF] shadow-sm">
               <Bot className="h-5 w-5" />
             </div>
 
-            <div>
-              <p className="text-sm font-black tracking-tight text-[#1A1528]">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black tracking-tight text-[#1A1528]">
                 Chrono AI Coach
               </p>
-              <p className="mt-0.5 text-xs font-semibold text-[#6B6384]">
+              <p className="mt-0.5 line-clamp-2 text-xs font-semibold leading-snug text-[#6B6384]">
                 Hỏi về task, nhịp năng lượng & lịch học
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => setIsMinimized((current) => !current)}
@@ -195,40 +195,46 @@ export default function ChronoChatWidget() {
 
       {!isMinimized ? (
         <>
-          <div className="max-h-[430px] space-y-3 overflow-y-auto bg-gradient-to-b from-white to-[#F8F6FF] px-4 py-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-white to-[#F8F6FF] px-4 py-4">
             {messages.map((message) => {
               const isUser = message.role === "user";
 
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                  className={`flex w-full ${
+                    isUser ? "justify-end" : "justify-start"
+                  }`}
                 >
                   <div
-                    className={`max-w-[82%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                    className={`min-w-0 max-w-[86%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed shadow-sm ${
                       isUser
                         ? "bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-white"
                         : "border border-[#EEE9FF] bg-white text-[#312B45]"
                     }`}
                   >
-                    <p className="whitespace-pre-line">{message.content}</p>
+                    <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+                      {message.content}
+                    </p>
                   </div>
                 </div>
               );
             })}
 
             {isSending ? (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-[1.35rem] border border-[#EEE9FF] bg-white px-4 py-3 text-sm font-semibold text-[#6B6384] shadow-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Chrono AI đang suy nghĩ...
+              <div className="flex w-full justify-start">
+                <div className="flex max-w-[86%] items-center gap-2 rounded-[1.35rem] border border-[#EEE9FF] bg-white px-4 py-3 text-sm font-semibold text-[#6B6384] shadow-sm">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  <span className="break-words [overflow-wrap:anywhere]">
+                    Chrono AI đang suy nghĩ...
+                  </span>
                 </div>
               </div>
             ) : null}
           </div>
 
-          <div className="border-t border-[#EEE9FF] bg-white px-4 py-3">
-            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="shrink-0 border-t border-[#EEE9FF] bg-white px-4 py-3">
+            <div className="mb-3 flex max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-1">
               {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
@@ -244,7 +250,7 @@ export default function ChronoChatWidget() {
 
             <form
               onSubmit={handleSubmit}
-              className="flex items-center gap-2 rounded-full border border-[#E5DEFF] bg-[#FAF8FF] p-1.5"
+              className="flex min-w-0 items-center gap-2 rounded-full border border-[#E5DEFF] bg-[#FAF8FF] p-1.5"
             >
               <input
                 ref={inputRef}
@@ -269,7 +275,7 @@ export default function ChronoChatWidget() {
               </button>
             </form>
 
-            <p className="mt-2 text-center text-[10px] font-semibold text-[#9A93AD]">
+            <p className="mt-2 text-center text-[10px] font-semibold leading-snug text-[#9A93AD]">
               Chrono AI hỗ trợ lập kế hoạch & nhịp năng lượng, không thay thế tư
               vấn y tế.
             </p>
