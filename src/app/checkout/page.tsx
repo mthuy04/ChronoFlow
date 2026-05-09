@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,6 +18,12 @@ import {
   WalletCards,
 } from "lucide-react";
 import { getCheckoutItem, formatVnd } from "@/lib/pricing";
+import {
+  trackAddPaymentInfo,
+  trackBeginCheckout,
+  trackViewItem,
+  type EcommerceItem,
+} from "@/lib/analytics/ga4";
 
 type CreatedOrder = {
   orderId: string;
@@ -67,6 +73,20 @@ function CheckoutPageContent() {
   const itemKey = plan ?? product;
   const item = useMemo(() => getCheckoutItem(itemKey), [itemKey]);
 
+  const hasTrackedViewItem = useRef(false);
+
+  const ga4Item = useMemo<EcommerceItem | null>(() => {
+    if (!item) return null;
+
+    return {
+      itemId: item.key,
+      itemName: item.name,
+      itemCategory: item.type === "product" ? "Planner Kit" : "Subscription",
+      price: item.price,
+      quantity: 1,
+    };
+  }, [item]);
+
   const [order, setOrder] = useState<CreatedOrder | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -75,11 +95,30 @@ function CheckoutPageContent() {
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
+  useEffect(() => {
+    if (!ga4Item || hasTrackedViewItem.current) return;
+
+    trackViewItem(ga4Item);
+    hasTrackedViewItem.current = true;
+  }, [ga4Item]);
+
+  useEffect(() => {
+    return () => {
+      if (proofPreview) {
+        URL.revokeObjectURL(proofPreview);
+      }
+    };
+  }, [proofPreview]);
+
   async function createOrder() {
     if (!item) return;
 
     try {
       setCreating(true);
+
+      if (ga4Item) {
+        trackBeginCheckout(ga4Item);
+      }
 
       const res = await fetch("/api/checkout/bank-transfer", {
         method: "POST",
@@ -101,6 +140,13 @@ function CheckoutPageContent() {
       }
 
       setOrder(data.order);
+
+      if (ga4Item) {
+        trackAddPaymentInfo({
+          item: ga4Item,
+          paymentType: "bank_transfer_qr",
+        });
+      }
     } catch (error) {
       console.error(error);
       alert("Có lỗi khi tạo QR chuyển khoản. Vui lòng thử lại.");
@@ -112,6 +158,10 @@ function CheckoutPageContent() {
   function handleProofChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (proofPreview) {
+      URL.revokeObjectURL(proofPreview);
+    }
 
     setProofFile(file);
     setProofPreview(URL.createObjectURL(file));
@@ -211,7 +261,8 @@ function CheckoutPageContent() {
             </h1>
 
             <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#6B647C] md:text-base">
-              Chuyển khoản đúng số tiền và đúng nội dung để đơn được xác nhận nhanh hơn.
+              Chuyển khoản đúng số tiền và đúng nội dung để đơn được xác nhận
+              nhanh hơn.
             </p>
           </div>
 
@@ -313,9 +364,12 @@ function CheckoutPageContent() {
               {!order ? (
                 <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#DCD7FF] bg-[#F8F9FE] p-8 text-center">
                   <QrCode className="mb-4 h-12 w-12 text-[#6F59FF]" />
-                  <h3 className="text-xl font-[900]">Chưa tạo QR chuyển khoản</h3>
+                  <h3 className="text-xl font-[900]">
+                    Chưa tạo QR chuyển khoản
+                  </h3>
                   <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-[#6B647C]">
-                    Bấm “Tạo QR chuyển khoản” để hệ thống tạo mã đơn riêng và QR ngân hàng.
+                    Bấm “Tạo QR chuyển khoản” để hệ thống tạo mã đơn riêng và QR
+                    ngân hàng.
                   </p>
                 </div>
               ) : confirmed ? (
@@ -325,8 +379,9 @@ function CheckoutPageContent() {
                     Đã gửi xác nhận
                   </h3>
                   <p className="mt-2 max-w-md text-sm font-semibold leading-relaxed text-[#047857]/80">
-                    Đơn của bạn đang chờ kiểm tra. Khi giao dịch được xác nhận, gói
-                    Plus/Pro sẽ được kích hoạt hoặc Planner Kit sẽ được xử lý giao hàng.
+                    Đơn của bạn đang chờ kiểm tra. Khi giao dịch được xác nhận,
+                    gói Plus/Pro sẽ được kích hoạt hoặc Planner Kit sẽ được xử
+                    lý giao hàng.
                   </p>
 
                   <Link
@@ -343,9 +398,12 @@ function CheckoutPageContent() {
                       <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-[#6F59FF]">
                         Chuyển khoản ngân hàng
                       </div>
-                      <h3 className="text-2xl font-[900]">Quét QR để thanh toán</h3>
+                      <h3 className="text-2xl font-[900]">
+                        Quét QR để thanh toán
+                      </h3>
                       <p className="mt-2 text-sm font-semibold leading-relaxed text-[#6B647C]">
-                        Vui lòng chuyển đúng số tiền và giữ nguyên nội dung chuyển khoản.
+                        Vui lòng chuyển đúng số tiền và giữ nguyên nội dung
+                        chuyển khoản.
                       </p>
                     </div>
                   </div>
@@ -364,8 +422,14 @@ function CheckoutPageContent() {
 
                     <div className="space-y-3">
                       <BankRow label="Ngân hàng" value={order.bank.bankId} />
-                      <BankRow label="Số tài khoản" value={order.bank.accountNo} />
-                      <BankRow label="Chủ tài khoản" value={order.bank.accountName} />
+                      <BankRow
+                        label="Số tài khoản"
+                        value={order.bank.accountNo}
+                      />
+                      <BankRow
+                        label="Chủ tài khoản"
+                        value={order.bank.accountName}
+                      />
                       <BankRow
                         label="Số tiền"
                         value={formatVnd(order.amount)}

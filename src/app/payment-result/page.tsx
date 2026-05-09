@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
+
+import { trackPurchase } from "@/lib/analytics/ga4";
 
 export default function PaymentResultPage() {
   return (
@@ -27,6 +29,7 @@ function PaymentResultFallback() {
 
 function PaymentResultContent() {
   const searchParams = useSearchParams();
+  const hasTrackedPurchase = useRef(false);
 
   const responseCode = searchParams.get("vnp_ResponseCode");
   const transactionStatus = searchParams.get("vnp_TransactionStatus");
@@ -35,9 +38,40 @@ function PaymentResultContent() {
 
   const success = responseCode === "00" && transactionStatus === "00";
 
-  const displayAmount = amount
-    ? `${(Number(amount) / 100).toLocaleString("vi-VN")}đ`
-    : "Không xác định";
+  const paidAmount = useMemo(() => {
+    if (!amount) return null;
+
+    const parsedAmount = Number(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return null;
+    }
+
+    return parsedAmount / 100;
+  }, [amount]);
+
+  const displayAmount =
+    typeof paidAmount === "number"
+      ? `${paidAmount.toLocaleString("vi-VN")}đ`
+      : "Không xác định";
+
+  useEffect(() => {
+    if (!success || !txnRef || typeof paidAmount !== "number") return;
+    if (hasTrackedPurchase.current) return;
+
+    trackPurchase({
+      transactionId: txnRef,
+      item: {
+        itemId: "chronoflow_payment_vnpay",
+        itemName: "ChronoFlow Payment",
+        itemCategory: "VNPAY",
+        price: paidAmount,
+        quantity: 1,
+      },
+    });
+
+    hasTrackedPurchase.current = true;
+  }, [paidAmount, success, txnRef]);
 
   return (
     <main className="min-h-screen bg-[#F4F2FA] px-4 py-16 font-sans text-[#1A1528]">
@@ -69,14 +103,14 @@ function PaymentResultContent() {
         <div className="mt-6 rounded-[24px] bg-[#F8F9FE] p-4 text-left text-sm font-semibold text-[#5B566E]">
           <div className="flex justify-between gap-4">
             <span>Mã giao dịch</span>
-            <span className="font-[900] text-[#1A1528]">
+            <span className="text-right font-[900] text-[#1A1528]">
               {txnRef ?? "N/A"}
             </span>
           </div>
 
           <div className="mt-2 flex justify-between gap-4">
             <span>Số tiền</span>
-            <span className="font-[900] text-[#1A1528]">
+            <span className="text-right font-[900] text-[#1A1528]">
               {displayAmount}
             </span>
           </div>
