@@ -137,7 +137,7 @@ export default function FinalCTASection() {
                   LIÊN HỆ CHRONOFLOW
                 </div>
 
-                <h2 className="mb-5 text-[clamp(2.35rem,4.4vw,4rem)] font-[900] leading-[1.02] tracking-tight text-[#1A1528]">
+                <h2 className="mb-5 text-[clamp(2.35rem,4vw,4rem)] font-[900] leading-[1.02] tracking-tight text-[#1A1528]">
                   Bạn cần{" "}
                   <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent drop-shadow-sm">
                     hỗ trợ ?

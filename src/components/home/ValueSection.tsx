@@ -358,10 +358,10 @@ export default function ValueSection({
               </div>
 
               <h2 className="mx-auto max-w-[800px] text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
-                Từ chronotype đến lịch trình,{" "}
+                Tổng quan {" "}
                 <br className="hidden sm:block" />
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  mọi thứ hội tụ tại một nơi.
+                  ChronoFlow
                 </span>
               </h2>
 
