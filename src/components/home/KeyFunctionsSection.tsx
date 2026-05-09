@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Brain,
   CalendarClock,
-  Gift,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -65,19 +64,6 @@ const features: Feature[] = [
     bg: "from-[#FFFDF7] via-[#FFF8ED] to-[#FFF4E5]",
     accentText: "text-[#F59E0B]",
     border: "border-[#FFE6C7]",
-  },
-  {
-    title: "Focus Points",
-    label: "Duy trì động lực",
-    desc: "Hoàn thành focus session thật để tích điểm, giữ streak và mở khóa ưu đãi từ Chrono Planner Kit.",
-    bullets: ["Focus session", "Streak & badge", "Reward / Kit"],
-    metric: "+XP",
-    metricLabel: "focus points",
-    icon: Gift,
-    gradient: "from-[#10B981] to-[#34D399]",
-    bg: "from-[#F8FFFC] via-[#F4FFFB] to-[#ECFDF5]",
-    accentText: "text-[#10B981]",
-    border: "border-[#D1FAE5]",
   },
 ];
 
@@ -137,9 +123,8 @@ export default function KeyFunctionsSection() {
               </h2>
 
               <p className="mx-auto max-w-[720px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
-                ChronoFlow tập trung vào bốn năng lực chính: hiểu chronotype, nhìn
-                rõ đường năng lượng, sắp lịch theo trạng thái thật và duy trì bằng
-                focus points.
+                ChronoFlow tập trung vào ba việc quan trọng nhất: hiểu chronotype,
+                nhìn rõ đường năng lượng và sắp lịch theo trạng thái thật.
               </p>
             </motion.div>
 
@@ -148,7 +133,7 @@ export default function KeyFunctionsSection() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
-              className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"
+              className="grid gap-5 md:grid-cols-3"
             >
               {features.map((item) => {
                 const Icon = item.icon;

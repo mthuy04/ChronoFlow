@@ -396,7 +396,7 @@ export default function InsightsClient() {
         </div>
       </SectionWrapper>
 
-      <SectionWrapper>
+      <SectionWrapper id="planner-score">
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
           <PlannerScoreCard
             score={advanced.plannerScore}
@@ -619,7 +619,7 @@ export default function InsightsClient() {
         </div>
       </SectionWrapper>
 
-      <SectionWrapper>
+      <SectionWrapper id="deadline-risk">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <ChartShell
             icon={<Layers3 className="h-4 w-4" />}

@@ -611,8 +611,8 @@ export default async function RewardsPage({
                 <p className="mt-5 max-w-[680px] text-[15px] font-medium leading-8 text-[#6B647C] md:text-[16px]">
                   Chào {displayName}, coin được cộng khi bạn hoàn thành task,
                   lưu phiên focus hoặc duy trì streak 7 ngày. Trang này dùng dữ
-                  liệu thật từ ví coin, catalog phần thưởng, lịch sử đổi quà và
-                  coin transaction của bạn.
+                  liệu thật từ ví coin, danh sách phần thưởng, lịch sử đổi quà
+                  và các lần cộng/trừ coin của bạn.
                 </p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
@@ -669,7 +669,7 @@ export default async function RewardsPage({
                             ? `Mục tiêu tiếp theo: ${nextReward.title}`
                             : activeRewards.length > 0
                               ? "Bạn đã đủ coin cho các quà hiện có"
-                              : "Chưa có phần thưởng active"}
+                              : "Kho phần thưởng đang được cập nhật"}
                         </div>
 
                         <div className="mt-1 text-[12px] font-medium text-[#7A6A42]">
@@ -682,7 +682,7 @@ export default async function RewardsPage({
                               )} coin nữa`
                             : activeRewards.length > 0
                               ? "Hãy tiếp tục tích coin cho các phần thưởng mới."
-                              : "Thêm RewardItem trong database để bật catalog."}
+                              : "Bạn vẫn có thể tích coin bằng task, focus session hoặc streak. ChronoFlow sẽ mở thêm phần thưởng phù hợp trong thời gian tới."}
                         </div>
                       </div>
 
@@ -735,8 +735,9 @@ export default async function RewardsPage({
                       </h2>
 
                       <p className="mt-2 max-w-[660px] text-[13px] leading-7 text-[#615C7A]">
-                        Catalog lấy dữ liệu thật từ bảng RewardItem. Bạn có thể
-                        lọc theo trạng thái đổi được, sắp đủ hoặc chưa đủ coin.
+                        Danh sách phần thưởng sẽ được cập nhật theo từng đợt.
+                        Bạn có thể lọc theo trạng thái đổi được, sắp đủ hoặc
+                        chưa đủ coin.
                       </p>
                     </div>
 
@@ -1394,8 +1395,8 @@ function EmptyRewards() {
       </h3>
 
       <p className="mx-auto mt-2 max-w-[520px] text-[13px] leading-7 text-[#615C7A]">
-        Database hiện chưa có reward item đang active. Hãy chạy seed rewards
-        hoặc thêm phần thưởng trong admin.
+        Kho phần thưởng đang được cập nhật. Bạn vẫn có thể tích coin bằng cách
+        hoàn thành task, focus session hoặc duy trì streak.
       </p>
     </div>
   );

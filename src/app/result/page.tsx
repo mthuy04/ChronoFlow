@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
+  getChronotypeScoreEntries,
+  getDominantChronotype,
+  type ChronotypeScores,
+} from "@/lib/chronotype";
+import {
   ArrowRight,
   Moon,
   Sun,
@@ -212,7 +217,7 @@ export default async function ResultPage() {
 
   const latest = user?.chronotypeResults?.[0];
 
-  if (!user || !latest || !user.chronotype) {
+  if (!user || !latest) {
     return (
       <main className="min-h-screen bg-[#FCFBFF]">
         <Navbar variant="user" />
@@ -235,8 +240,17 @@ export default async function ResultPage() {
     );
   }
 
-  const chronotypeKey =
-    user.chronotype as keyof typeof chronotypeMeta;
+  const latestScores: ChronotypeScores = {
+    lionScore: latest.lionScore,
+    bearScore: latest.bearScore,
+    wolfScore: latest.wolfScore,
+    dolphinScore: latest.dolphinScore,
+  };
+  const scoreEntries = getChronotypeScoreEntries(latestScores);
+  const topScore = Math.max(...scoreEntries.map((item) => item.score));
+  const tiedTopTypes = scoreEntries.filter((item) => item.score === topScore);
+  const isNearBalanced = tiedTopTypes.length > 1;
+  const chronotypeKey = getDominantChronotype(latestScores);
 
   const meta = chronotypeMeta[chronotypeKey];
 
@@ -303,6 +317,14 @@ export default async function ResultPage() {
                   <p className="mt-4 text-[14px] leading-7 text-[#615C7A] md:text-[15px]">
                     {meta.summary}
                   </p>
+
+                  {isNearBalanced && (
+                    <div className="mt-4 rounded-[18px] border border-white/80 bg-white/75 px-4 py-3 text-[13px] font-semibold leading-6 text-[#615C7A]">
+                      Your top scores are nearly balanced. ChronoFlow uses a
+                      consistent tie-breaker, but the secondary pattern is still
+                      useful when planning your day.
+                    </div>
+                  )}
 
                   <div className="mt-6 rounded-[20px] border border-white/80 bg-[#F8F5FF] p-4">
                     <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">

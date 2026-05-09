@@ -12,6 +12,39 @@ export type ChronotypeResultType = {
   scores: ChronotypeScores;
 };
 
+const CHRONOTYPE_TIE_BREAK_ORDER: ChronotypeResultType["chronotype"][] = [
+  "LION",
+  "BEAR",
+  "WOLF",
+  "DOLPHIN",
+];
+
+export function getChronotypeScoreEntries(scores: ChronotypeScores) {
+  return [
+    { key: "LION" as const, score: scores.lionScore },
+    { key: "BEAR" as const, score: scores.bearScore },
+    { key: "WOLF" as const, score: scores.wolfScore },
+    { key: "DOLPHIN" as const, score: scores.dolphinScore },
+  ];
+}
+
+export function getDominantChronotype(
+  scores: ChronotypeScores,
+): ChronotypeResultType["chronotype"] {
+  const ranking = getChronotypeScoreEntries(scores).sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+
+    if (scoreDiff !== 0) return scoreDiff;
+
+    return (
+      CHRONOTYPE_TIE_BREAK_ORDER.indexOf(a.key) -
+      CHRONOTYPE_TIE_BREAK_ORDER.indexOf(b.key)
+    );
+  });
+
+  return ranking[0].key;
+}
+
 export function calculateChronotype(
   answers: AssessmentAnswers
 ): ChronotypeResultType {
@@ -51,15 +84,8 @@ export function calculateChronotype(
     if (value === "irregular") scores.dolphinScore += 1;
   }
 
-  const ranking = [
-    { key: "LION", score: scores.lionScore },
-    { key: "BEAR", score: scores.bearScore },
-    { key: "WOLF", score: scores.wolfScore },
-    { key: "DOLPHIN", score: scores.dolphinScore },
-  ].sort((a, b) => b.score - a.score);
-
   return {
-    chronotype: ranking[0].key as ChronotypeResultType["chronotype"],
+    chronotype: getDominantChronotype(scores),
     scores,
   };
 }

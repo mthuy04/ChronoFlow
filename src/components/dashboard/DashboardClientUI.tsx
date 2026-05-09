@@ -1926,7 +1926,7 @@ function RewardProgress({
           <EmptyState
             icon={<Gift className="h-5 w-5" />}
             title="Chưa có phần thưởng khả dụng"
-            desc="Hãy thêm RewardItem trong database để user có thể đổi thưởng thật."
+            desc="Kho phần thưởng đang được cập nhật. Bạn vẫn có thể tích coin bằng task, focus session hoặc streak."
             cta="Không có reward"
             href="/dashboard"
           />
@@ -1942,7 +1942,8 @@ function RewardProgress({
                 Đã kiếm: {earned} điểm · Mốc tiếp theo: {next?.points ?? 0} điểm
               </div>
               <div className="mt-3 rounded-[18px] bg-white px-4 py-3 text-[12px] font-bold leading-relaxed text-[#6B647C]">
-                {rewards?.earningRule || "Điểm được tính từ FocusSession COMPLETED trong database."}
+                {rewards?.earningRule ||
+                  "Coin khả dụng được cập nhật sau mỗi task, focus session, streak hoặc lần đổi thưởng."}
               </div>
               <button
                 type="button"

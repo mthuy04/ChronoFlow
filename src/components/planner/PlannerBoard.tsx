@@ -1166,27 +1166,32 @@ export default function PlannerBoard({
           onOpenAdd={() => setIsAddOpen(true)}
         />
 
-        <PlannerCommandCenter
-          focusScore={focusScore}
-          pendingCount={pendingCount}
-          backlogCount={backlogTasks.length}
-          conflictCount={criticalConflictCount}
-          todayCoins={estimatedCoinsToday}
-          completedToday={completedToday}
-          plannedMinutes={todayPlannedMinutes}
-          energyScore={energyScore}
-          energyNote={energyNote}
-          energyMessage={energyMessage}
-          isSavingEnergy={isSavingEnergy}
-          isAutoScheduling={isAutoScheduling}
-          onEnergyScoreChange={setEnergyScore}
-          onEnergyNoteChange={setEnergyNote}
-          onEnergySubmit={() => void submitEnergyCheckin("planner_quick")}
-          onOpenAdd={() => setIsAddOpen(true)}
-          onAutoSchedule={() => void handleAutoScheduleBacklog()}
-        />
+        <div id="focus" className="scroll-mt-28">
+          <PlannerCommandCenter
+            focusScore={focusScore}
+            pendingCount={pendingCount}
+            backlogCount={backlogTasks.length}
+            conflictCount={criticalConflictCount}
+            todayCoins={estimatedCoinsToday}
+            completedToday={completedToday}
+            plannedMinutes={todayPlannedMinutes}
+            energyScore={energyScore}
+            energyNote={energyNote}
+            energyMessage={energyMessage}
+            isSavingEnergy={isSavingEnergy}
+            isAutoScheduling={isAutoScheduling}
+            onEnergyScoreChange={setEnergyScore}
+            onEnergyNoteChange={setEnergyNote}
+            onEnergySubmit={() => void submitEnergyCheckin("planner_quick")}
+            onOpenAdd={() => setIsAddOpen(true)}
+            onAutoSchedule={() => void handleAutoScheduleBacklog()}
+          />
+        </div>
 
-        <section className="overflow-hidden rounded-[38px] border border-white/80 bg-white/92 shadow-[0_24px_80px_rgba(97,76,197,0.09)] backdrop-blur-xl">
+        <section
+          id="today"
+          className="scroll-mt-28 overflow-hidden rounded-[38px] border border-white/80 bg-white/92 shadow-[0_24px_80px_rgba(97,76,197,0.09)] backdrop-blur-xl"
+        >
           <div className="border-b border-[rgba(124,115,150,0.10)] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAF8FF_100%)] px-5 py-5 md:px-7">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -1324,12 +1329,14 @@ export default function PlannerBoard({
             onOpenAdd={() => setIsAddOpen(true)}
           />
 
-          <BacklogCard
-            tasks={backlogTasks}
-            onSelectTask={(task) => setSelectedTask(task)}
-            onAddTask={() => setIsAddOpen(true)}
-            onDropToBacklog={(taskId) => void handleMoveTaskToBacklog(taskId)}
-          />
+          <div id="backlog" className="scroll-mt-28">
+            <BacklogCard
+              tasks={backlogTasks}
+              onSelectTask={(task) => setSelectedTask(task)}
+              onAddTask={() => setIsAddOpen(true)}
+              onDropToBacklog={(taskId) => void handleMoveTaskToBacklog(taskId)}
+            />
+          </div>
         </div>
 
         <DailyLoadPanel

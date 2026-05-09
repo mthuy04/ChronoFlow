@@ -63,20 +63,20 @@ export default function HeroSection() {
                       MIỄN PHÍ
                     </span>
                     <span className="text-[14px] font-bold leading-tight">
-                      Test ngay 3 phút
+                      Test ChronoFlow miễn phí 2 phút
                     </span>
                   </div>
                 </Link>
 
                 <Link
-                  href="/how-it-works"
+                  href="/auth/login?callbackUrl=/dashboard"
                   className="group flex items-center gap-2.5 rounded-2xl border border-gray-100 bg-white px-6 py-3 text-[#1A1528] shadow-lg transition-all hover:scale-105 hover:bg-gray-50"
                 >
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F0FF]">
                     <Play className="ml-0.5 h-3 w-3 fill-[#6F59FF] text-[#6F59FF]" />
                   </div>
                   <span className="text-[14px] font-bold leading-tight">
-                    Cách hoạt động
+                    Đăng nhập vào Dashboard
                   </span>
                 </Link>
               </div>

@@ -1066,7 +1066,8 @@ const [
         ? {
             id: "no-rewards",
             title: "Chưa có phần thưởng khả dụng",
-            description: "Cần thêm RewardItem trong database để user có thể đổi thưởng thật.",
+            description:
+              "Kho phần thưởng đang được cập nhật. Bạn vẫn có thể tích coin bằng task, focus session hoặc streak.",
             type: "warning",
           }
         : null,
@@ -1174,7 +1175,7 @@ const [
         progressToNext: nextMilestone
           ? Math.min(100, Math.round((currentCoinBalance / nextMilestone.points) * 100))
           : 0,
-        earningRule: "Coin khả dụng lấy từ User.coinBalance trong database.",
+        earningRule: "Coin khả dụng được cập nhật sau mỗi task, focus session, streak hoặc lần đổi thưởng.",
         recentRedemptions: rewardRedemptions,
       },
       smartSuggestions,

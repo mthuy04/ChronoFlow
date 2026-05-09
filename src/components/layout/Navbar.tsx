@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 type NavbarVariant = "loading" | "guest" | "user" | "admin";
@@ -125,7 +125,7 @@ const guestNavItems: NavItem[] = [
         icon: <BookOpen className="h-4 w-4" />,
       },
       {
-        href: "/learn#chronotype",
+        href: "/learn/chronotype-basics",
         label: "Chronotype basics",
         description: "Hiểu các nhóm nhịp sinh học phổ biến.",
         icon: <Brain className="h-4 w-4" />,
@@ -171,7 +171,7 @@ const userNavItems: NavItem[] = [
         icon: <Brain className="h-4 w-4" />,
       },
       {
-        href: "/dashboard#chronotype",
+        href: "/result",
         label: "Kết quả chronotype",
         description: "Xem lại hồ sơ nhịp sinh học và khung giờ phù hợp.",
         icon: <Sparkles className="h-4 w-4" />,
@@ -184,7 +184,7 @@ const userNavItems: NavItem[] = [
     icon: <CalendarClock className="h-4 w-4" />,
     children: [
       {
-        href: "/planner",
+        href: "/planner#today",
         label: "Planner hôm nay",
         description: "Sắp xếp công việc theo nhịp năng lượng.",
         icon: <CalendarClock className="h-4 w-4" />,
@@ -247,7 +247,7 @@ const userNavItems: NavItem[] = [
         icon: <BookOpen className="h-4 w-4" />,
       },
       {
-        href: "/learn#chronotype",
+        href: "/learn/chronotype-basics",
         label: "Chronotype basics",
         description: "Hiểu kiểu nhịp sinh học của bạn.",
         icon: <Brain className="h-4 w-4" />,
@@ -348,9 +348,11 @@ const adminNavItems: NavItem[] = [
 export default function Navbar({ variant: requestedVariant }: NavbarProps) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const navRef = useRef<HTMLElement | null>(null);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const sessionUser = (session?.user ?? null) as SessionUserLike | null;
 
@@ -460,6 +462,34 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
     };
   }, [fetchLatestCoinBalance, variant]);
 
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setOpenMenu(null);
+      setProfileOpen(false);
+      setMobileOpen(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) {
+        setOpenMenu(null);
+        setProfileOpen(false);
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, []);
+
   const handleLogout = async () => {
     setProfileOpen(false);
     setMobileOpen(false);
@@ -467,7 +497,10 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
   };
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-[999] border-b border-[rgba(124,115,150,0.08)] bg-[#F8F8FE]/78 backdrop-blur-xl">
+    <nav
+      ref={navRef}
+      className="fixed left-0 right-0 top-0 z-[999] border-b border-[rgba(124,115,150,0.08)] bg-[#F8F8FE]/78 backdrop-blur-xl"
+    >
       <div className="section-container px-4 py-3 md:px-6">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 rounded-full border border-white/75 bg-white/90 px-4 py-3 shadow-[0_10px_30px_rgba(97,76,197,0.06)] backdrop-blur-xl md:px-5">
           <Link
@@ -495,7 +528,19 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
 
           <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 lg:flex">
             {navItems.map((item) => (
-              <DesktopNavItem key={item.label} item={item} pathname={pathname} />
+              <DesktopNavItem
+                key={item.label}
+                item={item}
+                pathname={pathname}
+                open={openMenu === item.label}
+                onOpen={() => setOpenMenu(item.label)}
+                onClose={() => setOpenMenu(null)}
+                onToggle={() =>
+                  setOpenMenu((current) =>
+                    current === item.label ? null : item.label,
+                  )
+                }
+              />
             ))}
           </div>
 
@@ -528,7 +573,10 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => setProfileOpen((value) => !value)}
+                    onClick={() => {
+                      setOpenMenu(null);
+                      setProfileOpen((value) => !value);
+                    }}
                     aria-expanded={profileOpen}
                     aria-haspopup="menu"
                     className="inline-flex h-[42px] items-center gap-2 rounded-full border border-white/80 bg-white/92 px-2.5 shadow-[0_10px_24px_rgba(97,76,197,0.08)] transition hover:-translate-y-0.5"
@@ -575,7 +623,11 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
 
           <button
             type="button"
-            onClick={() => setMobileOpen((value) => !value)}
+            onClick={() => {
+              setOpenMenu(null);
+              setProfileOpen(false);
+              setMobileOpen((value) => !value);
+            }}
             aria-label={mobileOpen ? "Đóng menu" : "Mở menu"}
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
@@ -607,48 +659,78 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
 function DesktopNavItem({
   item,
   pathname,
+  open,
+  onOpen,
+  onClose,
+  onToggle,
 }: {
   item: NavItem;
   pathname: string;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onToggle: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const active = isNavItemActive(item, pathname);
+  const hasChildren = Boolean(item.children?.length);
 
   return (
     <div
       className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onMouseEnter={hasChildren ? onOpen : undefined}
+      onMouseLeave={hasChildren ? onClose : undefined}
+      onFocus={hasChildren ? onOpen : undefined}
     >
-      <Link
-        href={item.href}
-        className={`relative inline-flex h-[42px] items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition ${
-          active
-            ? "bg-[#F5F2FF] text-[#241F3D]"
-            : "text-[#5F5A77] hover:bg-[#FAFAFF] hover:text-[#241F3D]"
-        }`}
-      >
-        <span className={active ? "text-[#7C5CFA]" : "text-[#9A94B5]"}>
-          {item.icon}
-        </span>
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className={`relative inline-flex h-[42px] items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition ${
+            active
+              ? "bg-[#F5F2FF] text-[#241F3D]"
+              : "text-[#5F5A77] hover:bg-[#FAFAFF] hover:text-[#241F3D]"
+          }`}
+        >
+          <span className={active ? "text-[#7C5CFA]" : "text-[#9A94B5]"}>
+            {item.icon}
+          </span>
 
-        {item.label}
+          {item.label}
 
-        {item.children && (
           <ChevronDown
             className={`h-4 w-4 text-[#9A94B5] transition ${
               open ? "rotate-180" : ""
             }`}
           />
-        )}
 
-        {active && (
-          <span className="absolute left-1/2 top-[calc(100%+10px)] h-[3px] w-7 -translate-x-1/2 rounded-full bg-[#7C5CFA]" />
-        )}
-      </Link>
+          {active && (
+            <span className="absolute left-1/2 top-[calc(100%+10px)] h-[3px] w-7 -translate-x-1/2 rounded-full bg-[#7C5CFA]" />
+          )}
+        </button>
+      ) : (
+        <Link
+          href={item.href}
+          onClick={onClose}
+          className={`relative inline-flex h-[42px] items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[14px] font-semibold transition ${
+            active
+              ? "bg-[#F5F2FF] text-[#241F3D]"
+              : "text-[#5F5A77] hover:bg-[#FAFAFF] hover:text-[#241F3D]"
+          }`}
+        >
+          <span className={active ? "text-[#7C5CFA]" : "text-[#9A94B5]"}>
+            {item.icon}
+          </span>
 
-      {item.children && open && (
+          {item.label}
+
+          {active && (
+            <span className="absolute left-1/2 top-[calc(100%+10px)] h-[3px] w-7 -translate-x-1/2 rounded-full bg-[#7C5CFA]" />
+          )}
+        </Link>
+      )}
+
+      {hasChildren && open && (
         <div className="absolute left-1/2 top-full z-50 w-[340px] -translate-x-1/2 pt-3">
           <div className="overflow-hidden rounded-[28px] border border-white/80 bg-white/95 p-3 shadow-[0_24px_70px_rgba(97,76,197,0.16)] backdrop-blur-2xl">
             <div className="rounded-[22px] bg-[linear-gradient(180deg,#FAF8FF_0%,#F5F2FF_100%)] px-4 py-3">
@@ -661,13 +743,14 @@ function DesktopNavItem({
             </div>
 
             <div className="mt-2 space-y-1">
-              {item.children.map((child) => {
-                const childActive = isHrefActive(child.href, pathname);
+              {item.children?.map((child) => {
+                const childActive = isChildHrefActive(child.href, pathname);
 
                 return (
                   <Link
                     key={child.href}
                     href={child.href}
+                    onClick={onClose}
                     className={`flex gap-3 rounded-[22px] px-4 py-3 transition ${
                       childActive ? "bg-[#F3F0FF]" : "hover:bg-[#F8F6FF]"
                     }`}
@@ -727,13 +810,10 @@ function MobileNavigation({
   onClose: () => void;
   onLogout: () => void;
 }) {
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   const toggleGroup = (label: string) => {
-    setOpenGroups((current) => ({
-      ...current,
-      [label]: !current[label],
-    }));
+    setOpenGroup((current) => (current === label ? null : label));
   };
 
   return (
@@ -791,7 +871,7 @@ function MobileNavigation({
       <div className="space-y-2">
         {navItems.map((item) => {
           const active = isNavItemActive(item, pathname);
-          const open = openGroups[item.label] || active;
+          const open = openGroup === item.label || (openGroup === null && active);
 
           if (!item.children || item.children.length === 0) {
             return (
@@ -842,7 +922,7 @@ function MobileNavigation({
               {open && (
                 <div className="mt-2 space-y-1 rounded-[22px] bg-[#FAFAFF] p-2">
                   {item.children.map((child) => {
-                    const childActive = isHrefActive(child.href, pathname);
+                    const childActive = isChildHrefActive(child.href, pathname);
 
                     return (
                       <Link
@@ -1234,4 +1314,10 @@ function isHrefActive(href: string, pathname: string) {
   }
 
   return pathname === cleanHref || pathname.startsWith(`${cleanHref}/`);
+}
+
+function isChildHrefActive(href: string, pathname: string) {
+  if (href.includes("#")) return false;
+
+  return isHrefActive(href, pathname);
 }

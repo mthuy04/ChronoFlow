@@ -296,12 +296,13 @@ function SignupPageContent() {
                     }
                   />
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-3">
                     <SelectRow
                       icon={<Users className="h-4 w-4" />}
                       value={customerType}
                       onChange={(value) => setCustomerType(value as CustomerType | "")}
-                      placeholder="Bạn thuộc nhóm khách hàng nào?"
+                      label="Bạn thuộc nhóm khách hàng nào?"
+                      placeholder="Chọn nhóm khách hàng"
                       options={CUSTOMER_TYPE_OPTIONS}
                     />
 
@@ -309,7 +310,8 @@ function SignupPageContent() {
                       icon={<Megaphone className="h-4 w-4" />}
                       value={sourceChannel}
                       onChange={(value) => setSourceChannel(value as SourceChannel | "")}
-                      placeholder="Bạn biết ChronoFlow qua đâu?"
+                      label="Bạn biết ChronoFlow qua đâu?"
+                      placeholder="Chọn kênh biết đến"
                       options={SOURCE_CHANNEL_OPTIONS}
                     />
                   </div>
@@ -546,30 +548,37 @@ function SelectRow({
   icon,
   value,
   onChange,
+  label,
   placeholder,
   options,
 }: {
   icon: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
+  label: string;
   placeholder: string;
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <label className="flex min-h-[58px] items-center gap-3 rounded-2xl border border-[#E8E2FF] bg-[#FAFAFF] px-4 shadow-[0_8px_20px_rgba(26,21,40,0.04)] transition focus-within:border-[#6F59FF] focus-within:ring-4 focus-within:ring-[#6F59FF]/10">
-      <span className="text-[#9A94B5]">{icon}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#1A1528] outline-none"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((item) => (
-          <option key={item.value} value={item.value}>
-            {item.label}
-          </option>
-        ))}
-      </select>
+    <label className="flex min-h-[72px] items-start gap-3 rounded-2xl border border-[#E8E2FF] bg-[#FAFAFF] px-4 py-3 shadow-[0_8px_20px_rgba(26,21,40,0.04)] transition focus-within:border-[#6F59FF] focus-within:ring-4 focus-within:ring-[#6F59FF]/10">
+      <span className="mt-0.5 text-[#9A94B5]">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block whitespace-normal text-[12px] font-black leading-5 text-[#241F3D]">
+          {label}
+        </span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="mt-1 w-full min-w-0 bg-transparent text-[14px] font-semibold text-[#1A1528] outline-none"
+        >
+          <option value="">{placeholder}</option>
+          {options.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </span>
     </label>
   );
 }
