@@ -11,7 +11,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  BookText,
   ArrowRight,
   Users,
   BarChart3,
@@ -109,7 +108,6 @@ function SignupPageContent() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
 
   const [customerType, setCustomerType] = useState<CustomerType | "">("");
@@ -149,7 +147,6 @@ function SignupPageContent() {
           name,
           email,
           password,
-          studentId,
 
           customerType: customerType || undefined,
           sourceChannel: sourceChannel || undefined,
@@ -265,14 +262,6 @@ function SignupPageContent() {
                     placeholder="Địa chỉ email"
                     value={email}
                     onChange={setEmail}
-                  />
-
-                  <InputRow
-                    icon={<BookText className="h-4 w-4" />}
-                    type="text"
-                    placeholder="Mã sinh viên (không bắt buộc)"
-                    value={studentId}
-                    onChange={setStudentId}
                   />
 
                   <InputRow
