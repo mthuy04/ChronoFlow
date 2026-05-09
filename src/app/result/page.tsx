@@ -281,7 +281,7 @@ export default async function ResultPage() {
         <Navbar variant="user" />
         <BackgroundGlow />
 
-        <section className="relative z-10 px-4 pb-20 pt-24 lg:px-8">
+        <section className="relative z-10 px-4 pb-5 pt-20 lg:px-8">
           <div className="mx-auto w-full max-w-[1280px]">
             <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_20px_80px_rgba(26,21,40,0.06)]">
               <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#FFFFFF_100%)] px-5 py-14 text-center md:px-8 md:py-16">
