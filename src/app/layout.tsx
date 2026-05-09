@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import CoinFlightLayer from "@/components/rewards/CoinFlightLayer";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import ChronoChatWidget from "@/components/ai/ChronoChatWidget";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,7 +41,9 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <CoinFlightLayer />
-          <main className="pt-[104px]">{children}</main>
+          <main className="pt-[104px]">{children}     </main>
+          <ChronoChatWidget />
+     
         </AuthProvider>
 
         <GoogleAnalytics gaId={gaId} />
