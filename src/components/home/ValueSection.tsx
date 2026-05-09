@@ -356,7 +356,6 @@ export default function ValueSection({
                 <Sparkles className="h-4 w-4" />
                 {isLoggedIn ? "Bảng điều khiển của bạn" : "Xem trước Dashboard"}
               </div>
-
               <h2 className="mx-auto max-w-[800px] text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
                 Tổng quan {" "}
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">

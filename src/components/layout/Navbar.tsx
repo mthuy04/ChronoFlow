@@ -1095,13 +1095,7 @@ function ProfileDropdown({
 
         {variant === "user" && (
           <>
-            <DropdownLink
-              href="/assessment"
-              icon={<Brain className="h-4 w-4" />}
-              label="Làm lại bài đánh giá"
-              onClick={onClose}
-            />
-
+            
             <DropdownLink
               href="/result"
               icon={<Sparkles className="h-4 w-4" />}

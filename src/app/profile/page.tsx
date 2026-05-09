@@ -27,9 +27,22 @@ import {
   ClipboardList,
   Settings2,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 
 type ChronotypeKey = "LION" | "BEAR" | "WOLF" | "DOLPHIN";
+
+type ProfileTab =
+  | "overview"
+  | "account"
+  | "rhythm"
+  | "activity"
+  | "rewards"
+  | "privacy";
+
+type ProfilePageProps = {
+  searchParams?: Promise<{ tab?: string }>;
+};
 
 type ProfileTaskRow = {
   id: string;
@@ -85,6 +98,24 @@ type ChronotypeMeta = {
   summary: string;
 };
 
+type LatestInsight = {
+  id: string;
+  weekLabel: string;
+  alignmentScore: number;
+  completedCount: number;
+  deepWorkCount: number;
+  recommendation: string | null;
+  summary: string;
+};
+
+type LatestResult = {
+  id: string;
+  lionScore: number;
+  bearScore: number;
+  wolfScore: number;
+  dolphinScore: number;
+};
+
 const CHRONOTYPE_META: Record<ChronotypeKey, ChronotypeMeta> = {
   LION: {
     label: "Sư tử",
@@ -120,6 +151,50 @@ const CHRONOTYPE_META: Record<ChronotypeKey, ChronotypeMeta> = {
   },
 };
 
+const PROFILE_TABS: {
+  key: ProfileTab;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    key: "overview",
+    label: "Tổng quan",
+    href: "/profile?tab=overview",
+    icon: Activity,
+  },
+  {
+    key: "account",
+    label: "Hồ sơ",
+    href: "/profile?tab=account",
+    icon: User2,
+  },
+  {
+    key: "rhythm",
+    label: "Chronotype",
+    href: "/profile?tab=rhythm",
+    icon: MoonStar,
+  },
+  {
+    key: "activity",
+    label: "Hoạt động",
+    href: "/profile?tab=activity",
+    icon: Timer,
+  },
+  {
+    key: "rewards",
+    label: "Phần thưởng",
+    href: "/profile?tab=rewards",
+    icon: Gift,
+  },
+  {
+    key: "privacy",
+    label: "Dữ liệu",
+    href: "/profile?tab=privacy",
+    icon: ShieldCheck,
+  },
+];
+
 async function safeQuery<T>(
   label: string,
   query: () => Promise<T>,
@@ -131,6 +206,15 @@ async function safeQuery<T>(
     console.error(`[PROFILE_SAFE_QUERY:${label}]`, error);
     return fallback;
   }
+}
+
+function normalizeProfileTab(value: string | undefined): ProfileTab {
+  if (value === "account") return "account";
+  if (value === "rhythm") return "rhythm";
+  if (value === "activity") return "activity";
+  if (value === "rewards") return "rewards";
+  if (value === "privacy") return "privacy";
+  return "overview";
 }
 
 function normalizeChronotype(
@@ -280,8 +364,8 @@ function getTaskTypeLabel(type: string) {
     DEEP_WORK: "Deep work",
     STUDY: "Học tập",
     CREATIVE: "Sáng tạo",
-    ADMIN: "Admin",
-    ROUTINE: "Routine",
+    ADMIN: "Việc nhẹ",
+    ROUTINE: "Thói quen",
     PERSONAL: "Cá nhân",
   };
 
@@ -380,7 +464,9 @@ function getCoinIcon(type: string, amount: number) {
   return <Coins className="h-4 w-4" />;
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const activeTab = normalizeProfileTab(resolvedSearchParams?.tab);
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
@@ -397,7 +483,7 @@ export default async function ProfilePage() {
               <div className="relative z-10">
                 <Badge>
                   <Sparkles className="h-3.5 w-3.5" />
-                  ChronoFlow Profile
+                  Hồ sơ ChronoFlow
                 </Badge>
 
                 <h1 className="mx-auto mt-5 max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-[900] leading-[1.02] tracking-[-0.055em] text-[#1A1528]">
@@ -711,23 +797,24 @@ export default async function ProfilePage() {
   const recentTasks = allTasks.slice(0, 6);
   const chronotype = normalizeChronotype(user.chronotype);
   const chronotypeMeta = chronotype ? CHRONOTYPE_META[chronotype] : null;
-  const latestInsight = user.weeklyInsights[0] ?? null;
-  const latestResult = user.chronotypeResults[0] ?? null;
+  const latestInsight: LatestInsight | null = user.weeklyInsights[0] ?? null;
+  const latestResult: LatestResult | null = user.chronotypeResults[0] ?? null;
   const displayName = user.name?.trim() || "Người dùng";
   const firstName = displayName.split(" ").slice(-1)[0] || displayName;
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "C";
+  const userRole = formatRole(String(user.role));
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#F4F2FA] pb-24 pt-0 text-[#1A1528] selection:bg-[#6F59FF]/20">
       <Navbar />
       <AmbientBg />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1280px] flex-col gap-10 px-4 py-6 lg:px-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-4 py-6 lg:px-8">
         <ProfileHero
           firstName={firstName}
           displayName={displayName}
           email={user.email}
-          role={formatRole(String(user.role))}
+          role={userRole}
           studentId={user.studentId}
           createdAt={user.createdAt}
           image={user.image}
@@ -738,436 +825,790 @@ export default async function ProfilePage() {
           completionRate={completionRate}
         />
 
-        <SectionWrapper>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              icon={<Coins className="h-5 w-5" />}
-              title="Coin"
-              value={formatNumber(coinBalance)}
-              hint={`${formatNumber(totalRedemptions)} yêu cầu đổi quà`}
-              tone="orange"
-            />
+        <ProfileTabs activeTab={activeTab} />
 
-            <StatCard
-              icon={<Flame className="h-5 w-5" />}
-              title="Streak"
-              value={`${currentStreak} ngày`}
-              hint="chuỗi productivity hiện tại"
-              tone="green"
-            />
+        {activeTab === "overview" ? (
+          <OverviewTab
+            coinBalance={coinBalance}
+            totalRedemptions={totalRedemptions}
+            currentStreak={currentStreak}
+            weekFocusMinutes={weekFocusMinutes}
+            totalFocusSessions={totalFocusSessions}
+            completionRate={completionRate}
+            completedTasks={completedTasks}
+            totalTasks={totalTasks}
+            latestInsight={latestInsight}
+            latestResult={latestResult}
+            recentTasks={recentTasks.slice(0, 3)}
+            chronotypeMeta={chronotypeMeta}
+          />
+        ) : null}
 
-            <StatCard
-              icon={<Timer className="h-5 w-5" />}
-              title="Focus tuần này"
-              value={`${formatNumber(weekFocusMinutes)}p`}
-              hint={`${formatNumber(totalFocusSessions)} phiên đã ghi nhận`}
-              tone="blue"
-            />
+        {activeTab === "account" ? (
+          <AccountTab
+            name={user.name ?? ""}
+            email={user.email}
+            role={userRole}
+            studentId={user.studentId}
+            targetSleepTime={user.targetSleepTime}
+            targetWakeTime={user.targetWakeTime}
+            image={user.image}
+            createdAt={user.createdAt}
+          />
+        ) : null}
 
-            <StatCard
-              icon={<Activity className="h-5 w-5" />}
-              title="Completion"
-              value={`${completionRate}%`}
-              hint={`${formatNumber(completedTasks)} / ${formatNumber(
-                totalTasks,
-              )} task`}
-              tone="purple"
-            />
-          </div>
-        </SectionWrapper>
+        {activeTab === "rhythm" ? (
+          <RhythmTab
+            chronotypeMeta={chronotypeMeta}
+            targetSleepTime={user.targetSleepTime}
+            targetWakeTime={user.targetWakeTime}
+            latestResult={latestResult}
+          />
+        ) : null}
 
-        <SectionWrapper>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_370px]">
-            <div className="space-y-6">
-              <Panel
-                eyebrow="Chỉnh sửa hồ sơ"
-                title="Thông tin cá nhân"
-                description="Cập nhật tên hiển thị, avatar, mã sinh viên và mục tiêu giấc ngủ."
-              >
-                <ProfileEditForm
-                  initialName={user.name ?? ""}
-                  initialStudentId={user.studentId}
-                  initialTargetSleepTime={user.targetSleepTime}
-                  initialTargetWakeTime={user.targetWakeTime}
-                  initialImage={user.image}
-                  initialCustomerType={null}
-                  initialSourceChannel={null}
-                  initialCompanyName={null}
-                  initialRoleInCompany={null}
-                  initialTeamSize={null}
-                  initialConsentForResearch={false}
-                />
-              </Panel>
+        {activeTab === "activity" ? (
+          <ActivityTab
+            totalTasks={totalTasks}
+            pendingTasks={pendingTasks}
+            totalFocusMinutes={totalFocusMinutes}
+            totalFocusSessions={totalFocusSessions}
+            averageFocusMinutes={averageFocusMinutes}
+            recentTasks={recentTasks}
+          />
+        ) : null}
 
-              <Panel
-                eyebrow="Rhythm profile"
-                title="Chronotype & nhịp cá nhân"
-                description="ChronoFlow dùng phần này để cá nhân hóa planner, rhythm và insights."
-              >
-                {chronotypeMeta ? (
-                  <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-                    <div className="rounded-[30px] border border-[#E9E5FF] bg-[#FBF9FF] p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
-                            Chronotype hiện tại
-                          </div>
+        {activeTab === "rewards" ? (
+          <RewardsTab
+            coinBalance={coinBalance}
+            totalRedemptions={totalRedemptions}
+            pendingRedemptions={pendingRedemptions}
+            fulfilledRedemptions={fulfilledRedemptions}
+            latestRedemption={latestRedemption}
+            latestStreakReward={latestStreakReward}
+            coinTransactions={coinTransactions}
+          />
+        ) : null}
 
-                          <div className="mt-2 text-[1.75rem] font-[900] tracking-tight text-[#1A1528]">
-                            {chronotypeMeta.label} {chronotypeMeta.emoji}
-                          </div>
-
-                          <div className="mt-1 text-[13px] font-bold text-[#5B566E]">
-                            {chronotypeMeta.subtitle}
-                          </div>
-                        </div>
-
-                        <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/80 bg-white text-[#6F59FF] shadow-sm">
-                          <MoonStar className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <p className="mt-4 text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
-                        {chronotypeMeta.summary}
-                      </p>
-
-                      <Link
-                        href="/assessment"
-                        className="mt-5 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#E9E5FF] bg-white px-4 text-[12px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Cập nhật chronotype
-                      </Link>
-
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        <MiniMetric
-                          label="Focus window"
-                          value={chronotypeMeta.focusWindow}
-                        />
-                        <MiniMetric label="Trạng thái" value="Đã cá nhân hóa" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <InfoCard
-                        icon={<MoonStar className="h-4 w-4" />}
-                        title="Giờ ngủ mục tiêu"
-                        value={user.targetSleepTime || "Chưa cập nhật"}
-                        text="Dùng để tinh chỉnh trải nghiệm theo nhịp ngủ."
-                      />
-
-                      <InfoCard
-                        icon={<Zap className="h-4 w-4" />}
-                        title="Giờ thức mục tiêu"
-                        value={user.targetWakeTime || "Chưa cập nhật"}
-                        text="Giúp planner gợi ý khung hoạt động hợp lý hơn."
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyPanel
-                    title="Bạn chưa có chronotype"
-                    text="Hãy làm bài đánh giá để ChronoFlow hiểu rõ hơn nhịp sinh học của bạn."
-                    href="/assessment"
-                    cta="Làm bài đánh giá"
-                  />
-                )}
-              </Panel>
-
-              <Panel
-                eyebrow="Productivity"
-                title="Tổng quan hiệu suất"
-                description="Các chỉ số này lấy từ task và focus session thật trong tài khoản của bạn."
-              >
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <MetricCard
-                    label="Tổng task"
-                    value={formatNumber(totalTasks)}
-                    hint="toàn bộ planner"
-                  />
-                  <MetricCard
-                    label="Task đang mở"
-                    value={formatNumber(pendingTasks)}
-                    hint="cần xử lý tiếp"
-                  />
-                  <MetricCard
-                    label="Tổng focus"
-                    value={`${formatNumber(totalFocusMinutes)}p`}
-                    hint={`${formatNumber(totalFocusSessions)} phiên`}
-                  />
-                  <MetricCard
-                    label="Trung bình"
-                    value={`${formatNumber(averageFocusMinutes)}p`}
-                    hint="mỗi phiên focus"
-                  />
-                </div>
-              </Panel>
-
-              <Panel
-                eyebrow="Recent activity"
-                title="Task gần đây"
-                description="Một lát cắt nhanh về những task mới nhất trong planner."
-              >
-                {recentTasks.length === 0 ? (
-                  <EmptyPanel
-                    title="Bạn chưa có task nào"
-                    text="Khi bắt đầu dùng planner, activity gần đây sẽ hiển thị tại đây."
-                    href="/planner"
-                    cta="Mở planner"
-                  />
-                ) : (
-                  <div className="grid gap-3">
-                    {recentTasks.map((task) => (
-                      <TaskRow key={task.id} task={task} />
-                    ))}
-                  </div>
-                )}
-              </Panel>
-            </div>
-
-            <aside className="space-y-6">
-              <SidePanel
-                eyebrow="Reward summary"
-                title="Ví thưởng"
-                icon={<Gift className="h-5 w-5" />}
-              >
-                <div className="rounded-[28px] border border-[#FED7AA] bg-[#FFF7ED] p-5 shadow-sm">
-                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
-                    Coin hiện có
-                  </div>
-
-                  <div className="mt-2 flex items-end gap-2">
-                    <span className="text-[2.8rem] font-[900] leading-none tracking-tight text-[#1A1528]">
-                      {formatNumber(coinBalance)}
-                    </span>
-                    <span className="pb-1 text-[13px] font-black text-[#F59E0B]">
-                      coin
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <SmallStat
-                      label="Đã đổi"
-                      value={formatNumber(totalRedemptions)}
-                    />
-                    <SmallStat
-                      label="Đang xử lý"
-                      value={formatNumber(pendingRedemptions)}
-                    />
-                    <SmallStat
-                      label="Hoàn tất"
-                      value={formatNumber(fulfilledRedemptions)}
-                    />
-                  </div>
-
-                  <Link
-                    href="/rewards"
-                    className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5"
-                  >
-                    Mở Rewards
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <InfoCard
-                    icon={<Gift className="h-4 w-4" />}
-                    title="Đổi quà gần nhất"
-                    value={latestRedemption?.rewardTitle || "Chưa có"}
-                    text={
-                      latestRedemption
-                        ? `${getRewardStatusLabel(
-                            latestRedemption.status,
-                          )} · -${formatNumber(
-                            latestRedemption.pointsCost,
-                          )} coin`
-                        : "Khi bạn đổi quà, trạng thái gần nhất sẽ hiện ở đây."
-                    }
-                    badge={
-                      latestRedemption
-                        ? getRewardStatusLabel(latestRedemption.status)
-                        : undefined
-                    }
-                    badgeClass={
-                      latestRedemption
-                        ? getRewardStatusClass(latestRedemption.status)
-                        : undefined
-                    }
-                  />
-
-                  <InfoCard
-                    icon={<Flame className="h-4 w-4" />}
-                    title="Streak reward"
-                    value={
-                      latestStreakReward
-                        ? `Đã nhận +${latestStreakReward.coinsEarned}`
-                        : "Chưa mở khóa"
-                    }
-                    text={
-                      latestStreakReward
-                        ? `Mốc ${latestStreakReward.milestone} ngày · ${formatDate(
-                            latestStreakReward.awardedAt,
-                          )}`
-                        : "Duy trì 7 ngày liên tiếp để mở khóa +70 coins."
-                    }
-                  />
-                </div>
-              </SidePanel>
-
-              <SidePanel
-                eyebrow="Coin history"
-                title="Giao dịch gần đây"
-                icon={<History className="h-5 w-5" />}
-              >
-                {coinTransactions.length > 0 ? (
-                  <div className="space-y-3">
-                    {coinTransactions.map((item) => (
-                      <CoinRow key={item.id} item={item} />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyMini text="Chưa có lịch sử coin. Khi bạn hoàn thành task, focus hoặc đổi quà, giao dịch sẽ hiện ở đây." />
-                )}
-              </SidePanel>
-
-              <SidePanel
-                eyebrow="Latest insight"
-                title="Insight gần nhất"
-                icon={<BarChart3 className="h-5 w-5" />}
-              >
-                {latestInsight ? (
-                  <>
-                    <div className="rounded-[24px] border border-[#E9E5FF] bg-[#FBF9FF] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
-                      <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
-                        {latestInsight.weekLabel}
-                      </div>
-                      {latestInsight.summary}
-                    </div>
-
-                    <div className="mt-4 grid gap-3">
-                      <MiniMetric
-                        label="Alignment"
-                        value={String(latestInsight.alignmentScore)}
-                      />
-                      <MiniMetric
-                        label="Task hoàn thành"
-                        value={String(latestInsight.completedCount)}
-                      />
-                      <MiniMetric
-                        label="Deep work / study"
-                        value={String(latestInsight.deepWorkCount)}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <EmptyMini text="Khi bạn dùng planner thường xuyên hơn, insight gần nhất sẽ hiện tại đây." />
-                )}
-              </SidePanel>
-
-              <SidePanel
-                eyebrow="Assessment"
-                title="Kết quả gần nhất"
-                icon={<Target className="h-5 w-5" />}
-              >
-                {latestResult ? (
-                  <div className="space-y-3">
-                    <ScoreBar
-                      label="Sư tử"
-                      value={latestResult.lionScore}
-                      max={getScoreMax(latestResult)}
-                    />
-                    <ScoreBar
-                      label="Gấu"
-                      value={latestResult.bearScore}
-                      max={getScoreMax(latestResult)}
-                    />
-                    <ScoreBar
-                      label="Sói"
-                      value={latestResult.wolfScore}
-                      max={getScoreMax(latestResult)}
-                    />
-                    <ScoreBar
-                      label="Cá heo"
-                      value={latestResult.dolphinScore}
-                      max={getScoreMax(latestResult)}
-                    />
-                  </div>
-                ) : (
-                  <EmptyMini text="Chưa có kết quả assessment gần đây để hiển thị." />
-                )}
-              </SidePanel>
-
-              <SidePanel
-                eyebrow="Data & privacy"
-                title="Dữ liệu đang dùng"
-                icon={<ShieldCheck className="h-5 w-5" />}
-              >
-                <div className="space-y-3">
-                  <PrivacyItem
-                    icon={<ClipboardList className="h-4 w-4" />}
-                    title="Task & Planner"
-                    text="Dùng để tính completion, streak và gợi ý kế hoạch."
-                  />
-                  <PrivacyItem
-                    icon={<Timer className="h-4 w-4" />}
-                    title="Focus sessions"
-                    text="Dùng để tính focus minutes, coin và insight."
-                  />
-                  <PrivacyItem
-                    icon={<MoonStar className="h-4 w-4" />}
-                    title="Chronotype"
-                    text="Dùng để cá nhân hóa rhythm và planning window."
-                  />
-                  <PrivacyItem
-                    icon={<Database className="h-4 w-4" />}
-                    title="Reward activity"
-                    text="Dùng để theo dõi coin, đổi quà và lịch sử giao dịch."
-                  />
-                </div>
-              </SidePanel>
-
-              {String(user.role) === "ADMIN" ? (
-                <SidePanel
-                  eyebrow="Admin"
-                  title="Admin quick access"
-                  icon={<Settings2 className="h-5 w-5" />}
-                >
-                  <div className="space-y-3">
-                    <ActionLink
-                      href="/rewards"
-                      title="Reward Center"
-                      text="Kiểm tra catalog và flow đổi quà hiện tại."
-                    />
-                    <ActionLink
-                      href="/dashboard"
-                      title="Dashboard"
-                      text="Quay lại không gian tổng quan."
-                    />
-                  </div>
-                </SidePanel>
-              ) : null}
-
-              <SidePanel
-                eyebrow="Account"
-                title="Tài khoản"
-                icon={<Lock className="h-5 w-5" />}
-              >
-                <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
-                  Email đăng nhập hiện tại là{" "}
-                  <span className="font-black text-[#1A1528]">
-                    {user.email}
-                  </span>
-                  . Tính năng đổi mật khẩu/xuất dữ liệu có thể bổ sung ở phiên
-                  bản sau.
-                </div>
-              </SidePanel>
-            </aside>
-          </div>
-        </SectionWrapper>
+        {activeTab === "privacy" ? (
+          <PrivacyTab email={user.email} role={String(user.role)} />
+        ) : null}
       </div>
 
       <Footer />
     </main>
+  );
+}
+
+function OverviewTab({
+  coinBalance,
+  totalRedemptions,
+  currentStreak,
+  weekFocusMinutes,
+  totalFocusSessions,
+  completionRate,
+  completedTasks,
+  totalTasks,
+  latestInsight,
+  latestResult,
+  recentTasks,
+  chronotypeMeta,
+}: {
+  coinBalance: number;
+  totalRedemptions: number;
+  currentStreak: number;
+  weekFocusMinutes: number;
+  totalFocusSessions: number;
+  completionRate: number;
+  completedTasks: number;
+  totalTasks: number;
+  latestInsight: LatestInsight | null;
+  latestResult: LatestResult | null;
+  recentTasks: ProfileTaskRow[];
+  chronotypeMeta: ChronotypeMeta | null;
+}) {
+  return (
+    <div className="space-y-6">
+      <SectionWrapper>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            icon={<Coins className="h-5 w-5" />}
+            title="Coin"
+            value={formatNumber(coinBalance)}
+            hint={`${formatNumber(totalRedemptions)} yêu cầu đổi quà`}
+            tone="orange"
+          />
+          <StatCard
+            icon={<Flame className="h-5 w-5" />}
+            title="Streak"
+            value={`${currentStreak} ngày`}
+            hint="chuỗi productivity hiện tại"
+            tone="green"
+          />
+          <StatCard
+            icon={<Timer className="h-5 w-5" />}
+            title="Focus tuần này"
+            value={`${formatNumber(weekFocusMinutes)}p`}
+            hint={`${formatNumber(totalFocusSessions)} phiên đã ghi nhận`}
+            tone="blue"
+          />
+          <StatCard
+            icon={<Activity className="h-5 w-5" />}
+            title="Hoàn thành"
+            value={`${completionRate}%`}
+            hint={`${formatNumber(completedTasks)} / ${formatNumber(
+              totalTasks,
+            )} task`}
+            tone="purple"
+          />
+        </div>
+      </SectionWrapper>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="space-y-6">
+          <Panel
+            eyebrow="Góc nhìn gần nhất"
+            title="Insight tuần này"
+            description="Tóm tắt nhanh về nhịp làm việc và mức độ khớp lịch của bạn."
+          >
+            {latestInsight ? (
+              <div className="space-y-4">
+                <div className="rounded-[28px] border border-[#E9E5FF] bg-[#FBF9FF] p-5 text-[14px] font-medium leading-relaxed text-[#5B566E]">
+                  <div className="mb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+                    {latestInsight.weekLabel}
+                  </div>
+                  {latestInsight.summary}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <MiniMetric
+                    label="Alignment"
+                    value={String(latestInsight.alignmentScore)}
+                  />
+                  <MiniMetric
+                    label="Task hoàn thành"
+                    value={String(latestInsight.completedCount)}
+                  />
+                  <MiniMetric
+                    label="Deep work / study"
+                    value={String(latestInsight.deepWorkCount)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <EmptyPanel
+                title="Chưa có insight tuần"
+                text="Khi bạn dùng planner và focus session thường xuyên hơn, insight sẽ xuất hiện tại đây."
+                href="/planner"
+                cta="Mở Planner"
+              />
+            )}
+          </Panel>
+
+          <Panel
+            eyebrow="Task gần đây"
+            title="Hoạt động mới nhất"
+            description="Một lát cắt nhanh về các task mới nhất trong planner."
+          >
+            {recentTasks.length === 0 ? (
+              <EmptyPanel
+                title="Bạn chưa có task nào"
+                text="Khi bắt đầu dùng planner, task gần đây sẽ hiển thị tại đây."
+                href="/planner"
+                cta="Mở Planner"
+              />
+            ) : (
+              <div className="grid gap-3">
+                {recentTasks.map((task) => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+
+            <Link
+              href="/profile?tab=activity"
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-[#E9E5FF] bg-white px-5 text-[13px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5"
+            >
+              Xem toàn bộ hoạt động
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Panel>
+        </div>
+
+        <aside className="space-y-6">
+          <SidePanel
+            eyebrow="Chronotype"
+            title="Nhịp hiện tại"
+            icon={<MoonStar className="h-5 w-5" />}
+          >
+            {chronotypeMeta ? (
+              <div className="rounded-[28px] border border-[#E9E5FF] bg-[#FBF9FF] p-5 shadow-sm">
+                <div className="text-[2.6rem]">{chronotypeMeta.emoji}</div>
+                <div className="mt-3 text-[1.45rem] font-black text-[#1A1528]">
+                  {chronotypeMeta.label}
+                </div>
+                <div className="mt-1 text-[13px] font-bold text-[#5B566E]">
+                  {chronotypeMeta.subtitle}
+                </div>
+                <p className="mt-3 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+                  {chronotypeMeta.summary}
+                </p>
+                <Link
+                  href="/profile?tab=rhythm"
+                  className="mt-5 inline-flex min-h-[42px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5"
+                >
+                  Xem chronotype
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ) : (
+              <EmptyMini text="Bạn chưa có chronotype. Hãy làm bài đánh giá để ChronoFlow cá nhân hóa planner tốt hơn." />
+            )}
+          </SidePanel>
+
+          <SidePanel
+            eyebrow="Bài đánh giá"
+            title="Kết quả gần nhất"
+            icon={<Target className="h-5 w-5" />}
+          >
+            {latestResult ? (
+              <div className="space-y-3">
+                <ScoreBar
+                  label="Sư tử"
+                  value={latestResult.lionScore}
+                  max={getScoreMax(latestResult)}
+                />
+                <ScoreBar
+                  label="Gấu"
+                  value={latestResult.bearScore}
+                  max={getScoreMax(latestResult)}
+                />
+                <ScoreBar
+                  label="Sói"
+                  value={latestResult.wolfScore}
+                  max={getScoreMax(latestResult)}
+                />
+                <ScoreBar
+                  label="Cá heo"
+                  value={latestResult.dolphinScore}
+                  max={getScoreMax(latestResult)}
+                />
+              </div>
+            ) : (
+              <EmptyMini text="Chưa có kết quả assessment gần đây để hiển thị." />
+            )}
+          </SidePanel>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function AccountTab({
+  name,
+  email,
+  role,
+  studentId,
+  targetSleepTime,
+  targetWakeTime,
+  image,
+  createdAt,
+}: {
+  name: string;
+  email: string;
+  role: string;
+  studentId: string | null;
+  targetSleepTime: string | null;
+  targetWakeTime: string | null;
+  image: string | null;
+  createdAt: Date;
+}) {
+  return (
+    <SectionWrapper>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <Panel
+          eyebrow="Hồ sơ"
+          title="Thông tin cá nhân"
+          description="Cập nhật tên hiển thị, avatar, mã người tham gia và mục tiêu giấc ngủ."
+        >
+          <ProfileEditForm
+            initialName={name}
+            initialStudentId={studentId}
+            initialTargetSleepTime={targetSleepTime}
+            initialTargetWakeTime={targetWakeTime}
+            initialImage={image}
+            initialCustomerType={null}
+            initialSourceChannel={null}
+            initialCompanyName={null}
+            initialRoleInCompany={null}
+            initialTeamSize={null}
+            initialConsentForResearch={false}
+          />
+        </Panel>
+
+        <div className="space-y-6">
+          <SidePanel
+            eyebrow="Tài khoản"
+            title="Thông tin đăng nhập"
+            icon={<Lock className="h-5 w-5" />}
+          >
+            <div className="space-y-3">
+              <InfoCard
+                icon={<Mail className="h-4 w-4" />}
+                title="Email đăng nhập"
+                value={email}
+                text="Email đang được dùng để đăng nhập ChronoFlow."
+              />
+              <InfoCard
+                icon={<User2 className="h-4 w-4" />}
+                title="Vai trò"
+                value={role}
+                text="Vai trò hiện tại của tài khoản."
+              />
+              <InfoCard
+                icon={<ClipboardList className="h-4 w-4" />}
+                title="Mã người tham gia"
+                value={studentId || "Chưa cập nhật"}
+                text="Trường này không bắt buộc và chỉ dùng khi bạn cần mã nội bộ."
+              />
+              <InfoCard
+                icon={<Sparkles className="h-4 w-4" />}
+                title="Ngày tạo"
+                value={formatDate(createdAt)}
+                text="Thời điểm bạn bắt đầu dùng ChronoFlow."
+              />
+            </div>
+          </SidePanel>
+        </div>
+      </div>
+    </SectionWrapper>
+  );
+}
+
+function RhythmTab({
+  chronotypeMeta,
+  targetSleepTime,
+  targetWakeTime,
+  latestResult,
+}: {
+  chronotypeMeta: ChronotypeMeta | null;
+  targetSleepTime: string | null;
+  targetWakeTime: string | null;
+  latestResult: LatestResult | null;
+}) {
+  return (
+    <SectionWrapper>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <Panel
+          eyebrow="Hồ sơ nhịp sinh học"
+          title="Chronotype & nhịp cá nhân"
+          description="ChronoFlow dùng phần này để cá nhân hóa Planner, Rhythm và Insights."
+        >
+          {chronotypeMeta ? (
+            <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+              <div className="rounded-[30px] border border-[#E9E5FF] bg-[#FBF9FF] p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
+                      Chronotype hiện tại
+                    </div>
+                    <div className="mt-2 text-[1.75rem] font-[900] tracking-tight text-[#1A1528]">
+                      {chronotypeMeta.label} {chronotypeMeta.emoji}
+                    </div>
+                    <div className="mt-1 text-[13px] font-bold text-[#5B566E]">
+                      {chronotypeMeta.subtitle}
+                    </div>
+                  </div>
+
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/80 bg-white text-[#6F59FF] shadow-sm">
+                    <MoonStar className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <p className="mt-4 text-[13.5px] font-medium leading-relaxed text-[#5B566E]">
+                  {chronotypeMeta.summary}
+                </p>
+
+                <Link
+                  href="/assessment"
+                  className="mt-5 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#E9E5FF] bg-white px-4 text-[12px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Cập nhật chronotype
+                </Link>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <MiniMetric
+                    label="Khung tập trung"
+                    value={chronotypeMeta.focusWindow}
+                  />
+                  <MiniMetric label="Trạng thái" value="Đã cá nhân hóa" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <InfoCard
+                  icon={<MoonStar className="h-4 w-4" />}
+                  title="Giờ ngủ mục tiêu"
+                  value={targetSleepTime || "Chưa cập nhật"}
+                  text="Dùng để tinh chỉnh trải nghiệm theo nhịp ngủ."
+                />
+
+                <InfoCard
+                  icon={<Zap className="h-4 w-4" />}
+                  title="Giờ thức mục tiêu"
+                  value={targetWakeTime || "Chưa cập nhật"}
+                  text="Giúp planner gợi ý khung hoạt động hợp lý hơn."
+                />
+              </div>
+            </div>
+          ) : (
+            <EmptyPanel
+              title="Bạn chưa có chronotype"
+              text="Hãy làm bài đánh giá để ChronoFlow hiểu rõ hơn nhịp sinh học của bạn."
+              href="/assessment"
+              cta="Làm bài đánh giá"
+            />
+          )}
+        </Panel>
+
+        <SidePanel
+          eyebrow="Bài đánh giá"
+          title="Phân bổ điểm"
+          icon={<Target className="h-5 w-5" />}
+        >
+          {latestResult ? (
+            <div className="space-y-3">
+              <ScoreBar
+                label="Sư tử"
+                value={latestResult.lionScore}
+                max={getScoreMax(latestResult)}
+              />
+              <ScoreBar
+                label="Gấu"
+                value={latestResult.bearScore}
+                max={getScoreMax(latestResult)}
+              />
+              <ScoreBar
+                label="Sói"
+                value={latestResult.wolfScore}
+                max={getScoreMax(latestResult)}
+              />
+              <ScoreBar
+                label="Cá heo"
+                value={latestResult.dolphinScore}
+                max={getScoreMax(latestResult)}
+              />
+            </div>
+          ) : (
+            <EmptyMini text="Chưa có kết quả assessment gần đây để hiển thị." />
+          )}
+        </SidePanel>
+      </div>
+    </SectionWrapper>
+  );
+}
+
+function ActivityTab({
+  totalTasks,
+  pendingTasks,
+  totalFocusMinutes,
+  totalFocusSessions,
+  averageFocusMinutes,
+  recentTasks,
+}: {
+  totalTasks: number;
+  pendingTasks: number;
+  totalFocusMinutes: number;
+  totalFocusSessions: number;
+  averageFocusMinutes: number;
+  recentTasks: ProfileTaskRow[];
+}) {
+  return (
+    <SectionWrapper>
+      <div className="space-y-6">
+        <Panel
+          eyebrow="Hiệu suất"
+          title="Tổng quan hoạt động"
+          description="Các chỉ số này lấy từ task và focus session thật trong tài khoản của bạn."
+        >
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Tổng task"
+              value={formatNumber(totalTasks)}
+              hint="toàn bộ planner"
+            />
+            <MetricCard
+              label="Task đang mở"
+              value={formatNumber(pendingTasks)}
+              hint="cần xử lý tiếp"
+            />
+            <MetricCard
+              label="Tổng focus"
+              value={`${formatNumber(totalFocusMinutes)}p`}
+              hint={`${formatNumber(totalFocusSessions)} phiên`}
+            />
+            <MetricCard
+              label="Trung bình"
+              value={`${formatNumber(averageFocusMinutes)}p`}
+              hint="mỗi phiên focus"
+            />
+          </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Hoạt động gần đây"
+          title="Task gần đây"
+          description="Danh sách task mới nhất trong planner."
+        >
+          {recentTasks.length === 0 ? (
+            <EmptyPanel
+              title="Bạn chưa có task nào"
+              text="Khi bắt đầu dùng planner, activity gần đây sẽ hiển thị tại đây."
+              href="/planner"
+              cta="Mở planner"
+            />
+          ) : (
+            <div className="grid gap-3">
+              {recentTasks.map((task) => (
+                <TaskRow key={task.id} task={task} />
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+    </SectionWrapper>
+  );
+}
+
+function RewardsTab({
+  coinBalance,
+  totalRedemptions,
+  pendingRedemptions,
+  fulfilledRedemptions,
+  latestRedemption,
+  latestStreakReward,
+  coinTransactions,
+}: {
+  coinBalance: number;
+  totalRedemptions: number;
+  pendingRedemptions: number;
+  fulfilledRedemptions: number;
+  latestRedemption: ProfileRewardRedemptionRow | null;
+  latestStreakReward: ProfileStreakRewardRow | null;
+  coinTransactions: ProfileCoinTransactionRow[];
+}) {
+  return (
+    <SectionWrapper>
+      <div className="grid gap-6 lg:grid-cols-[390px_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <SidePanel
+            eyebrow="Tóm tắt phần thưởng"
+            title="Ví thưởng"
+            icon={<Gift className="h-5 w-5" />}
+          >
+            <div className="rounded-[28px] border border-[#FED7AA] bg-[#FFF7ED] p-5 shadow-sm">
+              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+                Coin hiện có
+              </div>
+
+              <div className="mt-2 flex items-end gap-2">
+                <span className="text-[2.8rem] font-[900] leading-none tracking-tight text-[#1A1528]">
+                  {formatNumber(coinBalance)}
+                </span>
+                <span className="pb-1 text-[13px] font-black text-[#F59E0B]">
+                  coin
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <SmallStat
+                  label="Đã đổi"
+                  value={formatNumber(totalRedemptions)}
+                />
+                <SmallStat
+                  label="Đang xử lý"
+                  value={formatNumber(pendingRedemptions)}
+                />
+                <SmallStat
+                  label="Hoàn tất"
+                  value={formatNumber(fulfilledRedemptions)}
+                />
+              </div>
+
+              <Link
+                href="/rewards"
+                className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5"
+              >
+                Mở Trung tâm phần thưởng
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <InfoCard
+                icon={<Gift className="h-4 w-4" />}
+                title="Đổi quà gần nhất"
+                value={latestRedemption?.rewardTitle || "Chưa có"}
+                text={
+                  latestRedemption
+                    ? `${getRewardStatusLabel(
+                        latestRedemption.status,
+                      )} · -${formatNumber(latestRedemption.pointsCost)} coin`
+                    : "Khi bạn đổi quà, trạng thái gần nhất sẽ hiện ở đây."
+                }
+                badge={
+                  latestRedemption
+                    ? getRewardStatusLabel(latestRedemption.status)
+                    : undefined
+                }
+                badgeClass={
+                  latestRedemption
+                    ? getRewardStatusClass(latestRedemption.status)
+                    : undefined
+                }
+              />
+
+              <InfoCard
+                icon={<Flame className="h-4 w-4" />}
+                title="Streak reward"
+                value={
+                  latestStreakReward
+                    ? `Đã nhận +${latestStreakReward.coinsEarned}`
+                    : "Chưa mở khóa"
+                }
+                text={
+                  latestStreakReward
+                    ? `Mốc ${latestStreakReward.milestone} ngày · ${formatDate(
+                        latestStreakReward.awardedAt,
+                      )}`
+                    : "Duy trì 7 ngày liên tiếp để mở khóa +70 coins."
+                }
+              />
+            </div>
+          </SidePanel>
+        </div>
+
+        <SidePanel
+          eyebrow="Lịch sử coin"
+          title="Giao dịch gần đây"
+          icon={<History className="h-5 w-5" />}
+        >
+          {coinTransactions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {coinTransactions.map((item) => (
+                <CoinRow key={item.id} item={item} />
+              ))}
+            </div>
+          ) : (
+            <EmptyMini text="Chưa có lịch sử coin. Khi bạn hoàn thành task, focus hoặc đổi quà, giao dịch sẽ hiện ở đây." />
+          )}
+        </SidePanel>
+      </div>
+    </SectionWrapper>
+  );
+}
+
+function PrivacyTab({ email, role }: { email: string; role: string }) {
+  return (
+    <SectionWrapper>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <SidePanel
+          eyebrow="Dữ liệu & quyền riêng tư"
+          title="Dữ liệu đang dùng"
+          icon={<ShieldCheck className="h-5 w-5" />}
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <PrivacyItem
+              icon={<ClipboardList className="h-4 w-4" />}
+              title="Task & Planner"
+              text="Dùng để tính completion, streak và gợi ý kế hoạch."
+            />
+            <PrivacyItem
+              icon={<Timer className="h-4 w-4" />}
+              title="Focus sessions"
+              text="Dùng để tính focus minutes, coin và insight."
+            />
+            <PrivacyItem
+              icon={<MoonStar className="h-4 w-4" />}
+              title="Chronotype"
+              text="Dùng để cá nhân hóa rhythm và planning window."
+            />
+            <PrivacyItem
+              icon={<Database className="h-4 w-4" />}
+              title="Reward activity"
+              text="Dùng để theo dõi coin, đổi quà và lịch sử giao dịch."
+            />
+          </div>
+        </SidePanel>
+
+        <div className="space-y-6">
+          <SidePanel
+            eyebrow="Tài khoản"
+            title="Bảo mật"
+            icon={<Lock className="h-5 w-5" />}
+          >
+            <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-4 text-[13px] font-medium leading-relaxed text-[#5B566E]">
+              Email đăng nhập hiện tại là{" "}
+              <span className="font-black text-[#1A1528]">{email}</span>. Tính
+              năng đổi mật khẩu/xuất dữ liệu có thể bổ sung ở phiên bản sau.
+            </div>
+          </SidePanel>
+
+          {role === "ADMIN" ? (
+            <SidePanel
+              eyebrow="Admin"
+              title="Lối tắt quản trị"
+              icon={<Settings2 className="h-5 w-5" />}
+            >
+              <div className="space-y-3">
+                <ActionLink
+                  href="/rewards"
+                  title="Trung tâm phần thưởng"
+                  text="Kiểm tra catalog và flow đổi quà hiện tại."
+                />
+                <ActionLink
+                  href="/dashboard"
+                  title="Dashboard"
+                  text="Quay lại không gian tổng quan."
+                />
+              </div>
+            </SidePanel>
+          ) : null}
+        </div>
+      </div>
+    </SectionWrapper>
+  );
+}
+
+function ProfileTabs({ activeTab }: { activeTab: ProfileTab }) {
+  return (
+    <nav className="sticky top-20 z-30 -mx-1 overflow-x-auto rounded-[30px] border border-white/80 bg-white/76 p-2 shadow-[0_18px_50px_rgba(26,21,40,0.06)] backdrop-blur-2xl">
+      <div className="flex min-w-max items-center gap-2">
+        {PROFILE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+
+          return (
+            <Link
+              key={tab.key}
+              href={tab.href}
+              className={`inline-flex min-h-[46px] items-center gap-2 rounded-[22px] px-4 text-[13px] font-black transition ${
+                isActive
+                  ? "bg-[#1A1528] text-white shadow-[0_16px_34px_rgba(26,21,40,0.18)]"
+                  : "text-[#5B566E] hover:bg-[#F7F4FF] hover:text-[#6F59FF]"
+              }`}
+            >
+              <Icon
+                className={`h-4 w-4 ${
+                  isActive ? "text-[#4DA8FF]" : "text-[#8A84A3]"
+                }`}
+              />
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -1206,7 +1647,7 @@ function ProfileHero({
         <div className="relative z-10 mx-auto max-w-[1080px] text-center">
           <Badge>
             <Sparkles className="h-3.5 w-3.5" />
-            ChronoFlow Profile
+            Hồ sơ ChronoFlow
           </Badge>
 
           <h1 className="mx-auto mt-5 max-w-[900px] text-[clamp(2rem,4vw,4rem)] font-black leading-[0.98] tracking-[-0.06em] text-[#1A1528]">
@@ -1216,7 +1657,7 @@ function ProfileHero({
           <p className="mx-auto mt-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16.5px]">
             Quản lý thông tin tài khoản, chronotype, mục tiêu giấc ngủ, ví coin
             và các tín hiệu cá nhân hóa đang được ChronoFlow dùng để tối ưu
-            planner của bạn.
+            Planner của bạn.
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -1229,7 +1670,7 @@ function ProfileHero({
             </SoftChip>
 
             <SoftChip icon={<CheckCircle2 className="h-4 w-4" />}>
-              Completion {completionRate}%
+              Hoàn thành {completionRate}%
             </SoftChip>
 
             <SoftChip icon={<Flame className="h-4 w-4" />}>
@@ -1245,13 +1686,13 @@ function ProfileHero({
                   Không gian cá nhân
                 </div>
 
-                <h2 className="mt-4 text-[1rem] font-black leading-tight tracking-[-0.04em] text-[#1A1528] md:text-[1.7rem]">
+                <h2 className="mt-4 text-[1.35rem] font-black leading-tight tracking-[-0.04em] text-[#1A1528] md:text-[1.7rem]">
                   Theo dõi danh tính, nhịp sinh học và tiến độ thật.
                 </h2>
 
                 <p className="mt-3 text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
-                  Đây là nơi ChronoFlow gom các dữ liệu nền để cá nhân hóa
-                  planner, rhythm, insights và reward loop cho bạn.
+                  Mỗi tab bên dưới giúp bạn tìm nhanh đúng phần cần xem: hồ sơ,
+                  chronotype, hoạt động, phần thưởng hoặc dữ liệu cá nhân.
                 </p>
               </div>
 
@@ -1266,7 +1707,7 @@ function ProfileHero({
                       Planner
                     </span>
                     <span className="text-[14px] font-bold leading-tight">
-                      Mở planner
+                      Mở Planner
                     </span>
                   </div>
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
@@ -1280,7 +1721,7 @@ function ProfileHero({
                     <Coins className="h-3.5 w-3.5 text-[#F59E0B]" />
                   </div>
                   <span className="text-[14px] font-bold leading-tight">
-                    Reward Center
+                    Trung tâm phần thưởng
                   </span>
                 </Link>
 
@@ -1292,7 +1733,7 @@ function ProfileHero({
                     <RefreshCw className="h-3.5 w-3.5 text-[#6F59FF]" />
                   </div>
                   <span className="text-[14px] font-bold leading-tight">
-                    Làm lại assessment
+                    Làm lại bài đánh giá
                   </span>
                 </Link>
               </div>
@@ -1472,7 +1913,7 @@ function ProfileIdentityCard({
             tone="green"
           />
           <IdentityMetric
-            label="Student ID"
+            label="Mã người tham gia"
             value={studentId || "Chưa cập nhật"}
             tone="blue"
           />
@@ -1937,7 +2378,7 @@ function getTone(tone: "purple" | "blue" | "orange" | "green") {
     },
     green: {
       text: "text-[#10B981]",
-      card: "from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] border-[#6EE7B7]",
+      card: "from-[#ECFDF5] via-[#D1FAE5] to-[#B7F4D7] border-[#A7F3D0]",
     },
   };
 
