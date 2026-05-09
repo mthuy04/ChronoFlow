@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 type NavbarVariant = "loading" | "guest" | "user" | "admin";
@@ -46,6 +46,14 @@ type SessionUserLike = {
   role?: string | null;
   points?: number | null;
   coinBalance?: number | null;
+};
+
+type MeResponse = {
+  success?: boolean;
+  coinBalance?: number | null;
+  user?: {
+    coinBalance?: number | null;
+  } | null;
 };
 
 type NavChildItem = {
@@ -366,12 +374,91 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
   const displayName = sessionUser?.name?.trim() || "Tài khoản";
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "C";
 
-  const coinBalance =
+  const sessionCoinBalance =
     typeof sessionUser?.coinBalance === "number"
       ? sessionUser.coinBalance
       : typeof sessionUser?.points === "number"
         ? sessionUser.points
         : 0;
+  const [coinBalance, setCoinBalance] = useState(sessionCoinBalance);
+  const [coinPulseKey, setCoinPulseKey] = useState(0);
+
+  const fetchLatestCoinBalance = useCallback(async () => {
+    if (variant !== "user") return;
+
+    try {
+      const response = await fetch("/api/me", {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!response.ok) return;
+
+      const data = (await response.json().catch(() => null)) as MeResponse | null;
+      const nextBalance =
+        typeof data?.coinBalance === "number"
+          ? data.coinBalance
+          : typeof data?.user?.coinBalance === "number"
+            ? data.user.coinBalance
+            : null;
+
+      if (nextBalance !== null) {
+        setCoinBalance(nextBalance);
+      }
+    } catch {
+      // Keep the visible session fallback if the lightweight user fetch fails.
+    }
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== "user") return;
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchLatestCoinBalance();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [fetchLatestCoinBalance, pathname, sessionUser?.email, variant]);
+
+  useEffect(() => {
+    if (variant !== "user") return;
+
+    const handleCoinLanded = (event: Event) => {
+      const customEvent = event as CustomEvent<CoinLandedPayload>;
+      const { amount, nextBalance } = customEvent.detail;
+
+      setCoinBalance((current) =>
+        typeof nextBalance === "number" ? nextBalance : current + amount,
+      );
+      setCoinPulseKey((current) => current + 1);
+      void fetchLatestCoinBalance();
+    };
+
+    const handleFocus = () => {
+      void fetchLatestCoinBalance();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchLatestCoinBalance();
+      }
+    };
+
+    window.addEventListener(COIN_LANDED_EVENT, handleCoinLanded as EventListener);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener(
+        COIN_LANDED_EVENT,
+        handleCoinLanded as EventListener,
+      );
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchLatestCoinBalance, variant]);
 
   const handleLogout = async () => {
     setProfileOpen(false);
@@ -434,7 +521,9 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
               </>
             ) : (
               <>
-                {variant === "user" && <CoinBadge initialBalance={coinBalance} />}
+                {variant === "user" && (
+                  <CoinBadge balance={coinBalance} pulseKey={coinPulseKey} />
+                )}
 
                 <div className="relative">
                   <button
@@ -1029,55 +1118,21 @@ function ProfileDropdown({
   );
 }
 
-function CoinBadge({ initialBalance }: { initialBalance: number }) {
-  const [displayBalance, setDisplayBalance] = useState(initialBalance);
-  const [isPulsing, setIsPulsing] = useState(false);
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const handleCoinLanded = (event: Event) => {
-      const customEvent = event as CustomEvent<CoinLandedPayload>;
-      const { amount, nextBalance } = customEvent.detail;
-
-      setDisplayBalance((current) =>
-        typeof nextBalance === "number" ? nextBalance : current + amount,
-      );
-
-      setIsPulsing(true);
-
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = window.setTimeout(() => {
-        setIsPulsing(false);
-      }, 550);
-    };
-
-    window.addEventListener(
-      COIN_LANDED_EVENT,
-      handleCoinLanded as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        COIN_LANDED_EVENT,
-        handleCoinLanded as EventListener,
-      );
-
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
+function CoinBadge({
+  balance,
+  pulseKey,
+}: {
+  balance: number;
+  pulseKey: number;
+}) {
   return (
     <Link
+      key={pulseKey}
       href="/rewards"
       data-coin-target="true"
-      aria-label={`Bạn đang có ${displayBalance.toLocaleString("vi-VN")} coin`}
+      aria-label={`Bạn đang có ${balance.toLocaleString("vi-VN")} coin`}
       className={`group inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[#FFE7A8] bg-[linear-gradient(180deg,#FFFDF5_0%,#FFF7D6_100%)] px-3 text-[13px] font-black text-[#7A5600] shadow-[0_10px_24px_rgba(255,193,7,0.10)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(255,193,7,0.16)] ${
-        isPulsing ? "cf-coin-badge-pulse" : ""
+        pulseKey > 0 ? "cf-coin-badge-pulse" : ""
       }`}
     >
       <span className="relative grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#FFD166_0%,#FFB703_100%)] text-white shadow-[0_8px_18px_rgba(255,183,3,0.26)]">
@@ -1086,7 +1141,7 @@ function CoinBadge({ initialBalance }: { initialBalance: number }) {
       </span>
 
       <span className="tabular-nums">
-        {displayBalance.toLocaleString("vi-VN")}
+        {balance.toLocaleString("vi-VN")}
       </span>
     </Link>
   );

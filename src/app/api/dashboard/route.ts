@@ -15,6 +15,7 @@ type UserRecord = {
   email: string;
   chronotype: string | null;
   hasCompletedAssessment: boolean;
+  coinBalance: number;
 };
 
 type TaskRecord = {
@@ -749,6 +750,7 @@ export async function GET() {
         email: true,
         chronotype: true,
         hasCompletedAssessment: true,
+        coinBalance: true,
       },
     });
 
@@ -762,6 +764,7 @@ export async function GET() {
       email: user.email,
       chronotype: user.chronotype,
       hasCompletedAssessment: user.hasCompletedAssessment,
+      coinBalance: user.coinBalance ?? 0,
     };
 
     const fourteenDaysAgo = addDays(new Date(), -14);
@@ -920,6 +923,7 @@ const [
     }, 0);
 
     const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
+    const currentCoinBalance = safeUser.coinBalance;
     const streak = computeStreak({ tasks: typedTasks, focusSessions });
 
     const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {
@@ -1009,7 +1013,7 @@ const [
       title: item.title,
       description: item.description,
       points: item.pointsCost,
-      unlocked: pointSummary.available >= item.pointsCost,
+      unlocked: currentCoinBalance >= item.pointsCost,
     }));
 
     const nextMilestone = rewardMilestones.find((item) => !item.unlocked) || rewardMilestones[rewardMilestones.length - 1] || null;
@@ -1104,7 +1108,7 @@ const [
       today: {
         energyScore,
         focusMinutes: focusMinutesToday,
-        coins: pointSummary.available,
+        coins: currentCoinBalance,
         coinsToday,
         streak,
         completedTasks: completedToday.length,
@@ -1162,13 +1166,15 @@ const [
         score: alignmentScore,
       },
       rewards: {
-        currentPoints: pointSummary.available,
+        currentPoints: currentCoinBalance,
         earnedPoints: pointSummary.earned,
         spentPoints: pointSummary.spent,
         nextMilestone,
         milestones: rewardMilestones,
-        progressToNext: nextMilestone ? Math.min(100, Math.round((pointSummary.available / nextMilestone.points) * 100)) : 0,
-        earningRule: "Điểm được tính từ FocusSession COMPLETED trong database.",
+        progressToNext: nextMilestone
+          ? Math.min(100, Math.round((currentCoinBalance / nextMilestone.points) * 100))
+          : 0,
+        earningRule: "Coin khả dụng lấy từ User.coinBalance trong database.",
         recentRedemptions: rewardRedemptions,
       },
       smartSuggestions,

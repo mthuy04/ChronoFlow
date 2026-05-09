@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { emitCoinLanded } from "@/lib/coin-reward-events";
 import {
   Activity,
   AlertTriangle,
@@ -277,12 +278,14 @@ type FinishFocusResponse = {
   message?: string;
   durationMinutes?: number;
   coinsEarned?: number;
+  taskCoinsEarned?: number;
   nextCoinBalance?: number;
   streakReward?: StreakRewardResponse | null;
 };
 
 type BasicApiResponse = {
   message?: string;
+  nextCoinBalance?: number;
 };
 
 const taskToneMap: Record<string, TaskTone> = {
@@ -652,6 +655,21 @@ export default function DashboardClientUI() {
         } điểm.${streakRewardText}`,
       );
 
+      const totalAwardedCoins =
+        (json?.coinsEarned ?? 0) +
+        (json?.taskCoinsEarned ?? 0) +
+        (json?.streakReward?.awarded ? json.streakReward.coinsEarned : 0);
+
+      if (
+        typeof json?.nextCoinBalance === "number" ||
+        totalAwardedCoins !== 0
+      ) {
+        emitCoinLanded({
+          amount: totalAwardedCoins,
+          nextBalance: json?.nextCoinBalance,
+        });
+      }
+
       await loadDashboard(true);
     } catch (err) {
       setFocusMessage(err instanceof Error ? err.message : "Không thể kết thúc focus session.");
@@ -696,6 +714,17 @@ export default function DashboardClientUI() {
 
       if (!res.ok) {
         throw new Error(json?.message || "Không thể gửi yêu cầu đổi thưởng.");
+      }
+
+      const redeemedReward = data?.rewards?.milestones.find(
+        (item) => item.id === redeemForm.rewardItemId,
+      );
+
+      if (typeof json?.nextCoinBalance === "number") {
+        emitCoinLanded({
+          amount: redeemedReward ? -redeemedReward.points : 0,
+          nextBalance: json.nextCoinBalance,
+        });
       }
 
       setRedeemSuccess("Yêu cầu đổi thưởng đã được ghi nhận.");
