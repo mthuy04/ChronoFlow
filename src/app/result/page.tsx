@@ -284,12 +284,12 @@ export default async function ResultPage() {
         <section className="relative z-10 px-4 pb-20 pt-24 lg:px-8">
           <div className="mx-auto w-full max-w-[1280px]">
             <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_20px_80px_rgba(26,21,40,0.06)]">
-              <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_40%,#FFFFFF_100%)] px-6 py-16 text-center md:px-10">
+              <div className="relative overflow-hidden bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#FFFFFF_100%)] px-5 py-14 text-center md:px-8 md:py-16">
                 <SoftDots />
 
                 <div className="relative mx-auto max-w-3xl">
-                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-[24px] border border-white/80 bg-white/85 text-[#6F59FF] shadow-[0_18px_40px_rgba(111,89,255,0.12)] backdrop-blur-xl">
-                    <Brain className="h-7 w-7" />
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-[22px] border border-white/80 bg-white/85 text-[#6F59FF] shadow-[0_16px_34px_rgba(111,89,255,0.12)] backdrop-blur-xl">
+                    <Brain className="h-6 w-6" />
                   </div>
 
                   <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm backdrop-blur-md">
@@ -297,22 +297,22 @@ export default async function ResultPage() {
                     Chưa có kết quả
                   </div>
 
-                  <h1 className="mx-auto mt-5 max-w-[880px] text-[clamp(2.2rem,4vw,4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
+                  <h1 className="mx-auto mt-5 max-w-[850px] text-[clamp(2.1rem,4vw,3.8rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
                     Bắt đầu bài đánh giá để{" "}
                     <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
                       ChronoFlow hiểu nhịp của bạn.
                     </span>
                   </h1>
 
-                  <p className="mx-auto mt-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
+                  <p className="mx-auto mt-5 max-w-[720px] text-[15px] font-medium leading-[1.85] text-[#5B566E] md:text-[16px]">
                     Sau khoảng 2 phút, bạn sẽ nhận được chronotype chính, khuynh
-                    hướng phụ và các khung giờ tham khảo để bắt đầu lập kế hoạch
-                    theo năng lượng cá nhân.
+                    hướng phụ và khung giờ tham khảo để bắt đầu lập kế hoạch theo
+                    năng lượng cá nhân.
                   </p>
 
                   <Link
                     href="/assessment"
-                    className="mt-8 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-7 text-[14px] font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black"
+                    className="mt-8 inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black"
                   >
                     Bắt đầu bài đánh giá
                     <ArrowRight className="h-4 w-4" />
@@ -329,6 +329,7 @@ export default async function ResultPage() {
   }
 
   const scoreItems = buildScoreItems(latestResult);
+  const sortedScores = sortScores(scoreItems);
   const dominant = getDominantChronotype(scoreItems);
   const secondary = getSecondaryChronotype(scoreItems);
   const maxScore = Math.max(...scoreItems.map((item) => item.score), 0);
@@ -348,133 +349,108 @@ export default async function ResultPage() {
         <div className="mx-auto w-full max-w-[1280px]">
           <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_20px_80px_rgba(26,21,40,0.06)]">
             <div
-              className={`relative overflow-hidden bg-gradient-to-br ${dominantConfig.softGradient} px-5 pb-8 pt-10 md:px-8 md:pb-10 lg:px-11 lg:pt-12`}
+              className={`relative overflow-hidden bg-gradient-to-br ${dominantConfig.softGradient} px-5 py-8 md:px-8 md:py-10 lg:px-10`}
             >
               <SoftDots />
               <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/55 blur-[90px]" />
-              <div className="pointer-events-none absolute bottom-[-160px] left-[26%] h-[360px] w-[360px] rounded-full bg-[#D9EAFF]/45 blur-[110px]" />
+              <div className="pointer-events-none absolute bottom-[-150px] left-[26%] h-[340px] w-[340px] rounded-full bg-[#D9EAFF]/45 blur-[110px]" />
 
-              <div className="relative mx-auto max-w-5xl text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_10px_25px_rgba(111,89,255,0.08)] backdrop-blur-md">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Kết quả chronotype
-                </div>
+              <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center">
+                <div className="py-2 text-center lg:text-left">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_10px_25px_rgba(111,89,255,0.08)] backdrop-blur-md">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Kết quả chronotype
+                  </div>
 
-                <h1 className="mx-auto mt-5 max-w-[980px] text-[clamp(2.2rem,4vw,4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528]">
-                  Bạn nghiêng về{" "}
-                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                    {dominantConfig.viName}
-                  </span>
-                </h1>
-
-                <p className="mx-auto mt-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
-                  {dominantConfig.summary} Đây là gợi ý lập kế hoạch theo
-                  chronotype, không phải tư vấn y tế.
-                </p>
-
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                  <Link
-                    href="/dashboard"
-                    className="group flex min-h-[52px] items-center gap-2.5 rounded-2xl bg-[#1A1528] px-6 text-white shadow-xl transition-all hover:-translate-y-0.5 hover:bg-black"
-                  >
-                    <ArrowRight className="h-4 w-4 text-[#4DA8FF]" />
-                    <div className="flex flex-col text-left">
-                      <span className="text-[9px] uppercase leading-none tracking-wider text-gray-400">
-                        TIẾP THEO
-                      </span>
-                      <span className="text-[14px] font-bold leading-tight">
-                        Vào Dashboard
-                      </span>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href="/assessment"
-                    className="group flex min-h-[52px] items-center gap-2.5 rounded-2xl border border-gray-100 bg-white px-6 text-[#1A1528] shadow-lg transition-all hover:-translate-y-0.5 hover:bg-gray-50"
-                  >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F0FF]">
-                      <RefreshCw className="h-3.5 w-3.5 text-[#6F59FF]" />
-                    </div>
-                    <span className="text-[14px] font-bold leading-tight">
-                      Làm lại bài đánh giá
+                  <h1 className="mx-auto mt-5 max-w-[820px] text-[clamp(2.15rem,4vw,3.95rem)] font-[900] leading-[1.05] tracking-tight text-[#1A1528] lg:mx-0">
+                    Bạn nghiêng về{" "}
+                    <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+                      {dominantConfig.viName}
                     </span>
-                  </Link>
-                </div>
-              </div>
+                  </h1>
 
-              <div className="relative mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
-                <div className="relative overflow-hidden rounded-[32px] border border-white/80 bg-white/75 p-6 text-center shadow-[0_25px_70px_rgba(26,21,40,0.08)] backdrop-blur-xl">
-                  <div className="absolute right-5 top-5 rounded-full border border-[#EAE8F7] bg-white/85 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3] shadow-sm">
+                  <p className="mx-auto mt-5 max-w-[700px] text-[15px] font-medium leading-[1.85] text-[#5B566E] md:text-[16px] lg:mx-0">
+                    {dominantConfig.summary} Đây là gợi ý lập kế hoạch theo
+                    chronotype, không phải tư vấn y tế.
+                  </p>
+
+                  {isBalanced && secondaryConfig ? (
+                    <div className="mx-auto mt-5 max-w-[690px] rounded-[24px] border border-white/80 bg-white/72 px-5 py-4 text-[13px] font-semibold leading-7 text-[#5B566E] shadow-sm backdrop-blur-xl lg:mx-0">
+                      Điểm của bạn khá cân bằng giữa{" "}
+                      <span className="font-black text-[#1A1528]">
+                        {dominantConfig.viName}
+                      </span>{" "}
+                      và{" "}
+                      <span className="font-black text-[#1A1528]">
+                        {secondaryConfig.viName}
+                      </span>
+                      . ChronoFlow chọn {dominantConfig.viName} làm hướng khởi
+                      đầu để planner rõ ràng hơn.
+                    </div>
+                  ) : null}
+
+                  <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                    <Link
+                      href="/dashboard"
+                      className="group inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl bg-[#1A1528] px-6 text-white shadow-xl transition-all hover:-translate-y-0.5 hover:bg-black"
+                    >
+                      <ArrowRight className="h-4 w-4 text-[#4DA8FF]" />
+                      <div className="flex flex-col text-left">
+                        <span className="text-[9px] uppercase leading-none tracking-wider text-gray-400">
+                          TIẾP THEO
+                        </span>
+                        <span className="text-[14px] font-bold leading-tight">
+                          Vào Dashboard
+                        </span>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href="/assessment"
+                      className="group inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl border border-gray-100 bg-white px-6 text-[#1A1528] shadow-lg transition-all hover:-translate-y-0.5 hover:bg-gray-50"
+                    >
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F0FF]">
+                        <RefreshCw className="h-3.5 w-3.5 text-[#6F59FF]" />
+                      </div>
+                      <span className="text-[14px] font-bold leading-tight">
+                        Làm lại bài đánh giá
+                      </span>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="relative mx-auto w-full max-w-[340px] rounded-[32px] border border-white/80 bg-white/78 p-5 text-center shadow-[0_24px_70px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+                  <div className="absolute right-5 top-5 rounded-full border border-[#EAE8F7] bg-white/85 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3] shadow-sm">
                     {formatDate(latestResult.createdAt)}
                   </div>
 
-                  <div className="mx-auto mt-8 flex h-[150px] w-[150px] items-center justify-center rounded-[40px] border border-white/80 bg-white shadow-[0_22px_55px_rgba(26,21,40,0.10)]">
+                  <div className="mx-auto mt-8 flex h-[124px] w-[124px] items-center justify-center rounded-[34px] border border-white/80 bg-white shadow-[0_20px_46px_rgba(26,21,40,0.09)]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={dominantConfig.stickerUrl}
                       alt={dominantConfig.viName}
-                      className="h-[108px] w-[108px] object-contain drop-shadow-xl"
+                      className="h-[88px] w-[88px] object-contain drop-shadow-xl"
                     />
                   </div>
 
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#EAE8F7] bg-[#F8F6FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F59FF]">
+                  <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#EAE8F7] bg-[#F8F6FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F59FF]">
                     <DominantIcon className="h-3.5 w-3.5" />
                     {dominantConfig.enName}
                   </div>
 
-                  <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-[900] leading-[1.08] tracking-tight text-[#1A1528]">
+                  <h2 className="mt-3 text-[2rem] font-[900] leading-none tracking-tight text-[#1A1528]">
                     {dominantConfig.viName}
                   </h2>
 
-                  <p className="mx-auto mt-3 max-w-[320px] text-[14px] font-semibold leading-7 text-[#5B566E]">
+                  <p className="mx-auto mt-3 max-w-[250px] text-[13px] font-semibold leading-6 text-[#5B566E]">
                     {dominantConfig.headline}
                   </p>
-                </div>
-
-                <div className="grid gap-4">
-                  {isBalanced && secondaryConfig ? (
-                    <div className="rounded-[28px] border border-white/80 bg-white/75 p-5 shadow-[0_15px_40px_rgba(26,21,40,0.05)] backdrop-blur-xl">
-                      <div className="inline-flex rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#6F59FF]">
-                        Khuynh hướng cân bằng
-                      </div>
-                      <p className="mt-3 text-[14px] font-semibold leading-7 text-[#5B566E]">
-                        Điểm của bạn khá cân bằng giữa{" "}
-                        <span className="font-black text-[#1A1528]">
-                          {dominantConfig.viName}
-                        </span>{" "}
-                        và{" "}
-                        <span className="font-black text-[#1A1528]">
-                          {secondaryConfig.viName}
-                        </span>
-                        . ChronoFlow chọn {dominantConfig.viName} làm hướng khởi
-                        đầu để planner rõ ràng hơn.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1">
-                    <SummaryMetric
-                      icon={<TrendingUp className="h-4 w-4" />}
-                      label="Khuynh hướng phụ"
-                      value={secondaryConfig?.viName ?? "Chưa rõ"}
-                    />
-                    <SummaryMetric
-                      icon={<Zap className="h-4 w-4" />}
-                      label="Peak window"
-                      value={dominantConfig.peakWindow}
-                    />
-                    <SummaryMetric
-                      icon={<Activity className="h-4 w-4" />}
-                      label="Energy style"
-                      value={dominantConfig.energyStyle}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 space-y-12">
+          <div className="mt-8 space-y-8">
             <SectionCard>
               <SectionHeading
                 eyebrow="Tóm tắt kết quả"
@@ -489,11 +465,29 @@ export default async function ResultPage() {
                 icon={<Target className="h-4 w-4" />}
               />
 
-              <p className="mx-auto mt-5 max-w-[760px] text-center text-[15px] font-medium leading-[1.9] text-[#615C7A] md:text-[16px]">
+              <p className="mx-auto mt-4 max-w-[720px] text-center text-[14px] font-medium leading-[1.85] text-[#615C7A] md:text-[15px]">
                 {dominantConfig.plannerAdvice}
               </p>
 
-              <div className="mt-12 grid gap-5 md:grid-cols-3">
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                <SummaryMetric
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label="Khuynh hướng phụ"
+                  value={secondaryConfig?.viName ?? "Chưa rõ"}
+                />
+                <SummaryMetric
+                  icon={<Zap className="h-4 w-4" />}
+                  label="Peak window"
+                  value={dominantConfig.peakWindow}
+                />
+                <SummaryMetric
+                  icon={<Activity className="h-4 w-4" />}
+                  label="Energy style"
+                  value={dominantConfig.energyStyle}
+                />
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <WindowCard
                   icon={<Brain className="h-5 w-5" />}
                   label="Deep work"
@@ -513,6 +507,20 @@ export default async function ResultPage() {
                   helper="Giữ nhịp ngủ và hồi phục"
                 />
               </div>
+
+              <div className="mt-5 rounded-[26px] border border-[#EAE8F7] bg-[#FBFAFF]/80 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#F3F0FF] text-[#6F59FF]">
+                    <Compass className="h-5 w-5" />
+                  </div>
+                  <p className="text-[13px] font-medium leading-7 text-[#615C7A]">
+                    Các khung giờ trên là reference window theo chronotype. Khi
+                    bạn check-in năng lượng, lưu focus session và hoàn thành
+                    task, ChronoFlow sẽ có thêm dữ liệu để điều chỉnh Rhythm sát
+                    với thói quen thật hơn.
+                  </p>
+                </div>
+              </div>
             </SectionCard>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -531,7 +539,7 @@ export default async function ResultPage() {
             </div>
 
             <SectionCard>
-              <div className="mx-auto max-w-[900px] text-center">
+              <div className="mx-auto max-w-[860px] text-center">
                 <SectionHeading
                   eyebrow="Phân bổ điểm"
                   title={
@@ -544,14 +552,14 @@ export default async function ResultPage() {
                   }
                   icon={<BarChart3 className="h-4 w-4" />}
                 />
-                <p className="mx-auto mt-5 max-w-[720px] text-[15px] leading-[1.9] text-[#615C7A] md:text-[16px]">
-                  Bảng điểm giúp bạn thấy rõ nhóm chronotype nào nổi bật nhất,
-                  đồng thời nhận ra khuynh hướng phụ nếu các điểm khá sát nhau.
+                <p className="mx-auto mt-4 max-w-[690px] text-[14px] leading-[1.85] text-[#615C7A] md:text-[15px]">
+                  Bảng điểm giúp bạn thấy nhóm chronotype nổi bật nhất, đồng
+                  thời nhận ra khuynh hướng phụ nếu các điểm khá sát nhau.
                 </p>
               </div>
 
-              <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                {scoreItems.map((item) => {
+              <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {sortedScores.map((item) => {
                   const config = CHRONOTYPE_CONFIG[item.key];
                   const percent = getScorePercent(item.score, maxScore);
                   const isPrimary = item.key === dominant.key;
@@ -586,7 +594,7 @@ export default async function ResultPage() {
                 icon={<CheckCircle2 className="h-4 w-4" />}
               />
 
-              <div className="mt-12 grid gap-5 md:grid-cols-3">
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
                 <NextStepCard
                   href="/dashboard"
                   icon={<Activity className="h-5 w-5" />}
@@ -607,43 +615,18 @@ export default async function ResultPage() {
                 />
               </div>
 
-              <div className="mt-8 overflow-hidden rounded-[30px] border border-[#EAE8F7] bg-[linear-gradient(135deg,#FBFAFF_0%,#F1F7FF_100%)] p-6 text-center shadow-sm">
-                <p className="mx-auto max-w-2xl text-[14px] font-medium leading-7 text-[#5B566E]">
+              <div className="mt-5 rounded-[26px] border border-[#EAE8F7] bg-[linear-gradient(135deg,#FBFAFF_0%,#F1F7FF_100%)] p-5 text-center shadow-sm">
+                <p className="mx-auto max-w-2xl text-[13px] font-medium leading-7 text-[#5B566E]">
                   Nhịp sinh học của bạn có thể thay đổi theo lịch ngủ và thói
-                  quen. Bạn có thể làm lại bài đánh giá bất kỳ lúc nào để cập
-                  nhật planner phù hợp hơn.
+                  quen. Bạn có thể làm lại bài đánh giá bất kỳ lúc nào.
                 </p>
                 <Link
                   href="/assessment"
-                  className="mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black"
+                  className="mt-4 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Làm lại bài đánh giá
                 </Link>
-              </div>
-            </SectionCard>
-
-            <SectionCard>
-              <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#8B5CF6] shadow-sm">
-                    <Compass className="h-3.5 w-3.5" />
-                    Bản đồ khởi đầu
-                  </div>
-                  <h2 className="mt-4 text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
-                    Kết quả này sẽ chính xác hơn khi{" "}
-                    <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                      có dữ liệu thật.
-                    </span>
-                  </h2>
-                </div>
-
-                <p className="text-[15px] font-medium leading-[1.9] text-[#615C7A] md:text-[16px]">
-                  Các khung giờ trên là reference window theo chronotype. Khi bạn
-                  check-in năng lượng, lưu focus session và hoàn thành task,
-                  ChronoFlow sẽ có thêm dữ liệu để điều chỉnh Rhythm sát với thói
-                  quen thật của bạn hơn.
-                </p>
               </div>
             </SectionCard>
           </div>
@@ -688,10 +671,10 @@ function SoftDots() {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <section className="relative overflow-hidden rounded-[40px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.76)_0%,rgba(246,247,255,0.64)_100%)] px-6 py-10 shadow-[0_24px_70px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:px-10 md:py-14">
+    <section className="relative overflow-hidden rounded-[36px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(246,247,255,0.64)_100%)] px-5 py-8 shadow-[0_22px_60px_rgba(26,21,40,0.055)] backdrop-blur-2xl md:px-8 md:py-10">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-5%] top-0 h-[180px] w-[180px] rounded-full bg-white/35 blur-[70px]" />
-        <div className="absolute bottom-0 right-[-4%] h-[220px] w-[220px] rounded-full bg-[#D8E8FF]/30 blur-[80px]" />
+        <div className="absolute left-[-5%] top-0 h-[170px] w-[170px] rounded-full bg-white/35 blur-[70px]" />
+        <div className="absolute bottom-0 right-[-4%] h-[210px] w-[210px] rounded-full bg-[#D8E8FF]/28 blur-[80px]" />
       </div>
       <div className="relative">{children}</div>
     </section>
@@ -708,13 +691,13 @@ function SectionHeading({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-[900px] text-center">
-      <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_10px_25px_rgba(111,89,255,0.08)]">
+    <div className="mx-auto max-w-[850px] text-center">
+      <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)]">
         {icon}
         {eyebrow}
       </div>
 
-      <h2 className="text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
+      <h2 className="text-[clamp(1.55rem,2.6vw,2.25rem)] font-[900] leading-[1.12] tracking-tight text-[#1A1528]">
         {title}
       </h2>
     </div>
@@ -731,12 +714,12 @@ function SummaryMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm backdrop-blur-xl">
+    <div className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-sm backdrop-blur-xl">
       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
         <span className="text-[#6F59FF]">{icon}</span>
         {label}
       </div>
-      <div className="mt-2 text-[14px] font-[900] leading-6 text-[#1A1528]">
+      <div className="mt-2 text-[13px] font-[900] leading-6 text-[#1A1528]">
         {value}
       </div>
     </div>
@@ -755,20 +738,20 @@ function WindowCard({
   helper: string;
 }) {
   return (
-    <div className="group rounded-[32px] border border-[#EAE8F7] bg-white/88 p-6 shadow-[0_15px_40px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_25px_50px_rgba(111,89,255,0.08)]">
-      <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/70 bg-white text-[#6F59FF] shadow-[0_10px_24px_rgba(26,21,40,0.06)] transition group-hover:scale-110 group-hover:rotate-3">
+    <div className="group rounded-[28px] border border-[#EAE8F7] bg-white/88 p-5 shadow-[0_14px_34px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_42px_rgba(111,89,255,0.075)]">
+      <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/70 bg-white text-[#6F59FF] shadow-sm transition group-hover:scale-105">
         {icon}
       </div>
-      <div className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+      <div className="mt-4 text-[10px] font-black uppercase tracking-[0.15em] text-[#8A84A3]">
         {label}
       </div>
-      <div className="mt-2 text-[20px] font-[900] tracking-tight text-[#1A1528]">
+      <div className="mt-2 text-[17px] font-[900] tracking-tight text-[#1A1528]">
         {value}
       </div>
-      <p className="mt-3 text-[14px] font-medium leading-7 text-[#615C7A]">
+      <p className="mt-2 text-[13px] font-medium leading-6 text-[#615C7A]">
         {helper}
       </p>
-      <div className="mt-5 h-1 w-14 rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] transition-all duration-300 group-hover:w-24" />
+      <div className="mt-4 h-1 w-12 rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] transition-all duration-300 group-hover:w-20" />
     </div>
   );
 }
@@ -792,26 +775,26 @@ function InsightListCard({
   return (
     <SectionCard>
       <div className="text-left">
-        <div className="inline-flex rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm">
+        <div className="inline-flex rounded-full border border-white/80 bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm">
           {eyebrow}
         </div>
 
-        <h3 className="mt-5 text-[clamp(2rem,3.4vw,3rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
+        <h3 className="mt-4 text-[clamp(1.45rem,2.4vw,2rem)] font-[900] leading-[1.12] tracking-tight text-[#1A1528]">
           {title}
         </h3>
 
-        <div className="mt-7 grid gap-3">
+        <div className="mt-5 grid gap-3">
           {items.map((item) => (
             <div
               key={item}
-              className="flex gap-3 rounded-[24px] border border-white/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur-xl"
+              className="flex gap-3 rounded-[22px] border border-white/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur-xl"
             >
               <span
-                className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${iconClass}`}
+                className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-xl ${iconClass}`}
               >
                 <CheckCircle2 className="h-4 w-4" />
               </span>
-              <span className="text-[14px] font-medium leading-7 text-[#5B566E]">
+              <span className="text-[13px] font-medium leading-6 text-[#5B566E]">
                 {item}
               </span>
             </div>
@@ -839,48 +822,48 @@ function ScoreCard({
 }) {
   return (
     <div
-      className={`group relative overflow-hidden rounded-[32px] border p-6 shadow-[0_15px_40px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-[0_25px_50px_rgba(111,89,255,0.08)] ${
+      className={`group relative overflow-hidden rounded-[28px] border p-5 shadow-[0_14px_34px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(111,89,255,0.075)] ${
         isPrimary
           ? "border-[#CFC7FF] bg-[linear-gradient(180deg,#F8F6FF_0%,#FFFFFF_100%)]"
           : "border-[#EAE8F7] bg-white/82"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="grid h-20 w-20 place-items-center rounded-[24px] border border-white/80 bg-white shadow-sm">
+        <div className="grid h-16 w-16 place-items-center rounded-[22px] border border-white/80 bg-white shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={stickerUrl}
             alt={label}
-            className="h-14 w-14 object-contain drop-shadow-lg transition duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+            className="h-11 w-11 object-contain drop-shadow-lg transition duration-300 group-hover:-translate-y-1 group-hover:scale-110"
           />
         </div>
 
         {isTopScore ? (
-          <span className="rounded-full bg-[#6F59FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-[0_10px_20px_rgba(111,89,255,0.20)]">
+          <span className="rounded-full bg-[#6F59FF] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-white shadow-[0_10px_20px_rgba(111,89,255,0.18)]">
             Cao nhất
           </span>
         ) : null}
       </div>
 
-      <div className="mt-5 text-[18px] font-[900] text-[#1A1528]">{label}</div>
+      <div className="mt-4 text-[16px] font-[900] text-[#1A1528]">{label}</div>
 
-      <div className="mt-5 flex items-end justify-between gap-3">
-        <div className="text-[36px] font-[900] leading-none tracking-tight text-[#1A1528]">
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="text-[30px] font-[900] leading-none tracking-tight text-[#1A1528]">
           {score}
         </div>
-        <div className="rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-3 py-1 text-[12px] font-black text-[#8A84A3]">
+        <div className="rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-3 py-1 text-[11px] font-black text-[#8A84A3]">
           {percent}%
         </div>
       </div>
 
-      <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#EEEAFB]">
+      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#EEEAFB]">
         <div
           className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
           style={{ width: `${percent}%` }}
         />
       </div>
 
-      <p className="mt-4 text-[13px] font-medium leading-6 text-[#615C7A]">
+      <p className="mt-3 text-[12px] font-medium leading-6 text-[#615C7A]">
         {percent > 0
           ? `${percent}% so với nhóm cao nhất của bạn.`
           : "Chưa có điểm để so sánh."}
@@ -903,24 +886,24 @@ function NextStepCard({
   return (
     <Link
       href={href}
-      className="group rounded-[32px] border border-[#EAE8F7] bg-white/88 p-6 shadow-[0_15px_40px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_25px_50px_rgba(111,89,255,0.08)]"
+      className="group rounded-[28px] border border-[#EAE8F7] bg-white/88 p-5 shadow-[0_14px_34px_rgba(26,21,40,0.04)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_42px_rgba(111,89,255,0.075)]"
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/70 bg-white text-[#6F59FF] shadow-[0_10px_24px_rgba(26,21,40,0.06)] transition group-hover:scale-110 group-hover:rotate-3">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/70 bg-white text-[#6F59FF] shadow-sm transition group-hover:scale-105">
           {icon}
         </div>
         <ArrowRight className="h-4 w-4 text-[#8A84A3] transition group-hover:translate-x-1 group-hover:text-[#6F59FF]" />
       </div>
 
-      <h3 className="mt-5 text-[20px] font-[900] leading-tight text-[#1A1528]">
+      <h3 className="mt-4 text-[17px] font-[900] leading-tight text-[#1A1528]">
         {title}
       </h3>
 
-      <p className="mt-3 text-[14px] font-medium leading-7 text-[#615C7A]">
+      <p className="mt-2 text-[13px] font-medium leading-6 text-[#615C7A]">
         {text}
       </p>
 
-      <div className="mt-5 h-1 w-14 rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] transition-all duration-300 group-hover:w-24" />
+      <div className="mt-4 h-1 w-12 rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] transition-all duration-300 group-hover:w-20" />
     </Link>
   );
 }
