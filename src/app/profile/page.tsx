@@ -831,6 +831,14 @@ export default async function ProfilePage() {
                         {chronotypeMeta.summary}
                       </p>
 
+                      <Link
+                        href="/assessment"
+                        className="mt-5 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#E9E5FF] bg-white px-4 text-[12px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Cập nhật chronotype
+                      </Link>
+
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <MiniMetric
                           label="Focus window"

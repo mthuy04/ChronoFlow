@@ -718,6 +718,14 @@ function ChronotypeProfile({
                 chronotype?.description ||
                 "Làm bài đánh giá để ChronoFlow xác định chronotype và gợi ý khung làm việc phù hợp."}
             </p>
+
+            <Link
+              href="/assessment"
+              className="mt-5 inline-flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-[#E9E5FF] bg-white px-4 text-[12px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Cập nhật chronotype
+            </Link>
           </div>
 
           <div className="hidden h-28 w-28 shrink-0 items-center justify-center rounded-[28px] bg-white text-[54px] shadow-sm md:flex">

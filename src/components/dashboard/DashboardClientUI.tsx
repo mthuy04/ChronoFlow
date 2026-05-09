@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  Brain,
   CalendarDays,
   CheckCircle2,
   Coins,
@@ -1390,6 +1391,13 @@ function EnergyPanel({
           <p className="mt-2 max-w-[660px] text-[14px] font-medium leading-relaxed text-[#6B647C]">
             {insight?.summary || "Energy score và đường năng lượng được lấy từ check-in thật của bạn."}
           </p>
+          <Link
+            href="/assessment"
+            className="mt-4 inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-[#E9E5FF] bg-white px-4 text-[12px] font-black text-[#6F59FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+          >
+            <Brain className="h-4 w-4" />
+            Cập nhật chronotype
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">

@@ -167,6 +167,12 @@ const userNavItems: NavItem[] = [
         description: "Xem lại hồ sơ nhịp sinh học và khung giờ phù hợp.",
         icon: <Sparkles className="h-4 w-4" />,
       },
+      {
+        href: "/assessment",
+        label: "Làm lại bài đánh giá",
+        description: "Cập nhật chronotype khi lịch ngủ hoặc thói quen thay đổi.",
+        icon: <Brain className="h-4 w-4" />,
+      },
     ],
   },
   {
@@ -1086,6 +1092,24 @@ function ProfileDropdown({
           label="Hồ sơ cá nhân"
           onClick={onClose}
         />
+
+        {variant === "user" && (
+          <>
+            <DropdownLink
+              href="/assessment"
+              icon={<Brain className="h-4 w-4" />}
+              label="Làm lại bài đánh giá"
+              onClick={onClose}
+            />
+
+            <DropdownLink
+              href="/result"
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Kết quả chronotype"
+              onClick={onClose}
+            />
+          </>
+        )}
 
         <DropdownLink
           href="/settings"

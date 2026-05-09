@@ -285,6 +285,17 @@ export default async function ResultPage() {
               you think more clearly about timing, focus, recovery, and how to
               plan your day in a way that fits better.
             </p>
+
+            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link href="/assessment" className="cf-btn-primary">
+                Làm lại bài đánh giá
+              </Link>
+              <p className="max-w-[520px] text-center text-[13px] font-medium leading-6 text-[#6B647C]">
+                Nhịp sinh học của bạn có thể thay đổi theo lịch ngủ và thói
+                quen. Làm lại bài đánh giá để ChronoFlow điều chỉnh planner phù
+                hợp hơn.
+              </p>
+            </div>
           </div>
 
           <div className="mt-12 rounded-[36px] border border-white bg-white/65 p-3 shadow-[0_18px_48px_rgba(36,31,61,0.08)] backdrop-blur-xl">
@@ -454,6 +465,13 @@ export default async function ResultPage() {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/planner" className="cf-btn-primary">
               Continue to planner
+            </Link>
+
+            <Link
+              href="/assessment"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#E9E5FF] bg-white px-5 text-[14px] font-bold text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+            >
+              Làm lại bài đánh giá
             </Link>
 
             <Link
