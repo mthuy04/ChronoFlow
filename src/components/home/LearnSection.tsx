@@ -77,9 +77,9 @@ export default function LearnSection() {
               </div>
 
               <h2 className="mx-auto mb-5 max-w-[820px] text-[clamp(2.05rem,4vw,4rem)] font-[900] leading-[1.08] tracking-tight">
-                Nền tảng khoa học của {" "}
+                Nền tảng {" "}
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  ChronoFlow
+                  khoa học
                 </span>
               </h2>
 

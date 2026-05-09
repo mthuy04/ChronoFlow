@@ -131,7 +131,7 @@ export default function TargetUsersSection() {
               </div>
 
               <h2 className="mb-5 text-[clamp(2.25rem,4.6vw,3.65rem)] font-[900] leading-[1.04] tracking-[-0.04em] text-[#1A1528]">
-                4 nhóm 
+                4 nhóm {" "}
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
                   người dùng mục tiêu
                 </span>

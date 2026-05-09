@@ -92,12 +92,11 @@ export default function HowItWorksSection({ isLoggedIn = false }: Props) {
               </div>
 
               <h2 className="mx-auto max-w-[820px] text-[clamp(2.2rem,4vw,3.6rem)] font-[900] leading-[1.1] tracking-tight text-[#1A1528]">
-  
-                <br className="hidden sm:block" />
+
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  4 bước 
+                Bốn bước {" "}
                 </span>
-                đơn giản
+                để bắt đầu
               </h2>
 
               <p className="mx-auto mt-5 max-w-[720px] animate-[fadeUp_0.7s_ease-out] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
