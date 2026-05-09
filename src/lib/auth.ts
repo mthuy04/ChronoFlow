@@ -1,45 +1,13 @@
-import type { NextAuthOptions, User as NextAuthUser } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 
-type ChronoAuthUser = NextAuthUser & {
-  id: string;
-  role?: string | null;
-  chronotype?: string | null;
-};
-
-type ChronoSessionUser = {
-  id?: string;
-  role?: string | null;
-  chronotype?: string | null;
-  name?: string | null;
-  email?: string | null;
-  image?: string | undefined;
-};
-
-type GoogleCredentials = {
-  clientId: string;
-  clientSecret: string;
-};
-
-function getGoogleCredentials(): GoogleCredentials | null {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    return null;
-  }
-
-  return {
-    clientId,
-    clientSecret,
-  };
+function hasGoogleCredentials() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
-
-const googleCredentials = getGoogleCredentials();
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -93,15 +61,15 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role,
           chronotype: user.chronotype,
-        } satisfies ChronoAuthUser;
+        } as any;
       },
     }),
 
-    ...(googleCredentials
+    ...(hasGoogleCredentials()
       ? [
           GoogleProvider({
-            clientId: googleCredentials.clientId,
-            clientSecret: googleCredentials.clientSecret,
+            clientId: process.env.GOOGLE_CLIENT_ID as string,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
             allowDangerousEmailAccountLinking: true,
           }),
         ]
@@ -167,26 +135,29 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, trigger, session }) {
+      const chronoToken = token as any;
+
       if (user) {
-        const chronoUser = user as Partial<ChronoAuthUser>;
+        const chronoUser = user as any;
 
-        token.id = chronoUser.id ?? token.id;
-        token.role = chronoUser.role ?? token.role ?? null;
-        token.chronotype = chronoUser.chronotype ?? token.chronotype ?? null;
-        token.image = chronoUser.image ?? token.image ?? null;
-        token.name = chronoUser.name ?? token.name ?? null;
-        token.email = chronoUser.email ?? token.email ?? null;
+        chronoToken.id = chronoUser.id ?? chronoToken.id;
+        chronoToken.role = chronoUser.role ?? chronoToken.role;
+        chronoToken.chronotype =
+          chronoUser.chronotype ?? chronoToken.chronotype;
+        chronoToken.image = chronoUser.image ?? chronoToken.image;
+        chronoToken.name = chronoUser.name ?? chronoToken.name;
+        chronoToken.email = chronoUser.email ?? chronoToken.email;
       }
 
-      if (trigger === "update" && session?.user) {
-        token.name = session.user.name ?? token.name;
-        token.image = session.user.image ?? token.image;
+      if (trigger === "update" && (session as any)?.user) {
+        chronoToken.name = (session as any).user.name ?? chronoToken.name;
+        chronoToken.image = (session as any).user.image ?? chronoToken.image;
       }
 
-      if (typeof token.email === "string") {
+      if (typeof chronoToken.email === "string") {
         const latestUser = await prisma.user.findUnique({
           where: {
-            email: token.email.toLowerCase(),
+            email: chronoToken.email.toLowerCase(),
           },
           select: {
             id: true,
@@ -199,41 +170,32 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (latestUser) {
-          token.id = latestUser.id;
-          token.name = latestUser.name;
-          token.email = latestUser.email;
-          token.role = latestUser.role;
-          token.chronotype = latestUser.chronotype ?? null;
-          token.image = latestUser.image ?? null;
+          chronoToken.id = latestUser.id;
+          chronoToken.name = latestUser.name;
+          chronoToken.email = latestUser.email;
+          chronoToken.role = latestUser.role ?? undefined;
+          chronoToken.chronotype = latestUser.chronotype ?? undefined;
+          chronoToken.image = latestUser.image ?? undefined;
         }
       }
 
-      return token;
+      return chronoToken;
     },
 
     async session({ session, token }) {
-      if (session.user) {
-        const sessionUser = session.user as ChronoSessionUser;
+      const chronoSession = session as any;
+      const chronoToken = token as any;
 
-        sessionUser.id = typeof token.id === "string" ? token.id : undefined;
-
-        sessionUser.role =
-          typeof token.role === "string" ? token.role : null;
-
-        sessionUser.chronotype =
-          typeof token.chronotype === "string" ? token.chronotype : null;
-
-        sessionUser.name =
-          typeof token.name === "string" ? token.name : undefined;
-
-        sessionUser.email =
-          typeof token.email === "string" ? token.email : undefined;
-
-        sessionUser.image =
-          typeof token.image === "string" ? token.image : undefined;
+      if (chronoSession.user) {
+        chronoSession.user.id = chronoToken.id;
+        chronoSession.user.role = chronoToken.role;
+        chronoSession.user.chronotype = chronoToken.chronotype;
+        chronoSession.user.name = chronoToken.name ?? chronoSession.user.name;
+        chronoSession.user.email = chronoToken.email ?? chronoSession.user.email;
+        chronoSession.user.image = chronoToken.image ?? chronoSession.user.image;
       }
 
-      return session;
+      return chronoSession;
     },
   },
 
