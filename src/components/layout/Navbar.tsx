@@ -125,24 +125,14 @@ const guestNavItems: NavItem[] = [
         description: "Bài viết về chronotype, năng lượng và productivity.",
         icon: <BookOpen className="h-4 w-4" />,
       },
-      {
-        href: "/learn/chronotype-basics",
-        label: "Chronotype basics",
-        description: "Hiểu các nhóm nhịp sinh học phổ biến.",
-        icon: <Brain className="h-4 w-4" />,
-      },
+    
       {
         href: "/chronotypes",
         label: "Chronotypes",
         description: "Khám phá 4 nhóm nhịp sinh học: Sư tử, Gấu, Sói, Cá heo.",
         icon: <Brain className="h-4 w-4" />,
       },
-      {
-        href: "/learn/energy-rhythm",
-        label: "Energy curve",
-        description: "Hiểu đường cong năng lượng trong ngày.",
-        icon: <BarChart3 className="h-4 w-4" />,
-      },
+
       {
         href: "/faq",
         label: "FAQ",
@@ -210,12 +200,7 @@ const userNavItems: NavItem[] = [
         description: "Xem xu hướng làm việc và hiệu suất cá nhân.",
         icon: <BarChart3 className="h-4 w-4" />,
       },
-      {
-        href: "/history",
-        label: "Lịch sử focus",
-        description: "Xem lại các phiên tập trung đã ghi nhận.",
-        icon: <Clock3 className="h-4 w-4" />,
-      },
+     
       {
         href: "/rewards",
         label: "Rewards",
@@ -247,12 +232,7 @@ const userNavItems: NavItem[] = [
         description: "Khám phá 4 nhóm nhịp sinh học: Sư tử, Gấu, Sói, Cá heo.",
         icon: <Brain className="h-4 w-4" />,
       },
-      {
-        href: "/learn/energy-rhythm",
-        label: "Energy curve",
-        description: "Ứng dụng đường cong năng lượng vào lịch làm việc.",
-        icon: <BarChart3 className="h-4 w-4" />,
-      },
+      
       {
         href: "/faq",
         label: "FAQ",
