@@ -8,17 +8,14 @@ import {
   Brain,
   CalendarX2,
   CheckCircle2,
-  Clock3,
   Coffee,
   Layers3,
-  MoonStar,
   MousePointerClick,
   Sparkles,
-  TimerReset,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 type PainKey =
   | "focus"
@@ -34,13 +31,12 @@ type PainPoint = {
   shortTitle: string;
   label: string;
   problem: string;
-  impact: string;
+  compactProblem: string;
   solution: string;
   insight: string;
   metric: string;
   metricLabel: string;
   icon: LucideIcon;
-  emoji: string;
   accentText: string;
   accentBg: string;
   softBg: string;
@@ -56,16 +52,15 @@ const painPoints: PainPoint[] = [
     label: "Sai nhịp tập trung",
     problem:
       "Bạn đã mở laptop và có việc trước mắt, nhưng vẫn khó vào trạng thái học hoặc làm sâu.",
-    impact:
-      "Bạn mất thời gian khởi động, dễ đổi việc liên tục và cuối ngày vẫn thấy chưa làm được phần quan trọng.",
+    compactProblem:
+      "Ngồi vào bàn rồi nhưng não vẫn chưa vào guồng, dễ đổi việc liên tục.",
     solution:
-      "ChronoFlow giúp nhận diện khung tập trung tốt hơn và gợi ý đưa việc sâu vào lúc năng lượng phù hợp.",
+      "ChronoFlow gợi ý đưa việc sâu vào khung năng lượng phù hợp hơn.",
     insight:
       "Không phải bạn lười. Có thể bạn đang bắt đầu việc khó vào sai nhịp năng lượng.",
     metric: "Sáng",
     metricLabel: "Khung tập trung gợi ý",
     icon: Brain,
-    emoji: "🧠",
     accentText: "text-[#6F59FF]",
     accentBg: "from-[#6F59FF] to-[#8B5CF6]",
     softBg: "from-[#FBF9FF] via-[#F7F4FF] to-[#F2EEFF]",
@@ -79,15 +74,14 @@ const painPoints: PainPoint[] = [
     label: "Lệch nhịp năng lượng",
     problem:
       "Những việc cần nhiều năng lượng như học sâu, viết báo cáo hay phân tích thường bị để đến cuối ngày.",
-    impact:
-      "Khi năng lượng đã giảm, việc khó trở nên nặng hơn. Bạn dễ trì hoãn, làm qua loa hoặc phải thức khuya để bù.",
+    compactProblem:
+      "Việc khó bị dồn vào lúc năng lượng đã thấp, nên dễ trì hoãn hoặc làm qua loa.",
     solution:
-      "ChronoFlow phân loại việc theo mức năng lượng và gợi ý: việc sâu lúc tỉnh táo, việc nhẹ khi năng lượng vừa, nghỉ khi cần hồi phục.",
+      "ChronoFlow giúp phân loại việc theo mức năng lượng và đặt đúng khung hơn.",
     insight: "Một task đúng nhưng đặt sai giờ vẫn có thể khiến bạn kiệt sức.",
     metric: "Đúng lúc",
     metricLabel: "Giảm cảm giác gắng sức",
     icon: BatteryWarning,
-    emoji: "🔋",
     accentText: "text-[#F59E0B]",
     accentBg: "from-[#F59E0B] to-[#FBBF24]",
     softBg: "from-[#FFFDF8] via-[#FFF8ED] to-[#FFF1E2]",
@@ -101,16 +95,15 @@ const painPoints: PainPoint[] = [
     label: "Quá tải ưu tiên",
     problem:
       "Task nào cũng có vẻ quan trọng, deadline nào cũng gấp, nhưng bạn không biết nên xử lý việc nào trước.",
-    impact:
-      "Bạn có thể bận cả ngày nhưng vẫn chưa chạm vào việc tạo ra giá trị thật. Lịch càng đầy, cảm giác kiểm soát càng giảm.",
+    compactProblem:
+      "Lịch đầy task nhưng không rõ việc nào nên làm trước, việc nào nên để sau.",
     solution:
-      "ChronoFlow giúp bạn nhìn lịch theo từng khối năng lượng, từ đó chọn task phù hợp với từng thời điểm thay vì chỉ xếp task theo deadline.",
+      "ChronoFlow giúp chọn task phù hợp với từng khối năng lượng, không chỉ theo deadline.",
     insight:
       "Một lịch tốt không chỉ nhiều task, mà phải biết task nào nên nằm ở thời điểm nào.",
     metric: "Theo nhịp",
     metricLabel: "Khối năng lượng chính",
     icon: CalendarX2,
-    emoji: "📅",
     accentText: "text-[#4DA8FF]",
     accentBg: "from-[#4DA8FF] to-[#38BDF8]",
     softBg: "from-[#FBFDFF] via-[#F4F9FF] to-[#EEF6FF]",
@@ -124,16 +117,15 @@ const painPoints: PainPoint[] = [
     label: "Vòng lặp kiệt sức",
     problem:
       "Bạn cố duy trì năng suất bằng cách làm nhiều hơn, nhưng lại bỏ qua thời điểm cơ thể cần nghỉ và phục hồi.",
-    impact:
-      "Năng lượng giảm dần, giấc ngủ bị ảnh hưởng, khả năng tập trung thấp hơn và bạn dễ rơi vào vòng lặp làm bù — mệt — lại làm bù.",
+    compactProblem:
+      "Càng cố làm nhiều, năng lượng càng tụt, rồi lại phải làm bù trong trạng thái mệt.",
     solution:
-      "ChronoFlow đưa recovery thành một phần của lịch trình, giúp bạn nghỉ đúng lúc thay vì chỉ nghỉ khi đã quá tải.",
+      "ChronoFlow đưa recovery thành một phần của lịch, giúp bạn nghỉ đúng lúc hơn.",
     insight:
       "Nghỉ không phải là mất năng suất. Nghỉ đúng lúc là điều kiện để làm việc bền hơn.",
     metric: "Nghỉ đúng",
     metricLabel: "Khung phục hồi gợi ý",
     icon: Coffee,
-    emoji: "☕",
     accentText: "text-[#EC4899]",
     accentBg: "from-[#EC4899] to-[#FB7185]",
     softBg: "from-[#FFF9FC] via-[#FFF1F7] to-[#FFEAF3]",
@@ -147,16 +139,15 @@ const painPoints: PainPoint[] = [
     label: "Đứt nhịp thói quen",
     problem:
       "Viết kế hoạch thì dễ, nhưng duy trì mỗi ngày lại khó, nhất là khi planner giấy không có nhắc nhở hay phản hồi.",
-    impact:
-      "Bạn bắt đầu rất hào hứng, sau đó bỏ dở vì không thấy tiến bộ rõ ràng hoặc không biết lịch hiện tại có thật sự hợp với mình không.",
+    compactProblem:
+      "Bạn bắt đầu rất hăng, nhưng vài ngày sau lại mất nhịp vì không thấy phản hồi rõ.",
     solution:
-      "ChronoFlow kết nối web app với Planner Kit bằng phiên tập trung, điểm thưởng, chuỗi duy trì và nhìn lại để việc lập kế hoạch dễ theo hơn.",
+      "ChronoFlow tạo vòng lặp: lên kế hoạch, focus, nhận điểm, nhìn lại và điều chỉnh.",
     insight:
       "Planner chỉ hiệu quả khi có vòng lặp phản hồi: lên kế hoạch, làm, nhìn lại, rồi điều chỉnh.",
     metric: "Duy trì",
     metricLabel: "Điểm tập trung tích lũy",
     icon: Trophy,
-    emoji: "🏆",
     accentText: "text-[#10B981]",
     accentBg: "from-[#10B981] to-[#34D399]",
     softBg: "from-[#FBFFFE] via-[#F4FFFB] to-[#ECFDF5]",
@@ -170,16 +161,15 @@ const painPoints: PainPoint[] = [
     label: "Quy trình rời rạc",
     problem:
       "Bạn có thể dùng Notion, lịch, to-do list, ghi chú giấy, nhưng mỗi thứ nằm một nơi và không kết nối với nhịp sinh học của bạn.",
-    impact:
-      "Thông tin bị phân tán, lịch dễ rối, task dễ trôi và bạn mất thêm năng lượng chỉ để quyết định hôm nay nên làm gì.",
+    compactProblem:
+      "Notion, lịch, ghi chú và to-do list nằm rời rạc, khiến bạn mất thêm năng lượng để quyết định.",
     solution:
-      "ChronoFlow gom bài đánh giá chronotype, bản đồ năng lượng, gợi ý lịch, dashboard và Planner Kit vào cùng một flow dễ theo dõi.",
+      "ChronoFlow gom bài đánh giá, bản đồ năng lượng, gợi ý lịch và dashboard vào cùng một flow.",
     insight:
       "Công cụ riêng lẻ không đủ. Bạn cần một hệ thống giúp ra quyết định mỗi ngày.",
     metric: "Một flow",
     metricLabel: "Từ insight đến hành động",
     icon: Layers3,
-    emoji: "🧩",
     accentText: "text-[#7C3AED]",
     accentBg: "from-[#7C3AED] to-[#4DA8FF]",
     softBg: "from-[#FCFAFF] via-[#F5F2FF] to-[#EEF6FF]",
@@ -192,16 +182,16 @@ const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.075 },
+    transition: { staggerChildren: 0.06 },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 0, y: 18 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.52, ease: "easeOut" },
+    transition: { duration: 0.42, ease: "easeOut" },
   },
 };
 
@@ -210,101 +200,15 @@ export default function PainPointsSection() {
 
   const activePain = useMemo(
     () => painPoints.find((item) => item.key === activeKey) ?? painPoints[0],
-    [activeKey]
+    [activeKey],
   );
 
   const ActiveIcon = activePain.icon;
 
-  const renderPainCard = (item: PainPoint) => {
-    const isActive = activeKey === item.key;
-    const Icon = item.icon;
-
-    return (
-      <button
-        type="button"
-        onClick={() => setActiveKey(item.key)}
-        className={`group relative h-full min-h-[250px] overflow-hidden rounded-[28px] border p-5 text-left transition-all duration-500 ${
-          isActive
-            ? `${item.borderColor} bg-white shadow-[0_18px_45px_rgba(26,21,40,0.085)]`
-            : "border-white/70 bg-white/60 shadow-[0_10px_30px_rgba(26,21,40,0.035)] hover:-translate-y-1 hover:border-[#E9E5FF] hover:bg-white"
-        }`}
-      >
-        <div
-          className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${item.softBg} opacity-0 transition-opacity duration-500 ${
-            isActive ? "opacity-100" : "group-hover:opacity-70"
-          }`}
-        />
-
-        <div className="relative z-10 flex h-full flex-col justify-between gap-5">
-          <div className="flex items-start gap-4">
-            <div
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border border-white bg-white shadow-[0_10px_25px_rgba(26,21,40,0.06)] transition-transform duration-500 ${
-                isActive ? "scale-105" : "group-hover:scale-105"
-              }`}
-            >
-              <Icon className={`h-6 w-6 ${item.accentText}`} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-[900] uppercase tracking-[0.12em] ${item.accentText}`}
-                >
-                  {item.label}
-                </span>
-
-                {isActive && (
-                  <motion.span
-                    layoutId="activePainDot"
-                    className={`h-2 w-2 rounded-full ${item.glow}`}
-                  />
-                )}
-              </div>
-
-              <h3 className="text-[18px] font-[900] leading-tight text-[#1A1528]">
-                {item.title}
-              </h3>
-
-              <p className="mt-2 line-clamp-4 text-[14px] font-semibold leading-relaxed text-[#6B647C]">
-                {item.problem}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-[20px] border border-white/70 bg-white/70 px-4 py-3">
-            <div>
-              <div className={`text-[26px] font-[900] leading-none ${item.accentText}`}>
-                {item.metric}
-              </div>
-              <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.11em] text-[#8A84A3]">
-                {item.metricLabel}
-              </div>
-            </div>
-
-            <ArrowRight
-              className={`h-4 w-4 transition-transform duration-300 ${
-                isActive
-                  ? `${item.accentText} translate-x-1`
-                  : "text-[#B5AEC8] group-hover:translate-x-1"
-              }`}
-            />
-          </div>
-        </div>
-
-        {isActive && (
-          <motion.div
-            layoutId="activePainBorder"
-            className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${item.accentBg}`}
-          />
-        )}
-      </button>
-    );
-  };
-
   return (
     <section
       id="pain-points"
-      className="relative overflow-hidden bg-[#F4F2FA] py-10 font-sans text-[#1A1528] selection:bg-[#6F59FF]/20"
+      className="relative overflow-hidden bg-[#F4F2FA] py-8 font-sans text-[#1A1528] selection:bg-[#6F59FF]/20"
     >
       <div
         className="pointer-events-none absolute inset-0 z-0 opacity-35 mix-blend-multiply"
@@ -315,184 +219,200 @@ export default function PainPointsSection() {
       />
 
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 lg:px-8">
-        <div className="relative overflow-hidden rounded-[38px] border border-white bg-white/75 px-5 py-14 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[48px] md:px-10 md:py-20 lg:px-12">
+        <div className="relative overflow-hidden rounded-[38px] border border-white bg-white/75 px-5 py-12 shadow-[0_30px_100px_rgba(26,21,40,0.06)] backdrop-blur-2xl md:rounded-[48px] md:px-10 md:py-16 lg:px-12">
           <BackgroundGlow />
 
           <div className="relative z-10">
             <motion.div
-              initial={{ opacity: 0, y: 22 }}
+              initial={{ opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.6 }}
-              className="mx-auto mb-12 max-w-4xl text-center"
+              transition={{ duration: 0.55 }}
+              className="mx-auto mb-10 max-w-4xl text-center"
             >
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.15em] text-[#6F59FF] shadow-[0_8px_20px_rgba(111,89,255,0.08)] backdrop-blur-md">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Vấn đề thường gặp
               </div>
 
-              <h2 className="mb-5 text-[clamp(2.25rem,4.6vw,3.75rem)] font-[900] leading-[1.04] tracking-[-0.04em] text-[#1A1528]">
-                Cách chúng ta làm việc hôm nay{" "}
+              <h2 className="mx-auto max-w-[860px] text-[clamp(2rem,4vw,3.25rem)] font-[900] leading-[1.08] tracking-tight text-[#1A1528]">
+                Bạn không chỉ cần thêm thời gian {" "}
                 <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
-                  chưa hợp với nhịp năng lượng.
+                  bạn cần đúng thời điểm.
                 </span>
               </h2>
 
-              <p className="mx-auto max-w-[720px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
-                Bạn không chỉ cần thêm thời gian — bạn cần đúng thời điểm. Lịch
-                học, lịch làm và cách ưu tiên task thường bỏ qua lúc cơ thể thật
-                sự tỉnh táo, cần nghỉ hoặc chỉ nên xử lý việc nhẹ.
+              <p className="mx-auto mt-5 max-w-[720px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]">
+                Lịch học, lịch làm và cách ưu tiên task thường bỏ qua lúc cơ thể
+                thật sự tỉnh táo, cần nghỉ hoặc chỉ nên xử lý việc nhẹ.
               </p>
             </motion.div>
 
-            <div className="mt-14 space-y-7">
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-80px" }}
-                className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-              >
-                {painPoints.map((item) => (
-                  <motion.div key={item.key} variants={itemVariants}>
-                    {renderPainCard(item)}
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.65 }}
-                className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]"
-              >
-                <div className="relative overflow-hidden rounded-[36px] border border-white bg-white/85 p-5 shadow-[0_24px_70px_rgba(26,21,40,0.08)] backdrop-blur-md md:p-6">
-                  <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                    <div
-                      className={`absolute left-[-90px] top-[-90px] h-[240px] w-[240px] rounded-full ${activePain.glow} opacity-15 blur-[70px]`}
-                    />
-                    <div className="absolute bottom-[-110px] right-[-90px] h-[280px] w-[280px] rounded-full bg-[#4DA8FF]/15 blur-[80px]" />
-                  </div>
-
-                  <div className="relative z-10">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={activePain.key}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F8F9FE] px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#6F59FF]">
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Insight chính
-                        </div>
-
-                        <div className="mb-6 flex items-start gap-4">
-                          <div
-                            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-gradient-to-br ${activePain.accentBg} text-white shadow-[0_15px_30px_rgba(111,89,255,0.2)]`}
-                          >
-                            <ActiveIcon className="h-7 w-7" />
-                          </div>
-
-                          <div>
-                            <h3 className="text-[30px] font-[900] leading-[1.08] tracking-tight text-[#1A1528]">
-                              {activePain.shortTitle}
-                            </h3>
-                            <p className="mt-2 max-w-[520px] text-[13px] font-bold uppercase tracking-[0.12em] text-[#8A84A3]">
-                              {activePain.insight}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <InfoBlock
-                            icon={<AlertTriangle className="h-4 w-4" />}
-                            label="Vấn đề"
-                            content={activePain.problem}
-                            tone="warning"
-                          />
-                          <InfoBlock
-                            icon={<BatteryWarning className="h-4 w-4" />}
-                            label="Hệ quả"
-                            content={activePain.impact}
-                            tone="neutral"
-                          />
-                          <InfoBlock
-                            icon={<CheckCircle2 className="h-4 w-4" />}
-                            label="ChronoFlow giải quyết"
-                            content={activePain.solution}
-                            tone="success"
-                          />
-                        </div>
-
-                        <div className="mt-6 rounded-[24px] border border-[#E9E5FF] bg-[#F8F9FE] p-4">
-                          <div className="mb-2 flex items-center gap-2 text-[12px] font-[900] uppercase tracking-[0.14em] text-[#6F59FF]">
-                            <MousePointerClick className="h-3.5 w-3.5" />
-                            Logic sản phẩm
-                          </div>
-                          <p className="text-[13px] font-semibold leading-relaxed text-[#5B566E]">
-                            ChronoFlow không chỉ hỏi “hôm nay bạn cần làm gì?”,
-                            mà còn giúp trả lời câu quan trọng hơn: “việc này nên
-                            làm vào lúc nào để ít tốn sức và dễ duy trì hơn?”
-                          </p>
-                        </div>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                <div className="relative overflow-hidden rounded-[36px] border border-white bg-[linear-gradient(180deg,#F2EDFF_0%,#E9F5FF_100%)] p-5 shadow-[0_24px_70px_rgba(26,21,40,0.08)] md:p-6">
-                  <FloatingBadge
-                    className="left-5 top-5"
-                    icon={<Clock3 className="h-4 w-4 text-[#6F59FF]" />}
-                    text="Sai lúc dễ tốn sức"
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+            >
+              {painPoints.map((item) => (
+                <motion.div key={item.key} variants={itemVariants}>
+                  <PainCard
+                    item={item}
+                    isActive={activeKey === item.key}
+                    onClick={() => setActiveKey(item.key)}
                   />
+                </motion.div>
+              ))}
+            </motion.div>
 
-                  <FloatingBadge
-                    className="bottom-5 right-5"
-                    icon={<TimerReset className="h-4 w-4 text-[#10B981]" />}
-                    text="Reset đúng lúc"
-                    delay
-                  />
-
-                  <div className="flex min-h-[620px] items-center justify-center">
-                    <PainMockup activePain={activePain} />
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              className="mt-6 overflow-hidden rounded-[32px] border border-white bg-white/82 p-5 shadow-[0_18px_55px_rgba(26,21,40,0.055)] backdrop-blur-xl md:p-6"
+            >
+              <div className="grid gap-5 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br ${activePain.accentBg} text-white shadow-[0_15px_30px_rgba(111,89,255,0.18)]`}
+                  >
+                    <ActiveIcon className="h-6 w-6" />
                   </div>
-                </div>
-              </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.55, delay: 0.1 }}
-                className="mx-auto max-w-5xl overflow-hidden rounded-[32px] border border-[#E9E5FF] bg-white px-6 py-5 shadow-[0_18px_55px_rgba(26,21,40,0.05)] md:px-8"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <div className="mb-1 text-[12px] font-[900] uppercase tracking-[0.16em] text-[#6F59FF]">
-                      Chuyển vấn đề thành hành động
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F8F9FE] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#6F59FF]">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Góc nhìn chính
                     </div>
-                    <p className="max-w-[720px] text-[15px] font-semibold leading-relaxed text-[#5B566E]">
-                      Sau khi hiểu pain point, ChronoFlow dẫn người dùng sang hệ
-                      thống cốt lõi: test chronotype, dashboard năng lượng, smart
-                      scheduling, focus points và Planner Kit.
+
+                    <h3 className="text-[24px] font-[900] leading-tight tracking-tight text-[#1A1528]">
+                      {activePain.shortTitle}
+                    </h3>
+
+                    <p className="mt-2 text-[13.5px] font-semibold leading-7 text-[#5B566E]">
+                      {activePain.insight}
                     </p>
                   </div>
-
-                  <button className="group flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 py-3 text-[13px] font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:shadow-[0_18px_35px_rgba(26,21,40,0.22)]">
-                    Xem tính năng chính
-                    <ArrowRight className="h-4 w-4 text-[#4DA8FF] transition group-hover:translate-x-1" />
-                  </button>
                 </div>
-              </motion.div>
-            </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoPill
+                    label="ChronoFlow gợi ý"
+                    content={activePain.solution}
+                    icon={<CheckCircle2 className="h-4 w-4" />}
+                    tone="success"
+                  />
+
+                  <InfoPill
+                    label="Logic sản phẩm"
+                    content="Không chỉ hỏi hôm nay làm gì, mà giúp chọn thời điểm phù hợp để làm việc đó ít tốn sức hơn."
+                    icon={<MousePointerClick className="h-4 w-4" />}
+                    tone="neutral"
+                  />
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function PainCard({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: PainPoint;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative h-full min-h-[190px] overflow-hidden rounded-[26px] border p-5 text-left transition-all duration-500 ${
+        isActive
+          ? `${item.borderColor} bg-white shadow-[0_18px_45px_rgba(26,21,40,0.085)]`
+          : "border-white/70 bg-white/62 shadow-[0_10px_30px_rgba(26,21,40,0.035)] hover:-translate-y-1 hover:border-[#E9E5FF] hover:bg-white"
+      }`}
+    >
+      <div
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${item.softBg} opacity-0 transition-opacity duration-500 ${
+          isActive ? "opacity-100" : "group-hover:opacity-70"
+        }`}
+      />
+
+      <div className="relative z-10 flex h-full flex-col justify-between gap-4">
+        <div>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-white bg-white shadow-[0_10px_25px_rgba(26,21,40,0.06)] transition-transform duration-500 ${
+                  isActive ? "scale-105" : "group-hover:scale-105"
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${item.accentText}`} />
+              </div>
+
+              <div>
+                <span
+                  className={`inline-flex items-center rounded-full bg-white/75 px-2.5 py-1 text-[9px] font-[900] uppercase tracking-[0.12em] ${item.accentText}`}
+                >
+                  {item.label}
+                </span>
+
+                <h3 className="mt-2 text-[17px] font-[900] leading-tight text-[#1A1528]">
+                  {item.title}
+                </h3>
+              </div>
+            </div>
+
+            {isActive && (
+              <motion.span
+                layoutId="activePainDot"
+                className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${item.glow}`}
+              />
+            )}
+          </div>
+
+          <p className="line-clamp-2 text-[13.5px] font-semibold leading-6 text-[#6B647C]">
+            {item.compactProblem}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between rounded-[18px] border border-white/70 bg-white/72 px-4 py-3">
+          <div>
+            <div className={`text-[20px] font-[900] leading-none ${item.accentText}`}>
+              {item.metric}
+            </div>
+            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.11em] text-[#8A84A3]">
+              {item.metricLabel}
+            </div>
+          </div>
+
+          <ArrowRight
+            className={`h-4 w-4 transition-transform duration-300 ${
+              isActive
+                ? `${item.accentText} translate-x-1`
+                : "text-[#B5AEC8] group-hover:translate-x-1"
+            }`}
+          />
+        </div>
+      </div>
+
+      {isActive && (
+        <motion.div
+          layoutId="activePainBorder"
+          className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${item.accentBg}`}
+        />
+      )}
+    </button>
   );
 }
 
@@ -506,7 +426,7 @@ function BackgroundGlow() {
   );
 }
 
-function InfoBlock({
+function InfoPill({
   icon,
   label,
   content,
@@ -515,248 +435,29 @@ function InfoBlock({
   icon: React.ReactNode;
   label: string;
   content: string;
-  tone: "warning" | "neutral" | "success";
+  tone: "success" | "neutral";
 }) {
   const toneClass =
-    tone === "warning"
-      ? "bg-[#FFF7ED] text-[#EA580C] border-[#FED7AA]"
-      : tone === "success"
-        ? "bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]"
-        : "bg-[#F8F9FE] text-[#6F59FF] border-[#E9E5FF]";
+    tone === "success"
+      ? "bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]"
+      : "bg-[#F8F9FE] text-[#6F59FF] border-[#E9E5FF]";
 
   return (
-    <div className="rounded-[22px] border border-[#EEF0F6] bg-white p-4">
+    <div className="rounded-[22px] border border-[#EEF0F6] bg-white p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2">
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-xl border ${toneClass}`}
         >
           {icon}
         </div>
-        <span className="text-[12px] font-[900] uppercase tracking-[0.13em] text-[#8A84A3]">
+        <span className="text-[11px] font-[900] uppercase tracking-[0.13em] text-[#8A84A3]">
           {label}
         </span>
       </div>
 
-      <p className="text-[13.5px] font-semibold leading-relaxed text-[#5B566E]">
+      <p className="text-[13px] font-semibold leading-6 text-[#5B566E]">
         {content}
       </p>
-    </div>
-  );
-}
-
-function FloatingBadge({
-  icon,
-  text,
-  className,
-  delay = false,
-}: {
-  icon: React.ReactNode;
-  text: string;
-  className: string;
-  delay?: boolean;
-}) {
-  return (
-    <div
-      className={`absolute z-20 hidden rounded-2xl border border-white bg-white/85 px-4 py-3 shadow-[0_16px_35px_rgba(26,21,40,0.08)] backdrop-blur-md sm:block ${className} ${
-        delay ? "animate-[bounce_5s_infinite]" : "animate-[bounce_4s_infinite]"
-      }`}
-    >
-      <div className="flex items-center gap-2 text-[12px] font-[900] text-[#1A1528]">
-        {icon}
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function PainMockup({ activePain }: { activePain: PainPoint }) {
-  const ActiveIcon = activePain.icon;
-
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={activePain.key}
-        initial={{ opacity: 0, rotate: -4, y: 20, scale: 0.96 }}
-        animate={{ opacity: 1, rotate: 0, y: 0, scale: 1 }}
-        exit={{ opacity: 0, rotate: 4, y: -20, scale: 0.96 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-[330px]"
-      >
-        <div className="rounded-[38px] border-[8px] border-[#1A1528] bg-[#1A1528] shadow-[0_35px_80px_rgba(26,21,40,0.28)]">
-          <div className="overflow-hidden rounded-[28px] bg-white">
-            <div
-              className={`bg-gradient-to-br ${activePain.accentBg} px-5 pb-5 pt-6 text-white`}
-            >
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">
-                    ChronoFlow
-                  </p>
-                  <h4 className="mt-1 text-[19px] font-[900] leading-tight">
-                    Làm việc đúng nhịp
-                  </h4>
-                </div>
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
-                  <MoonStar className="h-5 w-5" />
-                </div>
-              </div>
-
-              <div className="rounded-[24px] bg-white/18 p-4 backdrop-blur-md">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-white/80">
-                    Đường năng lượng
-                  </span>
-                  <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-[900]">
-                    Cá nhân hóa
-                  </span>
-                </div>
-
-                <div className="flex h-[78px] items-end gap-2">
-                  {[38, 52, 44, 78, 88, 70, 46].map((height, index) => (
-                    <div
-                      key={index}
-                      className="flex h-full flex-1 items-end rounded-full bg-white/25"
-                    >
-                      <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: `${height}%` }}
-                        transition={{
-                          duration: 0.7,
-                          delay: index * 0.06,
-                          ease: "easeOut",
-                        }}
-                        className="w-full rounded-full bg-white"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 bg-[#F8F9FE] p-5">
-              <div className="rounded-[24px] border border-[#EEF0F6] bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br ${activePain.accentBg} text-white`}
-                    >
-                      <ActiveIcon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-[900] text-[#1A1528]">
-                        {activePain.shortTitle}
-                      </p>
-                      <p className="text-[11px] font-semibold text-[#8A84A3]">
-                        Pain point được phát hiện
-                      </p>
-                    </div>
-                  </div>
-
-                  <CheckCircle2 className="h-5 w-5 text-[#10B981]" />
-                </div>
-
-                <p className="text-[12.5px] font-semibold leading-relaxed text-[#5B566E]">
-                  {activePain.solution}
-                </p>
-              </div>
-
-              <div className="rounded-[24px] border border-[#EEF0F6] bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[12px] font-[900] uppercase tracking-[0.13em] text-[#8A84A3]">
-                    Gợi ý hôm nay
-                  </span>
-                  <span className="rounded-full bg-[#F3F0FF] px-2.5 py-1 text-[10px] font-[900] text-[#6F59FF]">
-                    Smart plan
-                  </span>
-                </div>
-
-                <div className="space-y-2.5">
-                  <MiniScheduleRow
-                    time="09:00"
-                    title="Học/làm sâu"
-                    desc="Đặt vào khung năng lượng cao"
-                    tone="purple"
-                  />
-                  <MiniScheduleRow
-                    time="13:30"
-                    title="Việc nhẹ / nhìn lại"
-                    desc="Xử lý task nhẹ hơn"
-                    tone="blue"
-                  />
-                  <MiniScheduleRow
-                    time="15:00"
-                    title="Recovery"
-                    desc="Reset để giữ nhịp"
-                    tone="green"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <MetricCard value="3p" label="Bài test" />
-                  <MetricCard value="4" label="Nhóm nhịp" />
-                  <MetricCard value="+XP" label="Tập trung" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-function MiniScheduleRow({
-  time,
-  title,
-  desc,
-  tone,
-}: {
-  time: string;
-  title: string;
-  desc: string;
-  tone: "purple" | "blue" | "green";
-}) {
-  const dotClass =
-    tone === "purple"
-      ? "bg-[#6F59FF]"
-      : tone === "blue"
-        ? "bg-[#4DA8FF]"
-        : "bg-[#10B981]";
-
-  const bgClass =
-    tone === "purple"
-      ? "bg-[#F3F0FF]"
-      : tone === "blue"
-        ? "bg-[#EEF6FF]"
-        : "bg-[#ECFDF5]";
-
-  return (
-    <div className={`flex items-center gap-3 rounded-2xl ${bgClass} p-3`}>
-      <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-[12px] font-[900] text-[#1A1528]">
-            {title}
-          </p>
-          <span className="text-[10px] font-[900] text-[#8A84A3]">{time}</span>
-        </div>
-        <p className="truncate text-[10.5px] font-semibold text-[#8A84A3]">
-          {desc}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-2xl border border-[#EEF0F6] bg-white p-3 text-center">
-      <div className="text-[15px] font-[900] text-[#1A1528]">{value}</div>
-      <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#8A84A3]">
-        {label}
-      </div>
     </div>
   );
 }
