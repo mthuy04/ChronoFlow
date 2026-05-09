@@ -107,7 +107,7 @@ export default function Footer() {
                 Chronotypes
               </Link>
               <Link
-                href="/planner#today"
+                href="/planner"
                 className="block transition-colors hover:text-white"
               >
                 Planner
