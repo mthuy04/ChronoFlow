@@ -1,488 +1,589 @@
 import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import {
-  getChronotypeScoreEntries,
-  getDominantChronotype,
-  type ChronotypeScores,
-} from "@/lib/chronotype";
-import {
+  Activity,
   ArrowRight,
-  Moon,
-  Sun,
-  Sunset,
-  Waves,
-  Sparkles,
+  BarChart3,
   Brain,
-  Clock3,
-  CalendarDays,
+  CalendarClock,
   CheckCircle2,
-  MoonStar,
+  Clock3,
+  Compass,
+  Moon,
+  RefreshCw,
+  Sparkles,
+  Target,
+  Timer,
+  TrendingUp,
+  Waves,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 
-const chronotypeMeta = {
-  LION: {
-    name: "Lion",
-    label: "Early energy pattern",
-    icon: <Sun className="h-5 w-5 text-[#C98C42]" />,
-    accent: "#C98C42",
-    gradient: "from-[#FFF9F0] via-[#FFF4DE] to-[#FDF2E9]",
+import Footer from "@/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+type ChronotypeKey = "lion" | "bear" | "wolf" | "dolphin";
+
+type ResultRecord = {
+  id: string;
+  chronotype: string;
+  lionScore: number | null;
+  bearScore: number | null;
+  wolfScore: number | null;
+  dolphinScore: number | null;
+  createdAt: Date;
+};
+
+type ChronotypeDisplayConfig = {
+  key: ChronotypeKey;
+  viName: string;
+  emoji: string;
+  headline: string;
+  summary: string;
+  energyStyle: string;
+  plannerAdvice: string;
+  peakWindow: string;
+  lightWindow: string;
+  recoveryWindow: string;
+  strengths: string[];
+  watchOuts: string[];
+  accent: string;
+  softGradient: string;
+  icon: LucideIcon;
+};
+
+type ScoreItem = {
+  key: ChronotypeKey;
+  label: string;
+  score: number;
+};
+
+const TIE_BREAK_ORDER: ChronotypeKey[] = ["wolf", "bear", "dolphin", "lion"];
+
+const CHRONOTYPE_CONFIG: Record<ChronotypeKey, ChronotypeDisplayConfig> = {
+  lion: {
+    key: "lion",
+    viName: "Sư tử",
+    emoji: "🦁",
+    headline: "mạnh buổi sáng",
     summary:
-      "You tend to wake up more easily, feel mentally sharper earlier in the day, and often lose momentum sooner than later chronotypes.",
+      "Bạn thường vào nhịp tốt khi ngày mới bắt đầu, hợp với các block sâu và quyết định quan trọng vào buổi sáng.",
+    energyStyle: "Lên năng lượng sớm, cần giảm tải dần về cuối ngày.",
+    plannerAdvice:
+      "ChronoFlow gợi ý bạn đặt việc khó vào buổi sáng, giữ chiều cho admin nhẹ và bảo vệ buổi tối để hồi phục.",
+    peakWindow: "07:00 – 11:00",
+    lightWindow: "13:00 – 15:00",
+    recoveryWindow: "20:30 – 22:00",
     strengths: [
-      "Morning clarity can come more naturally",
-      "Early structure may feel easier to sustain",
-      "High-focus work often fits best earlier",
+      "Dễ bắt đầu ngày với đầu óc rõ ràng.",
+      "Hợp với deep work, học tập hoặc viết lách buổi sáng.",
+      "Có xu hướng duy trì routine ổn định.",
     ],
-    cautions: [
-      "Energy may fade earlier than expected",
-      "Late-day deep work can feel heavy",
-      "Recovery and pacing matter more by evening",
+    watchOuts: [
+      "Dễ hụt năng lượng nếu dồn việc nặng về tối.",
+      "Buổi chiều có thể phù hợp hơn cho việc nhẹ.",
+      "Cần nghỉ đúng lúc để không kiệt sức sớm.",
     ],
-    suggestions: [
-      {
-        title: "Deep work window",
-        value: "7:00 AM – 10:00 AM",
-        text: "Use early hours for concentrated thinking, writing, or study.",
-        icon: <Brain className="h-5 w-5 text-[#C98C42]" />,
-      },
-      {
-        title: "Lighter work",
-        value: "2:00 PM – 5:00 PM",
-        text: "Move admin and lower-pressure tasks into later periods.",
-        icon: <Clock3 className="h-5 w-5 text-[#8B5CF6]" />,
-      },
-      {
-        title: "Recovery reminder",
-        value: "Slow down earlier",
-        text: "Protect your evening so tomorrow’s energy can stay strong.",
-        icon: <MoonStar className="h-5 w-5 text-[#5B46FF]" />,
-      },
-    ],
+    accent: "#F59E0B",
+    softGradient: "from-[#FFF9EF] via-[#FFF3DA] to-[#FDF0E5]",
+    icon: Zap,
   },
-  BEAR: {
-    name: "Bear",
-    label: "Balanced daytime pattern",
-    icon: <Sunset className="h-5 w-5 text-[#6C58F2]" />,
-    accent: "#6C58F2",
-    gradient: "from-[#F8F7FF] via-[#F1EBFF] to-[#E9E4FF]",
+  bear: {
+    key: "bear",
+    viName: "Gấu",
+    emoji: "🐻",
+    headline: "cân bằng theo nhịp ban ngày",
     summary:
-      "You likely follow a more conventional daytime rhythm, with relatively steady energy through the morning and a softer slowdown later on.",
+      "Bạn có nhịp tương đối ổn định, dễ phù hợp với lịch học/làm ban ngày và duy trì hiệu suất đều nếu lịch không bị chia nhỏ.",
+    energyStyle: "Ổn định trong ngày, thường có nhịp tốt từ sáng đến đầu chiều.",
+    plannerAdvice:
+      "ChronoFlow gợi ý bạn chặn trước block tập trung ban ngày và gom họp, tin nhắn hoặc việc phản ứng vào khung nhẹ hơn.",
+    peakWindow: "09:00 – 12:30",
+    lightWindow: "13:30 – 16:00",
+    recoveryWindow: "21:00 – 22:30",
     strengths: [
-      "Steady daytime energy can support consistency",
-      "A typical daytime schedule may feel workable",
-      "Focus may be easier to distribute across the day",
+      "Dễ phối hợp với lịch học/làm phổ biến.",
+      "Có nền năng lượng khá đều nếu ngủ ổn định.",
+      "Phù hợp với nhịp planner cân bằng giữa focus và admin.",
     ],
-    cautions: [
-      "Afternoon dips may still need task adjustment",
-      "Generic planning can still become too rigid",
-      "Recovery should not be ignored just because rhythm feels stable",
+    watchOuts: [
+      "Dễ để lịch bị lấp đầy bởi việc phản ứng.",
+      "Có thể bỏ lỡ giờ sâu nếu không chặn lịch trước.",
+      "Afternoon dip vẫn cần được tôn trọng.",
     ],
-    suggestions: [
-      {
-        title: "Deep work window",
-        value: "9:00 AM – 12:00 PM",
-        text: "This is often a strong zone for focused work and study.",
-        icon: <Brain className="h-5 w-5 text-[#6C58F2]" />,
-      },
-      {
-        title: "Lighter work",
-        value: "2:00 PM – 4:00 PM",
-        text: "Use softer afternoon hours for meetings or maintenance tasks.",
-        icon: <Clock3 className="h-5 w-5 text-[#8B5CF6]" />,
-      },
-      {
-        title: "Recovery reminder",
-        value: "Respect the dip",
-        text: "A softer afternoon is normal, not a sign that discipline failed.",
-        icon: <MoonStar className="h-5 w-5 text-[#C07C2D]" />,
-      },
-    ],
+    accent: "#6F59FF",
+    softGradient: "from-[#FAF8FF] via-[#F2EEFF] to-[#E9E4FF]",
+    icon: Activity,
   },
-  WOLF: {
-    name: "Wolf",
-    label: "Late energy pattern",
-    icon: <Moon className="h-5 w-5 text-[#5B46FF]" />,
+  wolf: {
+    key: "wolf",
+    viName: "Sói",
+    emoji: "🐺",
+    headline: "tăng nhịp về chiều và tối",
+    summary:
+      "Bạn có xu hướng khởi động chậm hơn vào buổi sáng nhưng tăng độ sắc bén về chiều, đặc biệt với việc sáng tạo hoặc cần tập trung sâu.",
+    energyStyle: "Năng lượng lên muộn, hợp với block quan trọng sau nửa đầu ngày.",
+    plannerAdvice:
+      "ChronoFlow gợi ý bạn để sáng cho setup/admin nhẹ, rồi đưa việc khó vào chiều muộn hoặc tối sớm khi đầu óc sáng hơn.",
+    peakWindow: "14:30 – 18:00",
+    lightWindow: "10:30 – 12:00",
+    recoveryWindow: "22:30 – 23:30",
+    strengths: [
+      "Dễ vào flow khi ngày đã ấm lên.",
+      "Hợp với creative work, phân tích hoặc học sâu cuối ngày.",
+      "Có thể xử lý việc khó tốt hơn khi không bị ép quá sớm.",
+    ],
+    watchOuts: [
+      "Buổi sáng dễ nặng nếu lịch bắt đầu bằng việc khó.",
+      "Dễ kéo focus quá muộn nếu không đặt ranh giới ngủ.",
+      "Cần tránh tự trách khi chưa lên nhịp sớm.",
+    ],
     accent: "#5B46FF",
-    gradient: "from-[#F5F5FF] via-[#ECEBFF] to-[#E2E1FF]",
-    summary:
-      "You tend to warm up more slowly and often feel more mentally alert later in the day. Your strongest focus may arrive after conventional schedules expect.",
-    strengths: [
-      "Creative and analytical energy may rise later than average",
-      "Late-day deep work can feel more natural",
-      "Strong focus may depend more on timing than force",
-    ],
-    cautions: [
-      "Early expectations can feel heavier than they do for others",
-      "Generic schedules may create unnecessary guilt",
-      "Protecting evening focus without damaging sleep matters",
-    ],
-    suggestions: [
-      {
-        title: "Deep work window",
-        value: "7:00 PM – 10:00 PM",
-        text: "A strong time for concentrated work, study, and creation.",
-        icon: <Brain className="h-5 w-5 text-[#5B46FF]" />,
-      },
-      {
-        title: "Lighter work",
-        value: "9:00 AM – 12:00 PM",
-        text: "Use earlier hours for lower-pressure admin or communication.",
-        icon: <Clock3 className="h-5 w-5 text-[#8B5CF6]" />,
-      },
-      {
-        title: "Recovery reminder",
-        value: "Protect your reset",
-        text: "Evening focus is useful only if it stays sustainable.",
-        icon: <MoonStar className="h-5 w-5 text-[#C07C2D]" />,
-      },
-    ],
+    softGradient: "from-[#F6F6FF] via-[#ECEBFF] to-[#E3E8FF]",
+    icon: Moon,
   },
-  DOLPHIN: {
-    name: "Dolphin",
-    label: "Irregular energy pattern",
-    icon: <Waves className="h-5 w-5 text-[#8A7AF0]" />,
-    accent: "#8A7AF0",
-    gradient: "from-[#F9F8FF] via-[#F3EFFF] to-[#EBE6FF]",
+  dolphin: {
+    key: "dolphin",
+    viName: "Cá heo",
+    emoji: "🐬",
+    headline: "nhạy với giấc ngủ và môi trường",
     summary:
-      "Your rhythm may feel lighter, less predictable, or more fragile than the other patterns. Flexibility and gentler pacing often matter more here than rigid timing.",
+      "Bạn có thể có nhịp linh hoạt hơn, dễ bị ảnh hưởng bởi giấc ngủ, môi trường và tải tinh thần trong ngày.",
+    energyStyle: "Năng lượng biến thiên, hợp với block ngắn và kiểm tra trạng thái thường xuyên.",
+    plannerAdvice:
+      "ChronoFlow gợi ý bạn chia việc thành block rõ, giữ khoảng nghỉ mềm và dùng check-in để điều chỉnh lịch theo dữ liệu thật.",
+    peakWindow: "10:00 – 12:00",
+    lightWindow: "15:00 – 17:00",
+    recoveryWindow: "20:30 – 22:00",
     strengths: [
-      "You may become highly aware of subtle energy shifts",
-      "Flexible structure can work better than forced intensity",
-      "Smaller wins and pacing strategies may be powerful",
+      "Nhạy với tín hiệu cơ thể và trạng thái tinh thần.",
+      "Làm tốt khi mục tiêu nhỏ, rõ và có nhịp nghỉ.",
+      "Có thể tối ưu mạnh khi môi trường làm việc phù hợp.",
     ],
-    cautions: [
-      "Inconsistency can create frustration if plans are too rigid",
-      "Comparing yourself to steadier rhythms may feel discouraging",
-      "Recovery and sleep protection become especially important",
+    watchOuts: [
+      "Lịch quá cứng dễ tạo áp lực không cần thiết.",
+      "Giấc ngủ xấu có thể kéo tụt cả ngày.",
+      "Cần theo dõi năng lượng thật thay vì ép theo một mẫu cố định.",
     ],
-    suggestions: [
-      {
-        title: "Deep work window",
-        value: "Use your clearest moments",
-        text: "Track when clarity appears and protect it instead of forcing a fixed slot.",
-        icon: <Brain className="h-5 w-5 text-[#8A7AF0]" />,
-      },
-      {
-        title: "Lighter work",
-        value: "Keep it flexible",
-        text: "Use lower-energy periods for easier admin or routine tasks.",
-        icon: <Clock3 className="h-5 w-5 text-[#8B5CF6]" />,
-      },
-      {
-        title: "Recovery reminder",
-        value: "Be gentler with pacing",
-        text: "A lighter rhythm needs compassion, not punishment.",
-        icon: <MoonStar className="h-5 w-5 text-[#C07C2D]" />,
-      },
-    ],
+    accent: "#4DA8FF",
+    softGradient: "from-[#F8FCFF] via-[#F1F7FF] to-[#EAF2FF]",
+    icon: Waves,
   },
-} as const;
+};
+
+function safeScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, value)
+    : 0;
+}
+
+function buildScoreItems(result: ResultRecord): ScoreItem[] {
+  return [
+    {
+      key: "lion",
+      label: CHRONOTYPE_CONFIG.lion.viName,
+      score: safeScore(result.lionScore),
+    },
+    {
+      key: "bear",
+      label: CHRONOTYPE_CONFIG.bear.viName,
+      score: safeScore(result.bearScore),
+    },
+    {
+      key: "wolf",
+      label: CHRONOTYPE_CONFIG.wolf.viName,
+      score: safeScore(result.wolfScore),
+    },
+    {
+      key: "dolphin",
+      label: CHRONOTYPE_CONFIG.dolphin.viName,
+      score: safeScore(result.dolphinScore),
+    },
+  ];
+}
+
+function sortScores(scoreItems: ScoreItem[]) {
+  return [...scoreItems].sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+
+    if (scoreDiff !== 0) return scoreDiff;
+
+    return TIE_BREAK_ORDER.indexOf(a.key) - TIE_BREAK_ORDER.indexOf(b.key);
+  });
+}
+
+function getDominantChronotype(scoreItems: ScoreItem[]) {
+  return sortScores(scoreItems)[0];
+}
+
+function getSecondaryChronotype(scoreItems: ScoreItem[]) {
+  return sortScores(scoreItems)[1] ?? null;
+}
+
+function getScorePercent(score: number, maxScore: number) {
+  if (maxScore <= 0) return 0;
+  return Math.round((score / maxScore) * 100);
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
 
 export default async function ResultPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
-    return (
-      <main className="min-h-screen bg-[#FCFBFF]">
-        <Navbar variant="guest" />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <h1 className="text-3xl font-black text-[#1A152E]">Unauthorized</h1>
-          <p className="mt-4 text-[#615C7A]">
-            Please sign in and complete the assessment first.
-          </p>
-          <div className="mt-8">
-            <Link href="/auth/login" className="cf-btn-primary">
-              Sign in
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </main>
-    );
+    redirect("/auth/login?callbackUrl=/result");
   }
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    include: {
+    select: {
+      name: true,
       chronotypeResults: {
         orderBy: { createdAt: "desc" },
         take: 1,
+        select: {
+          id: true,
+          chronotype: true,
+          lionScore: true,
+          bearScore: true,
+          wolfScore: true,
+          dolphinScore: true,
+          createdAt: true,
+        },
       },
     },
   });
 
-  const latest = user?.chronotypeResults?.[0];
+  const latestResult = user?.chronotypeResults[0] ?? null;
 
-  if (!user || !latest) {
+  if (!latestResult) {
     return (
-      <main className="min-h-screen bg-[#FCFBFF]">
+      <main className="min-h-screen overflow-x-hidden bg-[#F4F2FA] text-[#1A152E]">
         <Navbar variant="user" />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <h1 className="text-3xl font-black text-[#1A152E]">
-            No result yet
-          </h1>
-          <p className="mt-4 text-[#615C7A]">
-            You need to complete the assessment before viewing your rhythm
-            result.
-          </p>
-          <div className="mt-8">
-            <Link href="/assessment" className="cf-btn-primary">
-              Start assessment
+        <BackgroundGlow />
+        <section className="relative z-10 mx-auto max-w-[1280px] px-4 pb-20 pt-24 md:px-8">
+          <div className="rounded-[40px] border border-white/80 bg-white/78 p-8 text-center shadow-[0_28px_90px_rgba(26,21,40,0.08)] backdrop-blur-2xl md:p-12">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-[24px] bg-[#F4F0FF] text-[#6F59FF]">
+              <Brain className="h-7 w-7" />
+            </div>
+            <div className="mt-6 inline-flex rounded-full border border-[#EAE8F7] bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
+              Chưa có kết quả
+            </div>
+            <h1 className="mx-auto mt-5 max-w-2xl text-[clamp(2rem,4vw,3.6rem)] font-[900] leading-tight tracking-tight">
+              Bắt đầu bài đánh giá để ChronoFlow hiểu nhịp của bạn.
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-[15px] font-medium leading-8 text-[#5B566E]">
+              Sau khoảng 2 phút, bạn sẽ nhận được chronotype chính, khuynh
+              hướng phụ và các khung giờ tham khảo để bắt đầu lập kế hoạch.
+            </p>
+            <Link
+              href="/assessment"
+              className="mt-8 inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5"
+            >
+              Bắt đầu bài đánh giá
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-        </div>
+        </section>
         <Footer />
       </main>
     );
   }
 
-  const latestScores: ChronotypeScores = {
-    lionScore: latest.lionScore,
-    bearScore: latest.bearScore,
-    wolfScore: latest.wolfScore,
-    dolphinScore: latest.dolphinScore,
-  };
-  const scoreEntries = getChronotypeScoreEntries(latestScores);
-  const topScore = Math.max(...scoreEntries.map((item) => item.score));
-  const tiedTopTypes = scoreEntries.filter((item) => item.score === topScore);
-  const isNearBalanced = tiedTopTypes.length > 1;
-  const chronotypeKey = getDominantChronotype(latestScores);
-
-  const meta = chronotypeMeta[chronotypeKey];
+  const scoreItems = buildScoreItems(latestResult);
+  const dominant = getDominantChronotype(scoreItems);
+  const secondary = getSecondaryChronotype(scoreItems);
+  const maxScore = Math.max(...scoreItems.map((item) => item.score), 0);
+  const dominantConfig = CHRONOTYPE_CONFIG[dominant.key];
+  const secondaryConfig = secondary ? CHRONOTYPE_CONFIG[secondary.key] : null;
+  const isBalanced =
+    Boolean(secondary) &&
+    (secondary?.score === dominant.score || dominant.score - secondary.score <= 5);
 
   return (
-    <main className="min-h-screen bg-[#FCFBFF] text-[#1A152E] overflow-x-hidden">
+    <main className="min-h-screen overflow-x-hidden bg-[#F4F2FA] text-[#1A152E]">
       <Navbar variant="user" />
+      <BackgroundGlow />
 
-      <section className="relative overflow-hidden px-6 pt-14 pb-16 md:pt-18 md:pb-24">
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-[-8%] top-[8%] h-[280px] w-[280px] rounded-full bg-purple-100/30 blur-[110px]" />
-          <div className="absolute right-[-6%] top-[10%] h-[230px] w-[230px] rounded-full bg-blue-100/25 blur-[100px]" />
-          <div className="absolute bottom-[-10%] left-[28%] h-[220px] w-[220px] rounded-full bg-orange-100/20 blur-[90px]" />
+      <section className="relative z-10 mx-auto max-w-[1280px] px-4 pb-16 pt-24 md:px-8">
+        <div
+          className={`overflow-hidden rounded-[40px] border border-white/80 bg-gradient-to-br ${dominantConfig.softGradient} shadow-[0_30px_100px_rgba(26,21,40,0.08)]`}
+        >
+          <div className="grid gap-8 p-6 md:p-9 lg:grid-cols-[minmax(0,1.05fr)_390px] lg:p-11">
+            <div className="flex min-h-[430px] flex-col justify-center">
+              <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5" />
+                Kết quả chronotype
+              </div>
+
+              <h1 className="max-w-4xl text-[clamp(2.4rem,5.5vw,5rem)] font-[900] leading-[1.02] tracking-tight">
+                Bạn nghiêng về{" "}
+                <span className="bg-[linear-gradient(135deg,#6F59FF_0%,#4DA8FF_100%)] bg-clip-text text-transparent">
+                  {dominantConfig.viName}
+                </span>
+              </h1>
+
+              <p className="mt-5 max-w-2xl text-[16px] font-medium leading-8 text-[#5B566E]">
+                {dominantConfig.summary} Đây là gợi ý lập kế hoạch theo
+                chronotype, không phải tư vấn y tế.
+              </p>
+
+              {isBalanced && secondaryConfig ? (
+                <div className="mt-5 rounded-[24px] border border-white/80 bg-white/72 px-5 py-4 text-[14px] font-semibold leading-7 text-[#5B566E] shadow-sm">
+                  Bạn có xu hướng cân bằng giữa {dominantConfig.viName} và{" "}
+                  {secondaryConfig.viName}. ChronoFlow vẫn chọn kết quả chính
+                  theo điểm cao nhất và tie-breaker ổn định để planner nhất
+                  quán hơn.
+                </div>
+              ) : null}
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5"
+                >
+                  Vào Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+
+                <Link
+                  href="/assessment"
+                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-white/80 bg-white/82 px-6 text-[14px] font-black text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Làm lại bài đánh giá
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative rounded-[34px] border border-white/80 bg-white/82 p-5 shadow-[0_20px_70px_rgba(97,76,197,0.10)] backdrop-blur-xl">
+              <div className="absolute right-6 top-6 rounded-full border border-[#EAE8F7] bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+                {formatDate(latestResult.createdAt)}
+              </div>
+              <div className="grid h-28 w-28 place-items-center rounded-[32px] bg-white text-[64px] shadow-[0_16px_45px_rgba(26,21,40,0.08)]">
+                {dominantConfig.emoji}
+              </div>
+
+              <div className="mt-6 text-[12px] font-black uppercase tracking-[0.18em] text-[#8A84A3]">
+                Chronotype chính
+              </div>
+              <div className="mt-2 text-[2.3rem] font-[900] leading-none tracking-tight text-[#1A152E]">
+                {dominantConfig.viName}
+              </div>
+              <div className="mt-2 text-[14px] font-bold text-[#6F59FF]">
+                {dominantConfig.headline}
+              </div>
+
+              <div className="mt-6 grid gap-3">
+                <SummaryMetric
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label="Khuynh hướng phụ"
+                  value={secondaryConfig?.viName ?? "Chưa rõ"}
+                />
+                <SummaryMetric
+                  icon={<Zap className="h-4 w-4" />}
+                  label="Peak window"
+                  value={dominantConfig.peakWindow}
+                />
+                <SummaryMetric
+                  icon={<Activity className="h-4 w-4" />}
+                  label="Energy style"
+                  value={dominantConfig.energyStyle}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-[820px] text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-purple-50 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#7C5CFA] shadow-sm">
-              <Sparkles className="h-3 w-3" />
-              Your result
-            </div>
-
-            <h1 className="text-[clamp(2.2rem,5vw,4.4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A152E]">
-              Your rhythm looks most like a{" "}
-              <span className="font-serif italic" style={{ color: meta.accent }}>
-                {meta.name}
-              </span>
-              .
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-[700px] text-[15px] leading-8 text-[#615C7A] md:text-[16px]">
-              This result is a practical starting point, not a cage. It helps
-              you think more clearly about timing, focus, recovery, and how to
-              plan your day in a way that fits better.
+        <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <GlassCard>
+            <SectionHeading
+              eyebrow="Tóm tắt kết quả"
+              title="ChronoFlow gợi ý bạn nên..."
+              icon={<Target className="h-4 w-4" />}
+            />
+            <p className="mt-4 text-[15px] font-medium leading-8 text-[#5B566E]">
+              {dominantConfig.plannerAdvice}
             </p>
-
-            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/assessment" className="cf-btn-primary">
-                Làm lại bài đánh giá
-              </Link>
-              <p className="max-w-[520px] text-center text-[13px] font-medium leading-6 text-[#6B647C]">
-                Nhịp sinh học của bạn có thể thay đổi theo lịch ngủ và thói
-                quen. Làm lại bài đánh giá để ChronoFlow điều chỉnh planner phù
-                hợp hơn.
-              </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <WindowCard
+                icon={<Brain className="h-5 w-5" />}
+                label="Deep work"
+                value={dominantConfig.peakWindow}
+                helper="Khung tham khảo ban đầu"
+              />
+              <WindowCard
+                icon={<Clock3 className="h-5 w-5" />}
+                label="Task nhẹ / admin"
+                value={dominantConfig.lightWindow}
+                helper="Hợp cho việc ít áp lực hơn"
+              />
+              <WindowCard
+                icon={<Timer className="h-5 w-5" />}
+                label="Recovery"
+                value={dominantConfig.recoveryWindow}
+                helper="Giữ nhịp ngủ và hồi phục"
+              />
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="mt-12 rounded-[36px] border border-white bg-white/65 p-3 shadow-[0_18px_48px_rgba(36,31,61,0.08)] backdrop-blur-xl">
-            <div
-              className={`rounded-[30px] border border-white/70 bg-gradient-to-br ${meta.gradient} p-6 md:p-8`}
-            >
-              <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="rounded-[26px] border border-white/70 bg-white/72 p-6 shadow-sm">
-                  <div className="mb-5 flex items-start justify-between gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white shadow-sm">
-                      {meta.icon}
-                    </div>
-
-                    <div
-                      className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
-                      style={{ color: meta.accent }}
-                    >
-                      {meta.label}
-                    </div>
-                  </div>
-
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                    Likely chronotype
-                  </div>
-
-                  <h2 className="mt-2 text-[2rem] font-[900] leading-[1.05] tracking-tight text-[#1A152E] md:text-[2.5rem]">
-                    {meta.name}
-                  </h2>
-
-                  <p className="mt-4 text-[14px] leading-7 text-[#615C7A] md:text-[15px]">
-                    {meta.summary}
-                  </p>
-
-                  {isNearBalanced && (
-                    <div className="mt-4 rounded-[18px] border border-white/80 bg-white/75 px-4 py-3 text-[13px] font-semibold leading-6 text-[#615C7A]">
-                      Your top scores are nearly balanced. ChronoFlow uses a
-                      consistent tie-breaker, but the secondary pattern is still
-                      useful when planning your day.
-                    </div>
-                  )}
-
-                  <div className="mt-6 rounded-[20px] border border-white/80 bg-[#F8F5FF] p-4">
-                    <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                      Your scores
-                    </div>
-                    <div className="grid gap-2 text-[13px] text-[#615C7A]">
-                      <div>Lion: {latest.lionScore}</div>
-                      <div>Bear: {latest.bearScore}</div>
-                      <div>Wolf: {latest.wolfScore}</div>
-                      <div>Dolphin: {latest.dolphinScore}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[26px] border border-white/70 bg-white/72 p-6 shadow-sm">
-                  <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.16em] text-[#8B5CF6]">
-                    Energy rhythm preview
-                  </div>
-
-                  <div className="relative rounded-[22px] border border-white/80 bg-[linear-gradient(135deg,#F7F2FF_0%,#F4F7FF_100%)] p-4">
-                    <div className="relative aspect-[16/9]">
-                      <div className="absolute left-0 top-0 text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                        High energy
-                      </div>
-
-                      <div className="absolute left-0 bottom-0 text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                        Low energy
-                      </div>
-
-                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                        <span>6 AM</span>
-                        <span>12 PM</span>
-                        <span>6 PM</span>
-                        <span>12 AM</span>
-                      </div>
-
-                      <svg
-                        viewBox="0 0 420 180"
-                        className="absolute inset-0 h-full w-full"
-                        fill="none"
-                      >
-                        {chronotypeKey === "LION" && (
-                          <path
-                            d="M10 120 C70 92, 120 40, 180 34 C240 30, 285 72, 340 110 C380 134, 400 138, 410 140"
-                            stroke={meta.accent}
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                          />
-                        )}
-                        {chronotypeKey === "BEAR" && (
-                          <path
-                            d="M10 126 C72 118, 130 84, 190 72 C245 62, 298 78, 350 110 C385 130, 402 132, 410 130"
-                            stroke={meta.accent}
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                          />
-                        )}
-                        {chronotypeKey === "WOLF" && (
-                          <path
-                            d="M10 132 C72 132, 130 130, 190 122 C250 114, 298 98, 338 72 C372 50, 395 46, 410 62"
-                            stroke={meta.accent}
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                          />
-                        )}
-                        {chronotypeKey === "DOLPHIN" && (
-                          <path
-                            d="M10 128 C48 94, 86 136, 130 88 C170 46, 215 126, 260 98 C298 74, 332 128, 372 96 C392 80, 402 74, 410 82"
-                            stroke={meta.accent}
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                            strokeDasharray="8 8"
-                          />
-                        )}
-                      </svg>
-
-                      <div
-                        className="absolute left-[56%] top-[28%] rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-bold shadow-sm"
-                        style={{ color: meta.accent }}
-                      >
-                        {chronotypeKey === "LION" && "Focus comes earlier"}
-                        {chronotypeKey === "BEAR" && "More balanced daytime rhythm"}
-                        {chronotypeKey === "WOLF" && "Focus rises later"}
-                        {chronotypeKey === "DOLPHIN" && "More irregular pattern"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
-            <InfoListCard
-              title="Likely strengths"
-              items={meta.strengths}
-              kicker="What may feel natural"
-              accent="from-[#F3F2FF] to-[#E9E6FF]"
+          <GlassCard>
+            <SectionHeading
+              eyebrow="Điểm cần nhớ"
+              title="Đây là bản đồ khởi đầu"
+              icon={<Compass className="h-4 w-4" />}
             />
-            <InfoListCard
-              title="Things to watch"
-              items={meta.cautions}
-              kicker="What may create friction"
-              accent="from-[#FFF8F0] to-[#FCEFE2]"
-            />
-          </div>
-
-          <div className="mt-10">
-            <div className="mx-auto max-w-[760px] text-center">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-50 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#7C5CFA] shadow-sm">
-                <CalendarDays className="h-3 w-3" />
-                Suggested planning
-              </div>
-
-              <h2 className="text-3xl font-[900] leading-[1.1] tracking-tight text-[#1A152E] md:text-4xl">
-                What your day could look like.
-              </h2>
-            </div>
-
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {meta.suggestions.map((item) => (
-                <SuggestionCard key={item.title} {...item} />
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/planner" className="cf-btn-primary">
-              Continue to planner
-            </Link>
-
+            <p className="mt-4 text-[14px] font-medium leading-7 text-[#5B566E]">
+              Các khung giờ trên là reference window theo chronotype. Khi bạn
+              check-in năng lượng và lưu focus session, ChronoFlow sẽ có thêm dữ
+              liệu thật để điều chỉnh sát hơn.
+            </p>
             <Link
-              href="/assessment"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#E9E5FF] bg-white px-5 text-[14px] font-bold text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#FAF8FF]"
+              href="/rhythm"
+              className="mt-6 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-[#EAE8F7] bg-white px-5 text-[13px] font-black text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5"
             >
-              Làm lại bài đánh giá
-            </Link>
-
-            <Link
-              href="/learn"
-              className="inline-flex items-center gap-2 text-[14px] font-bold text-[#5B46FF] transition-all hover:gap-3"
-            >
-              Read more first
+              Theo dõi Rhythm
               <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
-        </div>
+          </GlassCard>
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-2">
+          <InsightListCard
+            eyebrow="Điểm mạnh thường thấy"
+            title="Bạn có thể tận dụng"
+            items={dominantConfig.strengths}
+          />
+          <InsightListCard
+            eyebrow="Điểm dễ hụt năng lượng"
+            title="Bạn nên để ý"
+            items={dominantConfig.watchOuts}
+          />
+        </section>
+
+        <section className="mt-8">
+          <GlassCard>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <SectionHeading
+                eyebrow="Phân bổ điểm"
+                title="Score nào cao nhất thì result chính theo score đó"
+                icon={<BarChart3 className="h-4 w-4" />}
+              />
+              <div className="rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-2 text-[12px] font-black text-[#6F59FF]">
+                Max score: {maxScore}
+              </div>
+            </div>
+
+            <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {scoreItems.map((item) => {
+                const config = CHRONOTYPE_CONFIG[item.key];
+                const percent = getScorePercent(item.score, maxScore);
+                const isPrimary = item.key === dominant.key;
+                const isTopScore = item.score === maxScore && maxScore > 0;
+
+                return (
+                  <div
+                    key={item.key}
+                    className={`rounded-[28px] border p-4 shadow-sm transition ${
+                      isPrimary
+                        ? "border-[#BFB7FF] bg-[#F7F4FF]"
+                        : "border-[#EAE8F7] bg-white/78"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[26px]">{config.emoji}</div>
+                        <div className="mt-2 text-[15px] font-black text-[#1A152E]">
+                          {item.label}
+                        </div>
+                      </div>
+                      {isTopScore ? (
+                        <span className="rounded-full bg-[#6F59FF] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+                          Cao nhất
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-5 flex items-end justify-between gap-3">
+                      <div className="text-[30px] font-[900] leading-none text-[#1A152E]">
+                        {item.score}
+                      </div>
+                      <div className="text-[12px] font-black text-[#8A84A3]">
+                        {percent}%
+                      </div>
+                    </div>
+
+                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#EEEAFB]">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#6F59FF_0%,#4DA8FF_100%)]"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <p className="mt-3 text-[12px] font-medium leading-6 text-[#615C7A]">
+                      {maxScore > 0
+                        ? `${percent}% so với nhóm cao nhất của bạn.`
+                        : "Chưa có điểm để so sánh."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </GlassCard>
+        </section>
+
+        <section className="mt-8">
+          <GlassCard>
+            <SectionHeading
+              eyebrow="Làm gì tiếp theo?"
+              title="Biến kết quả thành lịch làm việc thật"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <div className="mt-7 grid gap-4 md:grid-cols-3">
+              <NextStepCard
+                href="/dashboard"
+                icon={<Activity className="h-5 w-5" />}
+                title="Vào Dashboard"
+                text="Xem trạng thái hôm nay, coin và gợi ý việc nên làm tiếp."
+              />
+              <NextStepCard
+                href="/planner"
+                icon={<CalendarClock className="h-5 w-5" />}
+                title="Tạo task đầu tiên"
+                text="Đưa task vào Planner để ChronoFlow gợi ý khung phù hợp hơn."
+              />
+              <NextStepCard
+                href="/rhythm"
+                icon={<Waves className="h-5 w-5" />}
+                title="Theo dõi Rhythm"
+                text="Check-in năng lượng để biến reference window thành insight cá nhân."
+              />
+            </div>
+            <div className="mt-7 rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 text-center">
+              <p className="mx-auto max-w-2xl text-[14px] font-medium leading-7 text-[#5B566E]">
+                Nhịp sinh học của bạn có thể thay đổi theo lịch ngủ và thói
+                quen. Bạn có thể làm lại bài đánh giá bất kỳ lúc nào.
+              </p>
+              <Link
+                href="/assessment"
+                className="mt-5 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-5 text-[13px] font-black text-white shadow-[0_16px_34px_rgba(26,21,40,0.16)] transition hover:-translate-y-0.5"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Làm lại bài đánh giá
+              </Link>
+            </div>
+          </GlassCard>
+        </section>
       </section>
 
       <Footer />
@@ -490,75 +591,164 @@ export default async function ResultPage() {
   );
 }
 
-function InfoListCard({
+function BackgroundGlow() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div
+        className="absolute inset-0 opacity-35"
+        style={{
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      <div className="absolute left-[-10%] top-[8%] h-[420px] w-[420px] rounded-full bg-[#DCCEFF]/60 blur-[120px]" />
+      <div className="absolute right-[-8%] top-[14%] h-[360px] w-[360px] rounded-full bg-[#D9EAFF]/70 blur-[120px]" />
+      <div className="absolute bottom-[-18%] left-[28%] h-[520px] w-[520px] rounded-full bg-white/70 blur-[120px]" />
+    </div>
+  );
+}
+
+function GlassCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-[36px] border border-white/80 bg-white/78 p-5 shadow-[0_22px_80px_rgba(26,21,40,0.07)] backdrop-blur-2xl md:p-7">
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
   title,
-  items,
-  kicker,
-  accent,
+  icon,
 }: {
+  eyebrow: string;
   title: string;
-  items: readonly string[];
-  kicker: string;
-  accent: string;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className="group rounded-[30px] border border-white bg-white/70 p-3 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-100/40">
-      <div
-        className={`rounded-[24px] border border-white/70 bg-gradient-to-br ${accent} p-5`}
-      >
-        <div className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#8B5CF6]">
-          {kicker}
-        </div>
+    <div>
+      <div className="inline-flex items-center gap-2 rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
+        {icon}
+        {eyebrow}
+      </div>
+      <h2 className="mt-3 text-[clamp(1.6rem,3vw,2.35rem)] font-[900] leading-tight tracking-tight text-[#1A152E]">
+        {title}
+      </h2>
+    </div>
+  );
+}
 
-        <h3 className="text-[1.25rem] font-black tracking-tight text-[#1A152E]">
-          {title}
-        </h3>
-
-        <div className="mt-5 space-y-3">
-          {items.map((item) => (
-            <div key={item} className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#8B5CF6]" />
-              <p className="text-[13px] leading-6 text-slate-500 md:text-[14px]">
-                {item}
-              </p>
-            </div>
-          ))}
-        </div>
+function SummaryMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-[#EAE8F7] bg-[#FBFAFF] p-4">
+      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        <span className="text-[#6F59FF]">{icon}</span>
+        {label}
+      </div>
+      <div className="mt-2 text-[14px] font-black leading-6 text-[#1A152E]">
+        {value}
       </div>
     </div>
   );
 }
 
-function SuggestionCard({
+function WindowCard({
   icon,
-  title,
+  label,
   value,
-  text,
+  helper,
 }: {
   icon: React.ReactNode;
-  title: string;
+  label: string;
   value: string;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5">
+      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+        {icon}
+      </div>
+      <div className="mt-4 text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-2 text-[20px] font-[900] tracking-tight text-[#1A152E]">
+        {value}
+      </div>
+      <p className="mt-2 text-[12px] font-semibold leading-6 text-[#615C7A]">
+        {helper}
+      </p>
+    </div>
+  );
+}
+
+function InsightListCard({
+  eyebrow,
+  title,
+  items,
+}: {
+  eyebrow: string;
+  title: string;
+  items: string[];
+}) {
+  return (
+    <GlassCard>
+      <div className="inline-flex rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
+        {eyebrow}
+      </div>
+      <h3 className="mt-3 text-[1.6rem] font-[900] tracking-tight text-[#1A152E]">
+        {title}
+      </h3>
+      <div className="mt-5 grid gap-3">
+        {items.map((item) => (
+          <div
+            key={item}
+            className="flex gap-3 rounded-[22px] border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-3"
+          >
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#6F59FF]" />
+            <span className="text-[13px] font-semibold leading-6 text-[#5B566E]">
+              {item}
+            </span>
+          </div>
+        ))}
+      </div>
+    </GlassCard>
+  );
+}
+
+function NextStepCard({
+  href,
+  icon,
+  title,
+  text,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
   text: string;
 }) {
   return (
-    <div className="group rounded-[30px] border border-white bg-white/70 p-3 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-100/40">
-      <div className="rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,#F8F4FF_0%,#F4F7FF_52%,#FFF8F1_100%)] p-5">
-        <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white/90 shadow-sm">
+    <Link
+      href={href}
+      className="group rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_50px_rgba(97,76,197,0.10)]"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
           {icon}
         </div>
-
-        <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#8B5CF6]">
-          {title}
-        </div>
-
-        <h3 className="text-[1.2rem] font-black tracking-tight text-[#1A152E]">
-          {value}
-        </h3>
-
-        <p className="mt-3 text-[13px] leading-relaxed text-slate-500 md:text-[14px]">
-          {text}
-        </p>
+        <ArrowRight className="h-4 w-4 text-[#8A84A3] transition group-hover:translate-x-1 group-hover:text-[#6F59FF]" />
       </div>
-    </div>
+      <h3 className="mt-4 text-[17px] font-black text-[#1A152E]">{title}</h3>
+      <p className="mt-2 text-[13px] font-medium leading-6 text-[#615C7A]">
+        {text}
+      </p>
+    </Link>
   );
 }
