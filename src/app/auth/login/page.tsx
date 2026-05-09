@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Header from "@/components/layout/Navbar";
+
 import {
   Sparkles,
   Mail,
@@ -17,6 +18,7 @@ import {
   BarChart3,
   CheckCircle2,
   Brain,
+  Loader2,
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -46,13 +48,28 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const callbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsGoogleSubmitting(true);
+
+    try {
+      await signIn("google", {
+        callbackUrl,
+      });
+    } catch {
+      setError("Không thể đăng nhập bằng Google. Vui lòng thử lại.");
+      setIsGoogleSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,7 +109,7 @@ function LoginPageContent() {
         return;
       }
 
-      router.push(callbackUrl || "/dashboard");
+      router.push(callbackUrl);
     } catch {
       setError("Có lỗi xảy ra. Vui lòng thử lại.");
     } finally {
@@ -125,7 +142,8 @@ function LoginPageContent() {
 
                 <p className="mb-6 max-w-[560px] text-[14px] font-medium leading-relaxed text-[#5B566E] md:text-[15px]">
                   Truy cập dashboard, planner, insight về nhịp năng lượng và các
-                  khung giờ tập trung tốt nhất của bạn để tiếp tục làm việc đúng lúc hơn.
+                  khung giờ tập trung tốt nhất của bạn để tiếp tục làm việc đúng
+                  lúc hơn.
                 </p>
 
                 <div className="mb-6 flex flex-wrap gap-3">
@@ -135,6 +153,30 @@ function LoginPageContent() {
                   <MiniPill icon={<Clock3 className="h-3.5 w-3.5" />}>
                     Quay lại trong vài giây
                   </MiniPill>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleSubmitting || isSubmitting}
+                  className="mb-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-[#E5DEFF] bg-white px-5 py-4 text-[14px] font-extrabold text-[#241F3D] shadow-[0_14px_35px_rgba(45,36,96,0.08)] transition hover:-translate-y-0.5 hover:border-[#B8AAFF] hover:shadow-[0_18px_45px_rgba(89,79,255,0.16)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isGoogleSubmitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-[#6F59FF]" />
+                  ) : (
+                    <GoogleLogo />
+                  )}
+                  {isGoogleSubmitting
+                    ? "Đang chuyển sang Google..."
+                    : "Tiếp tục với Google"}
+                </button>
+
+                <div className="my-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[#E8E2F8]" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9A93AD]">
+                    hoặc
+                  </span>
+                  <div className="h-px flex-1 bg-[#E8E2F8]" />
                 </div>
 
                 <form className="space-y-4" onSubmit={handleSubmit}>
@@ -157,7 +199,9 @@ function LoginPageContent() {
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
                         className="text-[#8A84A3] transition-colors hover:text-[#1A1528]"
-                        aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                        aria-label={
+                          showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                        }
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -176,7 +220,7 @@ function LoginPageContent() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isGoogleSubmitting}
                     className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-6 py-4 text-white shadow-xl transition-all hover:scale-[1.01] hover:bg-black disabled:opacity-60"
                   >
                     <span className="text-[14px] font-bold">
@@ -253,19 +297,29 @@ function LoginPageContent() {
                     </div>
 
                     <div className="space-y-3">
-                      <MockRow title="Kết quả chronotype" meta="Đã lưu sẵn" done />
+                      <MockRow
+                        title="Kết quả chronotype"
+                        meta="Đã lưu sẵn"
+                        done
+                      />
                       <MockRow
                         title="Planner trong ngày"
                         meta="Tiếp tục flow làm việc"
                         active
                       />
-                      <MockRow title="Insight theo tuần" meta="Xem lại pattern của bạn" />
+                      <MockRow
+                        title="Insight theo tuần"
+                        meta="Xem lại pattern của bạn"
+                      />
                     </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
                     <SmallStat value="3 phút" label="để quay lại flow" />
-                    <SmallStat value="24/7" label="truy cập nhịp làm việc của bạn" />
+                    <SmallStat
+                      value="24/7"
+                      label="truy cập nhịp làm việc của bạn"
+                    />
                   </div>
                 </div>
               </div>
@@ -274,6 +328,31 @@ function LoginPageContent() {
         </div>
       </section>
     </main>
+  );
+}
+
+function GoogleLogo() {
+  return (
+    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white">
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <path
+          fill="#4285F4"
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+        />
+        <path
+          fill="#EA4335"
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9c.87-2.6 3.3-4.52 6.16-4.52z"
+        />
+      </svg>
+    </span>
   );
 }
 
@@ -381,7 +460,9 @@ function FeatureCard({
         {icon}
       </div>
       <h3 className="text-[15px] font-[900] text-[#1A1528]">{title}</h3>
-      <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">{description}</p>
+      <p className="mt-2 text-[13px] leading-6 text-[#615C7A]">
+        {description}
+      </p>
     </div>
   );
 }
@@ -438,7 +519,9 @@ function SmallStat({ value, label }: { value: string; label: string }) {
       <div className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-[28px] font-[900] leading-none text-transparent">
         {value}
       </div>
-      <div className="mt-1 text-[12px] font-medium text-[#6B6287]">{label}</div>
+      <div className="mt-1 text-[12px] font-medium text-[#6B6287]">
+        {label}
+      </div>
     </div>
   );
 }
