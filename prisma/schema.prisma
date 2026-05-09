@@ -41,6 +41,23 @@ enum OrderStatus {
   FULFILLED
 }
 
+enum PaymentProvider {
+  BANK_TRANSFER
+  SEPAY
+  MOMO
+  ZALOPAY
+  VNPAY
+}
+
+enum PaymentOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  FAILED
+  REFUNDED
+}
+
 enum FocusSessionStatus {
   ACTIVE
   COMPLETED
@@ -91,6 +108,7 @@ model User {
   tasks             Task[]
   weeklyInsights    WeeklyInsight[]
   orders            Order[]
+  paymentOrders     PaymentOrder[]
   focusSessions     FocusSession[]
   rewardRedemptions RewardRedemption[]
   energyCheckins    EnergyCheckin[]
@@ -372,6 +390,39 @@ model Order {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model PaymentOrder {
+  id       String             @id @default(cuid())
+  userId   String?
+  itemKey  String
+  itemName String
+  amount   Int
+  currency String             @default("VND")
+  provider PaymentProvider    @default(BANK_TRANSFER)
+  status   PaymentOrderStatus @default(PENDING)
+
+  transferCode String  @unique
+  qrUrl        String?
+  bankId       String?
+  accountNo    String?
+  accountName  String?
+
+  providerTxnId String?   @unique
+  rawWebhook    Json?
+  paidAt        DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([itemKey])
+  @@index([provider])
+  @@index([status])
+  @@index([transferCode])
+  @@index([createdAt])
 }
 
 model RewardItem {
