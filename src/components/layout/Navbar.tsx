@@ -28,6 +28,7 @@ import {
   User2,
   Users,
   X,
+  WalletCards,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -115,6 +116,11 @@ const guestNavItems: NavItem[] = [
     ],
   },
   {
+    href: "/pricing",
+    label: "Bảng giá",
+    icon: <WalletCards className="h-4 w-4" />,
+  },
+  {
     href: "/learn",
     label: "Kiến thức",
     icon: <BookOpen className="h-4 w-4" />,
@@ -185,6 +191,12 @@ const userNavItems: NavItem[] = [
         label: "Planner",
         description: "Quản lý task, backlog và focus trong cùng workspace.",
         icon: <CalendarClock className="h-4 w-4" />,
+      },
+      {
+        href: "/pricing",
+        label: "Gói sử dụng",
+        description: "Xem Free, Plus, Pro và Planner Kit của ChronoFlow.",
+        icon: <WalletCards className="h-4 w-4" />,
       },
       {
         href: "/kit",
