@@ -272,30 +272,56 @@ export default async function ResultPage() {
       <main className="min-h-screen overflow-x-hidden bg-[#F4F2FA] text-[#1A152E]">
         <Navbar variant="user" />
         <BackgroundGlow />
+
         <section className="relative z-10 mx-auto max-w-[1280px] px-4 pb-20 pt-24 md:px-8">
-          <div className="rounded-[40px] border border-white/80 bg-white/78 p-8 text-center shadow-[0_28px_90px_rgba(26,21,40,0.08)] backdrop-blur-2xl md:p-12">
-            <div className="mx-auto grid h-16 w-16 place-items-center rounded-[24px] bg-[#F4F0FF] text-[#6F59FF]">
-              <Brain className="h-7 w-7" />
+          <div className="overflow-hidden rounded-[40px] border border-white/80 bg-white shadow-[0_24px_90px_rgba(26,21,40,0.07)]">
+            <div className="relative bg-[linear-gradient(180deg,#F2EDFF_0%,#E9E2FF_42%,#FFFFFF_100%)] px-6 py-12 text-center md:px-10 md:py-16">
+              <div className="pointer-events-none absolute inset-0 opacity-30">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(#FFFFFF 1.2px, transparent 1.2px)",
+                    backgroundSize: "30px 30px",
+                  }}
+                />
+              </div>
+
+              <div className="relative mx-auto max-w-3xl">
+                <div className="mx-auto grid h-16 w-16 place-items-center rounded-[24px] border border-white/80 bg-white/85 text-[#6F59FF] shadow-[0_18px_40px_rgba(111,89,255,0.12)] backdrop-blur-xl">
+                  <Brain className="h-7 w-7" />
+                </div>
+
+                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm backdrop-blur-md">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Chưa có kết quả
+                </div>
+
+                <h1 className="mx-auto mt-5 max-w-3xl text-[clamp(2.15rem,4.5vw,4rem)] font-[900] leading-[1.05] tracking-tight text-[#1A152E]">
+                  Bắt đầu bài đánh giá để{" "}
+                  <span className="bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF] bg-clip-text text-transparent">
+                    ChronoFlow hiểu nhịp của bạn.
+                  </span>
+                </h1>
+
+                <p className="mx-auto mt-5 max-w-2xl text-[15px] font-medium leading-8 text-[#5B566E] md:text-[16px]">
+                  Sau khoảng 2 phút, bạn sẽ nhận được chronotype chính, khuynh
+                  hướng phụ và các khung giờ tham khảo để bắt đầu lập kế hoạch
+                  theo năng lượng cá nhân.
+                </p>
+
+                <Link
+                  href="/assessment"
+                  className="mt-8 inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-7 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5 hover:bg-black"
+                >
+                  Bắt đầu bài đánh giá
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
-            <div className="mt-6 inline-flex rounded-full border border-[#EAE8F7] bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
-              Chưa có kết quả
-            </div>
-            <h1 className="mx-auto mt-5 max-w-2xl text-[clamp(2rem,4vw,3.6rem)] font-[900] leading-tight tracking-tight">
-              Bắt đầu bài đánh giá để ChronoFlow hiểu nhịp của bạn.
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-[15px] font-medium leading-8 text-[#5B566E]">
-              Sau khoảng 2 phút, bạn sẽ nhận được chronotype chính, khuynh
-              hướng phụ và các khung giờ tham khảo để bắt đầu lập kế hoạch.
-            </p>
-            <Link
-              href="/assessment"
-              className="mt-8 inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5"
-            >
-              Bắt đầu bài đánh giá
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
         </section>
+
         <Footer />
       </main>
     );
@@ -307,6 +333,7 @@ export default async function ResultPage() {
   const maxScore = Math.max(...scoreItems.map((item) => item.score), 0);
   const dominantConfig = CHRONOTYPE_CONFIG[dominant.key];
   const secondaryConfig = secondary ? CHRONOTYPE_CONFIG[secondary.key] : null;
+  const DominantIcon = dominantConfig.icon;
   const isBalanced =
     Boolean(secondary) &&
     (secondary?.score === dominant.score || dominant.score - secondary.score <= 5);
@@ -316,107 +343,142 @@ export default async function ResultPage() {
       <Navbar variant="user" />
       <BackgroundGlow />
 
-      <section className="relative z-10 mx-auto max-w-[1280px] px-4 pb-16 pt-24 md:px-8">
+      <section className="relative z-10 mx-auto max-w-[1280px] px-4 pb-20 pt-24 md:px-8">
         <div
           className={`overflow-hidden rounded-[40px] border border-white/80 bg-gradient-to-br ${dominantConfig.softGradient} shadow-[0_30px_100px_rgba(26,21,40,0.08)]`}
         >
-          <div className="grid gap-8 p-6 md:p-9 lg:grid-cols-[minmax(0,1.05fr)_390px] lg:p-11">
-            <div className="flex min-h-[430px] flex-col justify-center">
-              <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5" />
-                Kết quả chronotype
-              </div>
-
-              <h1 className="max-w-4xl text-[clamp(2.4rem,5.5vw,5rem)] font-[900] leading-[1.02] tracking-tight">
-                Bạn nghiêng về{" "}
-                <span className="bg-[linear-gradient(135deg,#6F59FF_0%,#4DA8FF_100%)] bg-clip-text text-transparent">
-                  {dominantConfig.viName}
-                </span>
-              </h1>
-
-              <p className="mt-5 max-w-2xl text-[16px] font-medium leading-8 text-[#5B566E]">
-                {dominantConfig.summary} Đây là gợi ý lập kế hoạch theo
-                chronotype, không phải tư vấn y tế.
-              </p>
-
-              {isBalanced && secondaryConfig ? (
-                <div className="mt-5 rounded-[24px] border border-white/80 bg-white/72 px-5 py-4 text-[14px] font-semibold leading-7 text-[#5B566E] shadow-sm">
-                  Bạn có xu hướng cân bằng giữa {dominantConfig.viName} và{" "}
-                  {secondaryConfig.viName}. ChronoFlow vẫn chọn kết quả chính
-                  theo điểm cao nhất và tie-breaker ổn định để planner nhất
-                  quán hơn.
-                </div>
-              ) : null}
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5"
-                >
-                  Vào Dashboard
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-
-                <Link
-                  href="/assessment"
-                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-white/80 bg-white/82 px-6 text-[14px] font-black text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Làm lại bài đánh giá
-                </Link>
-              </div>
+          <div className="relative overflow-hidden px-6 py-8 md:px-9 md:py-10 lg:px-11 lg:py-12">
+            <div className="pointer-events-none absolute inset-0 opacity-35">
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(#FFFFFF 1.2px, transparent 1.2px)",
+                  backgroundSize: "30px 30px",
+                }}
+              />
             </div>
+            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/50 blur-[90px]" />
+            <div className="pointer-events-none absolute -bottom-28 left-1/3 h-80 w-80 rounded-full bg-[#D9EAFF]/45 blur-[100px]" />
 
-            <div className="relative rounded-[34px] border border-white/80 bg-white/82 p-5 shadow-[0_20px_70px_rgba(97,76,197,0.10)] backdrop-blur-xl">
-              <div className="absolute right-6 top-6 rounded-full border border-[#EAE8F7] bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
-                {formatDate(latestResult.createdAt)}
-              </div>
-              <div className="grid h-28 w-28 place-items-center rounded-[32px] bg-white text-[64px] shadow-[0_16px_45px_rgba(26,21,40,0.08)]">
-                {dominantConfig.emoji}
+            <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_390px] lg:items-center">
+              <div className="py-4 lg:py-8">
+                <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/80 bg-white/82 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm backdrop-blur-md">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Kết quả chronotype
+                </div>
+
+                <h1 className="max-w-4xl text-[clamp(2.35rem,5.4vw,5rem)] font-[900] leading-[1.02] tracking-tight text-[#1A152E]">
+                  Bạn nghiêng về{" "}
+                  <span className="bg-[linear-gradient(135deg,#6F59FF_0%,#4DA8FF_100%)] bg-clip-text text-transparent">
+                    {dominantConfig.viName}
+                  </span>
+                </h1>
+
+                <p className="mt-5 max-w-2xl text-[16px] font-medium leading-8 text-[#5B566E]">
+                  {dominantConfig.summary} Đây là gợi ý lập kế hoạch theo
+                  chronotype, không phải tư vấn y tế.
+                </p>
+
+                {isBalanced && secondaryConfig ? (
+                  <div className="mt-6 max-w-2xl rounded-[26px] border border-white/80 bg-white/74 p-5 text-[14px] font-semibold leading-7 text-[#5B566E] shadow-[0_14px_36px_rgba(26,21,40,0.05)] backdrop-blur-xl">
+                    Điểm của bạn khá cân bằng giữa{" "}
+                    <span className="font-black text-[#1A152E]">
+                      {dominantConfig.viName}
+                    </span>{" "}
+                    và{" "}
+                    <span className="font-black text-[#1A152E]">
+                      {secondaryConfig.viName}
+                    </span>
+                    . ChronoFlow chọn {dominantConfig.viName} làm hướng khởi đầu
+                    để planner rõ ràng hơn, nhưng bạn vẫn có thể theo dõi Rhythm
+                    để điều chỉnh sát với dữ liệu thật.
+                  </div>
+                ) : null}
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex min-h-[54px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-7 text-[14px] font-black text-white shadow-[0_18px_38px_rgba(26,21,40,0.18)] transition hover:-translate-y-0.5 hover:bg-black"
+                  >
+                    Vào Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+
+                  <Link
+                    href="/assessment"
+                    className="inline-flex min-h-[54px] items-center justify-center gap-2 rounded-full border border-white/80 bg-white/82 px-7 text-[14px] font-black text-[#5B46FF] shadow-sm backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Làm lại bài đánh giá
+                  </Link>
+                </div>
               </div>
 
-              <div className="mt-6 text-[12px] font-black uppercase tracking-[0.18em] text-[#8A84A3]">
-                Chronotype chính
-              </div>
-              <div className="mt-2 text-[2.3rem] font-[900] leading-none tracking-tight text-[#1A152E]">
-                {dominantConfig.viName}
-              </div>
-              <div className="mt-2 text-[14px] font-bold text-[#6F59FF]">
-                {dominantConfig.headline}
-              </div>
+              <div className="relative rounded-[36px] border border-white/80 bg-white/84 p-5 shadow-[0_22px_75px_rgba(97,76,197,0.11)] backdrop-blur-2xl md:p-6">
+                <div className="absolute right-5 top-5 rounded-full border border-[#EAE8F7] bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3] shadow-sm">
+                  {formatDate(latestResult.createdAt)}
+                </div>
 
-              <div className="mt-6 grid gap-3">
-                <SummaryMetric
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  label="Khuynh hướng phụ"
-                  value={secondaryConfig?.viName ?? "Chưa rõ"}
-                />
-                <SummaryMetric
-                  icon={<Zap className="h-4 w-4" />}
-                  label="Peak window"
-                  value={dominantConfig.peakWindow}
-                />
-                <SummaryMetric
-                  icon={<Activity className="h-4 w-4" />}
-                  label="Energy style"
-                  value={dominantConfig.energyStyle}
-                />
+                <div className="grid h-28 w-28 place-items-center rounded-[32px] border border-white/80 bg-white text-[64px] shadow-[0_16px_45px_rgba(26,21,40,0.08)]">
+                  {dominantConfig.emoji}
+                </div>
+
+                <div className="mt-6 flex items-center gap-2">
+                  <div
+                    className="grid h-10 w-10 place-items-center rounded-2xl bg-[#F4F0FF]"
+                    style={{ color: dominantConfig.accent }}
+                  >
+                    <DominantIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8A84A3]">
+                      Chronotype chính
+                    </div>
+                    <div className="text-[16px] font-black text-[#1A152E]">
+                      {dominantConfig.headline}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 text-[2.35rem] font-[900] leading-none tracking-tight text-[#1A152E]">
+                  {dominantConfig.viName}
+                </div>
+
+                <div className="mt-6 grid gap-3">
+                  <SummaryMetric
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    label="Khuynh hướng phụ"
+                    value={secondaryConfig?.viName ?? "Chưa rõ"}
+                  />
+                  <SummaryMetric
+                    icon={<Zap className="h-4 w-4" />}
+                    label="Peak window"
+                    value={dominantConfig.peakWindow}
+                  />
+                  <SummaryMetric
+                    icon={<Activity className="h-4 w-4" />}
+                    label="Energy style"
+                    value={dominantConfig.energyStyle}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-          <GlassCard>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_410px]">
+          <SectionCard>
             <SectionHeading
               eyebrow="Tóm tắt kết quả"
               title="ChronoFlow gợi ý bạn nên..."
               icon={<Target className="h-4 w-4" />}
             />
-            <p className="mt-4 text-[15px] font-medium leading-8 text-[#5B566E]">
+            <p className="mt-4 max-w-3xl text-[15px] font-medium leading-8 text-[#5B566E]">
               {dominantConfig.plannerAdvice}
             </p>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+
+            <div className="mt-7 grid gap-4 md:grid-cols-3">
               <WindowCard
                 icon={<Brain className="h-5 w-5" />}
                 label="Deep work"
@@ -436,9 +498,9 @@ export default async function ResultPage() {
                 helper="Giữ nhịp ngủ và hồi phục"
               />
             </div>
-          </GlassCard>
+          </SectionCard>
 
-          <GlassCard>
+          <SectionCard>
             <SectionHeading
               eyebrow="Điểm cần nhớ"
               title="Đây là bản đồ khởi đầu"
@@ -451,36 +513,38 @@ export default async function ResultPage() {
             </p>
             <Link
               href="/rhythm"
-              className="mt-6 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-[#EAE8F7] bg-white px-5 text-[13px] font-black text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5"
+              className="mt-6 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-[#EAE8F7] bg-white px-5 text-[13px] font-black text-[#5B46FF] shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(97,76,197,0.10)]"
             >
               Theo dõi Rhythm
               <ArrowRight className="h-4 w-4" />
             </Link>
-          </GlassCard>
-        </section>
+          </SectionCard>
+        </div>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <InsightListCard
             eyebrow="Điểm mạnh thường thấy"
             title="Bạn có thể tận dụng"
             items={dominantConfig.strengths}
+            tone="positive"
           />
           <InsightListCard
             eyebrow="Điểm dễ hụt năng lượng"
             title="Bạn nên để ý"
             items={dominantConfig.watchOuts}
+            tone="watch"
           />
-        </section>
+        </div>
 
         <section className="mt-8">
-          <GlassCard>
+          <SectionCard>
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <SectionHeading
                 eyebrow="Phân bổ điểm"
-                title="Score nào cao nhất thì result chính theo score đó"
+                title="Điểm cao nhất quyết định kết quả chính"
                 icon={<BarChart3 className="h-4 w-4" />}
               />
-              <div className="rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-2 text-[12px] font-black text-[#6F59FF]">
+              <div className="w-fit rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-2 text-[12px] font-black text-[#6F59FF] shadow-sm">
                 Max score: {maxScore}
               </div>
             </div>
@@ -493,62 +557,29 @@ export default async function ResultPage() {
                 const isTopScore = item.score === maxScore && maxScore > 0;
 
                 return (
-                  <div
+                  <ScoreCard
                     key={item.key}
-                    className={`rounded-[28px] border p-4 shadow-sm transition ${
-                      isPrimary
-                        ? "border-[#BFB7FF] bg-[#F7F4FF]"
-                        : "border-[#EAE8F7] bg-white/78"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[26px]">{config.emoji}</div>
-                        <div className="mt-2 text-[15px] font-black text-[#1A152E]">
-                          {item.label}
-                        </div>
-                      </div>
-                      {isTopScore ? (
-                        <span className="rounded-full bg-[#6F59FF] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
-                          Cao nhất
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-5 flex items-end justify-between gap-3">
-                      <div className="text-[30px] font-[900] leading-none text-[#1A152E]">
-                        {item.score}
-                      </div>
-                      <div className="text-[12px] font-black text-[#8A84A3]">
-                        {percent}%
-                      </div>
-                    </div>
-
-                    <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#EEEAFB]">
-                      <div
-                        className="h-full rounded-full bg-[linear-gradient(90deg,#6F59FF_0%,#4DA8FF_100%)]"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                    <p className="mt-3 text-[12px] font-medium leading-6 text-[#615C7A]">
-                      {maxScore > 0
-                        ? `${percent}% so với nhóm cao nhất của bạn.`
-                        : "Chưa có điểm để so sánh."}
-                    </p>
-                  </div>
+                    emoji={config.emoji}
+                    label={item.label}
+                    score={item.score}
+                    percent={percent}
+                    isPrimary={isPrimary}
+                    isTopScore={isTopScore}
+                  />
                 );
               })}
             </div>
-          </GlassCard>
+          </SectionCard>
         </section>
 
         <section className="mt-8">
-          <GlassCard>
+          <SectionCard>
             <SectionHeading
               eyebrow="Làm gì tiếp theo?"
               title="Biến kết quả thành lịch làm việc thật"
               icon={<CheckCircle2 className="h-4 w-4" />}
             />
+
             <div className="mt-7 grid gap-4 md:grid-cols-3">
               <NextStepCard
                 href="/dashboard"
@@ -569,20 +600,22 @@ export default async function ResultPage() {
                 text="Check-in năng lượng để biến reference window thành insight cá nhân."
               />
             </div>
-            <div className="mt-7 rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 text-center">
+
+            <div className="mt-7 overflow-hidden rounded-[30px] border border-[#EAE8F7] bg-[linear-gradient(135deg,#FBFAFF_0%,#F1F7FF_100%)] p-5 text-center shadow-sm md:p-6">
               <p className="mx-auto max-w-2xl text-[14px] font-medium leading-7 text-[#5B566E]">
                 Nhịp sinh học của bạn có thể thay đổi theo lịch ngủ và thói
-                quen. Bạn có thể làm lại bài đánh giá bất kỳ lúc nào.
+                quen. Bạn có thể làm lại bài đánh giá bất kỳ lúc nào để cập nhật
+                planner phù hợp hơn.
               </p>
               <Link
                 href="/assessment"
-                className="mt-5 inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-5 text-[13px] font-black text-white shadow-[0_16px_34px_rgba(26,21,40,0.16)] transition hover:-translate-y-0.5"
+                className="mt-5 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#1A1528] px-6 text-[13px] font-black text-white shadow-[0_16px_34px_rgba(26,21,40,0.16)] transition hover:-translate-y-0.5 hover:bg-black"
               >
                 <RefreshCw className="h-4 w-4" />
                 Làm lại bài đánh giá
               </Link>
             </div>
-          </GlassCard>
+          </SectionCard>
         </section>
       </section>
 
@@ -608,10 +641,14 @@ function BackgroundGlow() {
   );
 }
 
-function GlassCard({ children }: { children: React.ReactNode }) {
+function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[36px] border border-white/80 bg-white/78 p-5 shadow-[0_22px_80px_rgba(26,21,40,0.07)] backdrop-blur-2xl md:p-7">
-      {children}
+    <div className="relative overflow-hidden rounded-[36px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(248,249,255,0.72)_100%)] p-5 shadow-[0_22px_80px_rgba(26,21,40,0.065)] backdrop-blur-2xl md:p-7">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-6%] top-[-10%] h-40 w-40 rounded-full bg-white/45 blur-[70px]" />
+        <div className="absolute bottom-[-10%] right-[-5%] h-52 w-52 rounded-full bg-[#D8E8FF]/28 blur-[80px]" />
+      </div>
+      <div className="relative">{children}</div>
     </div>
   );
 }
@@ -627,11 +664,11 @@ function SectionHeading({
 }) {
   return (
     <div>
-      <div className="inline-flex items-center gap-2 rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
+      <div className="inline-flex items-center gap-2 rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-sm">
         {icon}
         {eyebrow}
       </div>
-      <h2 className="mt-3 text-[clamp(1.6rem,3vw,2.35rem)] font-[900] leading-tight tracking-tight text-[#1A152E]">
+      <h2 className="mt-3 text-[clamp(1.65rem,3vw,2.45rem)] font-[900] leading-[1.08] tracking-tight text-[#1A152E]">
         {title}
       </h2>
     </div>
@@ -648,7 +685,7 @@ function SummaryMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-[#EAE8F7] bg-[#FBFAFF] p-4">
+    <div className="rounded-[24px] border border-[#EAE8F7] bg-[#FBFAFF] p-4 shadow-sm">
       <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
         <span className="text-[#6F59FF]">{icon}</span>
         {label}
@@ -672,8 +709,8 @@ function WindowCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5">
-      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+    <div className="group rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 shadow-sm transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_18px_42px_rgba(97,76,197,0.09)]">
+      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm transition group-hover:scale-105">
         {icon}
       </div>
       <div className="mt-4 text-[11px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
@@ -693,33 +730,105 @@ function InsightListCard({
   eyebrow,
   title,
   items,
+  tone,
 }: {
   eyebrow: string;
   title: string;
   items: string[];
+  tone: "positive" | "watch";
 }) {
+  const iconClass =
+    tone === "positive" ? "text-[#16A085] bg-[#ECFBF7]" : "text-[#6F59FF] bg-[#F3F0FF]";
+
   return (
-    <GlassCard>
+    <SectionCard>
       <div className="inline-flex rounded-full border border-[#EAE8F7] bg-[#F7F4FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6F59FF]">
         {eyebrow}
       </div>
-      <h3 className="mt-3 text-[1.6rem] font-[900] tracking-tight text-[#1A152E]">
+      <h3 className="mt-3 text-[clamp(1.55rem,3vw,2.15rem)] font-[900] tracking-tight text-[#1A152E]">
         {title}
       </h3>
       <div className="mt-5 grid gap-3">
         {items.map((item) => (
           <div
             key={item}
-            className="flex gap-3 rounded-[22px] border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-3"
+            className="flex gap-3 rounded-[24px] border border-[#EAE8F7] bg-[#FBFAFF] px-4 py-3 shadow-sm"
           >
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#6F59FF]" />
+            <span
+              className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-xl ${iconClass}`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </span>
             <span className="text-[13px] font-semibold leading-6 text-[#5B566E]">
               {item}
             </span>
           </div>
         ))}
       </div>
-    </GlassCard>
+    </SectionCard>
+  );
+}
+
+function ScoreCard({
+  emoji,
+  label,
+  score,
+  percent,
+  isPrimary,
+  isTopScore,
+}: {
+  emoji: string;
+  label: string;
+  score: number;
+  percent: number;
+  isPrimary: boolean;
+  isTopScore: boolean;
+}) {
+  return (
+    <div
+      className={`group rounded-[30px] border p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(97,76,197,0.10)] ${
+        isPrimary
+          ? "border-[#BFB7FF] bg-[linear-gradient(180deg,#F8F6FF_0%,#FFFFFF_100%)]"
+          : "border-[#EAE8F7] bg-white/80"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[30px]">{emoji}</div>
+          <div className="mt-2 text-[15px] font-black text-[#1A152E]">
+            {label}
+          </div>
+        </div>
+
+        {isTopScore ? (
+          <span className="rounded-full bg-[#6F59FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-[0_10px_20px_rgba(111,89,255,0.20)]">
+            Cao nhất
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-6 flex items-end justify-between gap-3">
+        <div className="text-[34px] font-[900] leading-none tracking-tight text-[#1A152E]">
+          {score}
+        </div>
+        <div className="rounded-full border border-[#EAE8F7] bg-[#FBFAFF] px-3 py-1 text-[12px] font-black text-[#8A84A3]">
+          {percent}%
+        </div>
+      </div>
+
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#EEEAFB]">
+        <div
+          className="h-full rounded-full bg-[linear-gradient(90deg,#6F59FF_0%,#4DA8FF_100%)] transition-all"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      <p className="mt-3 text-[12px] font-medium leading-6 text-[#615C7A]">
+        {percent > 0
+          ? `${percent}% so với nhóm cao nhất của bạn.`
+          : "Chưa có điểm để so sánh."}
+      </p>
+    </div>
   );
 }
 
@@ -737,10 +846,10 @@ function NextStepCard({
   return (
     <Link
       href={href}
-      className="group rounded-[28px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_50px_rgba(97,76,197,0.10)]"
+      className="group rounded-[30px] border border-[#EAE8F7] bg-[#FBFAFF] p-5 shadow-sm transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_20px_50px_rgba(97,76,197,0.10)]"
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#6F59FF] shadow-sm transition group-hover:scale-105">
           {icon}
         </div>
         <ArrowRight className="h-4 w-4 text-[#8A84A3] transition group-hover:translate-x-1 group-hover:text-[#6F59FF]" />
