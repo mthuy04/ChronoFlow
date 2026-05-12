@@ -10,17 +10,35 @@ type CheckoutRequestBody = {
   itemKey?: unknown;
 };
 
+type SessionUserForCheckout = {
+  id?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
+
 type CreateOrderInput = {
   userId: string;
   itemKey: string;
   itemName: string;
   itemType: string;
   amount: number;
-  qrUrl: string;
-  transferCode: string;
   bankId: string;
   accountNo: string;
   accountName: string;
+};
+
+type PaymentOrderForResponse = {
+  id: string;
+  itemKey: string;
+  itemName: string;
+  itemType: string;
+  amount: number;
+  currency: string;
+  status: string;
+  transferCode: string;
+  qrUrl: string | null;
+  expiresAt: Date | null;
+  createdAt: Date;
 };
 
 function isUniqueConstraintError(error: unknown) {
@@ -32,7 +50,26 @@ function isUniqueConstraintError(error: unknown) {
   );
 }
 
-async function createPaymentOrderWithUniqueCode(input: Omit<CreateOrderInput, "transferCode" | "qrUrl">) {
+function buildLoginUrl(req: NextRequest) {
+  const referer = req.headers.get("referer");
+
+  if (!referer) {
+    return "/auth/login?callbackUrl=/checkout";
+  }
+
+  try {
+    const url = new URL(referer);
+    return `/auth/login?callbackUrl=${encodeURIComponent(
+      `${url.pathname}${url.search}`,
+    )}`;
+  } catch {
+    return "/auth/login?callbackUrl=/checkout";
+  }
+}
+
+async function createPaymentOrderWithUniqueCode(
+  input: CreateOrderInput,
+): Promise<PaymentOrderForResponse> {
   const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -95,35 +132,72 @@ async function createPaymentOrderWithUniqueCode(input: Omit<CreateOrderInput, "t
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const sessionUser = (session?.user ?? null) as SessionUserForCheckout | null;
 
-    if (!session?.user?.email) {
+    const sessionUserId =
+      typeof sessionUser?.id === "string" && sessionUser.id.trim().length > 0
+        ? sessionUser.id.trim()
+        : null;
+
+    const sessionEmail =
+      typeof sessionUser?.email === "string" &&
+      sessionUser.email.trim().length > 0
+        ? sessionUser.email.trim()
+        : null;
+
+    console.log("[CHECKOUT_SESSION_DEBUG]", {
+      hasSession: Boolean(session),
+      userId: sessionUserId,
+      email: sessionEmail,
+      role: sessionUser?.role ?? null,
+    });
+
+    if (!sessionUserId && !sessionEmail) {
       return NextResponse.json(
         {
           message: "Bạn cần đăng nhập trước khi thanh toán.",
-          loginUrl: "/auth/login?callbackUrl=/checkout",
+          loginUrl: buildLoginUrl(req),
         },
         { status: 401 },
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: {
-        email: session.user.email,
-      },
-      select: {
-        id: true,
-        email: true,
-      },
-    });
+    const user = sessionUserId
+      ? await prisma.user.findUnique({
+          where: {
+            id: sessionUserId,
+          },
+          select: {
+            id: true,
+            email: true,
+          },
+        })
+      : await prisma.user.findUnique({
+          where: {
+            email: sessionEmail as string,
+          },
+          select: {
+            id: true,
+            email: true,
+          },
+        });
 
     if (!user) {
+      console.warn("[CHECKOUT_USER_NOT_FOUND]", {
+        sessionUserId,
+        sessionEmail,
+      });
+
       return NextResponse.json(
         { message: "Không tìm thấy tài khoản người dùng." },
         { status: 404 },
       );
     }
 
-    const body = (await req.json().catch(() => null)) as CheckoutRequestBody | null;
+    const body = (await req.json().catch(() => null)) as
+      | CheckoutRequestBody
+      | null;
+
     const itemKey = typeof body?.itemKey === "string" ? body.itemKey : null;
     const item = getCheckoutItem(itemKey);
 
@@ -139,6 +213,12 @@ export async function POST(req: NextRequest) {
     const accountName = process.env.NEXT_PUBLIC_BANK_ACCOUNT_NAME;
 
     if (!bankId || !accountNo || !accountName) {
+      console.error("[CHECKOUT_BANK_ENV_MISSING]", {
+        hasBankId: Boolean(bankId),
+        hasAccountNo: Boolean(accountNo),
+        hasAccountName: Boolean(accountName),
+      });
+
       return NextResponse.json(
         { message: "Thiếu thông tin ngân hàng trong biến môi trường." },
         { status: 500 },
@@ -154,6 +234,15 @@ export async function POST(req: NextRequest) {
       bankId,
       accountNo,
       accountName,
+    });
+
+    console.log("[CHECKOUT_PAYMENT_ORDER_CREATED]", {
+      orderId: order.id,
+      userId: user.id,
+      itemKey: order.itemKey,
+      amount: order.amount,
+      transferCode: order.transferCode,
+      status: order.status,
     });
 
     return NextResponse.json({
