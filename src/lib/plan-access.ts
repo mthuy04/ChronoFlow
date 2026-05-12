@@ -25,6 +25,16 @@ type UserPlanLike = {
   planExpiresAt?: Date | string | null;
 };
 
+export type PlanRequiredResponse = {
+  ok: false;
+  error: "PLAN_REQUIRED";
+  code: "PLAN_REQUIRED";
+  requiredPlan: AppPlanTier;
+  feature: PlanFeature;
+  message: string;
+  upgradeUrl: string;
+};
+
 const PLAN_RANK: Record<AppPlanTier, number> = {
   FREE: 0,
   PLUS: 1,
@@ -54,10 +64,11 @@ const FEATURE_MIN_PLAN: Record<PlanFeature, AppPlanTier> = {
 export function normalizePlanTier(plan?: string | null): AppPlanTier {
   if (plan === "PRO") return "PRO";
   if (plan === "PLUS") return "PLUS";
+
   return "FREE";
 }
 
-export function isPlanActive(user: UserPlanLike | null | undefined) {
+export function isPlanActive(user: UserPlanLike | null | undefined): boolean {
   if (!user) return false;
 
   const tier = normalizePlanTier(user.planTier ?? null);
@@ -101,38 +112,38 @@ export function getEffectivePlan(
 export function hasPlanAccess(
   user: UserPlanLike | null | undefined,
   requiredPlan: AppPlanTier,
-) {
+): boolean {
   const currentPlan = getEffectivePlan(user);
 
   return PLAN_RANK[currentPlan] >= PLAN_RANK[requiredPlan];
 }
 
+export function getRequiredPlanForFeature(feature: PlanFeature): AppPlanTier {
+  return FEATURE_MIN_PLAN[feature];
+}
+
 export function hasFeatureAccess(
   user: UserPlanLike | null | undefined,
   feature: PlanFeature,
-) {
-  return hasPlanAccess(user, FEATURE_MIN_PLAN[feature]);
-}
-
-export function getRequiredPlanForFeature(feature: PlanFeature) {
-  return FEATURE_MIN_PLAN[feature];
+): boolean {
+  return hasPlanAccess(user, getRequiredPlanForFeature(feature));
 }
 
 export function forbiddenPlanResponse(feature: PlanFeature) {
   const requiredPlan = getRequiredPlanForFeature(feature);
 
-  return NextResponse.json(
-    {
-      ok: false,
-      code: "PLAN_REQUIRED",
-      requiredPlan,
-      feature,
-      message:
-        requiredPlan === "PRO"
-          ? "Tính năng này cần gói Pro."
-          : "Tính năng này cần gói Plus hoặc Pro.",
-      upgradeUrl: `/pricing?highlight=${requiredPlan.toLowerCase()}`,
-    },
-    { status: 403 },
-  );
+  const payload: PlanRequiredResponse = {
+    ok: false,
+    error: "PLAN_REQUIRED",
+    code: "PLAN_REQUIRED",
+    requiredPlan,
+    feature,
+    message:
+      requiredPlan === "PRO"
+        ? "Tính năng này cần gói Pro."
+        : "Tính năng này cần gói Plus hoặc Pro.",
+    upgradeUrl: `/pricing?highlight=${requiredPlan.toLowerCase()}`,
+  };
+
+  return NextResponse.json(payload, { status: 403 });
 }

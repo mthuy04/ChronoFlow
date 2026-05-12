@@ -7,20 +7,39 @@ type ActivatePlanInput = {
   sourceOrderId: string;
 };
 
-function getPlanFromItemKey(itemKey: string): PlanTier | null {
-  const normalized = itemKey.toLowerCase();
+function normalizeItemKey(itemKey: string): string {
+  return itemKey.toLowerCase().trim();
+}
 
-  if (normalized === "plus") return "PLUS";
-  if (normalized === "pro") return "PRO";
+function getPlanFromItemKey(itemKey: string): PlanTier | null {
+  const normalized = normalizeItemKey(itemKey);
+
+  if (
+    normalized === "plus" ||
+    normalized === "plus-monthly" ||
+    normalized === "plan-plus" ||
+    normalized === "subscription-plus"
+  ) {
+    return "PLUS";
+  }
+
+  if (
+    normalized === "pro" ||
+    normalized === "pro-monthly" ||
+    normalized === "plan-pro" ||
+    normalized === "subscription-pro"
+  ) {
+    return "PRO";
+  }
 
   return null;
 }
 
-function getPlanDurationDays(itemKey: string) {
-  const normalized = itemKey.toLowerCase();
+function getPlanDurationDays(itemKey: string): number {
+  const planTier = getPlanFromItemKey(itemKey);
 
-  if (normalized === "plus") return 30;
-  if (normalized === "pro") return 30;
+  if (planTier === "PLUS") return 30;
+  if (planTier === "PRO") return 30;
 
   return 0;
 }
@@ -39,6 +58,17 @@ export async function activateUserPlanFromPayment(input: ActivatePlanInput) {
   }
 
   const durationDays = getPlanDurationDays(input.itemKey);
+
+  if (durationDays <= 0) {
+    console.log("[PLAN_ACTIVATION_SKIP]", {
+      reason: "Invalid plan duration.",
+      itemKey: input.itemKey,
+      sourceOrderId: input.sourceOrderId,
+    });
+
+    return null;
+  }
+
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 

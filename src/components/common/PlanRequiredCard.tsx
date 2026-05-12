@@ -10,6 +10,8 @@ import {
   Star,
   Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import type { AppPlanTier } from "@/lib/plan-access";
 
 type PlanRequiredCardProps = {
@@ -69,7 +71,7 @@ const planCopy = {
     softBg: string;
     textColor: string;
     border: string;
-    icon: typeof Crown;
+    icon: LucideIcon;
     bullets: string[];
     cta: string;
   }
@@ -106,7 +108,7 @@ export default function PlanRequiredCard({
 
       <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/88 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_10px_24px_rgba(111,89,255,0.08)] backdrop-blur-xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/[0.88] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#6F59FF] shadow-[0_10px_24px_rgba(111,89,255,0.08)] backdrop-blur-xl">
             <Sparkles className="h-3.5 w-3.5" />
             {featureLabel ?? config.eyebrow}
           </div>
@@ -164,9 +166,18 @@ export default function PlanRequiredCard({
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2.5">
-            <MiniTrust icon={<Zap className="h-3.5 w-3.5" />} text="Kích hoạt sau thanh toán" />
-            <MiniTrust icon={<CalendarClock className="h-3.5 w-3.5" />} text="Theo tháng, dễ nâng cấp" />
-            <MiniTrust icon={<CheckCircle2 className="h-3.5 w-3.5" />} text="Bank QR tự động xác nhận" />
+            <MiniTrust
+              icon={<Zap className="h-3.5 w-3.5" />}
+              text="Kích hoạt sau thanh toán"
+            />
+            <MiniTrust
+              icon={<CalendarClock className="h-3.5 w-3.5" />}
+              text="Theo tháng, dễ nâng cấp"
+            />
+            <MiniTrust
+              icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+              text="Bank QR tự động xác nhận"
+            />
           </div>
         </div>
 
@@ -182,13 +193,15 @@ export default function PlanRequiredCard({
               <PlanIcon className="h-6 w-6" />
             </div>
 
-            <div className="rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3] shadow-sm">
+            <div className="rounded-full border border-white/80 bg-white/[0.86] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8A84A3] shadow-sm">
               Gói {config.label}
             </div>
           </div>
 
           <div className="relative mt-5">
-            <div className={`text-[11px] font-black uppercase tracking-[0.18em] ${config.textColor}`}>
+            <div
+              className={`text-[11px] font-black uppercase tracking-[0.18em] ${config.textColor}`}
+            >
               {config.eyebrow}
             </div>
 
@@ -206,9 +219,11 @@ export default function PlanRequiredCard({
             {config.bullets.map((bullet) => (
               <div
                 key={bullet}
-                className="flex items-start gap-2 rounded-2xl border border-white/80 bg-white/76 px-3 py-3 text-[13px] font-bold leading-6 text-[#5B566E] shadow-sm backdrop-blur-xl"
+                className="flex items-start gap-2 rounded-2xl border border-white/80 bg-white/[0.76] px-3 py-3 text-[13px] font-bold leading-6 text-[#5B566E] shadow-sm backdrop-blur-xl"
               >
-                <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${config.textColor}`} />
+                <CheckCircle2
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${config.textColor}`}
+                />
                 <span>{bullet}</span>
               </div>
             ))}
@@ -219,9 +234,9 @@ export default function PlanRequiredCard({
   );
 }
 
-function MiniTrust({ icon, text }: { icon: React.ReactNode; text: string }) {
+function MiniTrust({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/82 px-3.5 py-2 text-[12px] font-bold text-[#5B566E] shadow-[0_8px_20px_rgba(26,21,40,0.04)] backdrop-blur-xl">
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/[0.82] px-3.5 py-2 text-[12px] font-bold text-[#5B566E] shadow-[0_8px_20px_rgba(26,21,40,0.04)] backdrop-blur-xl">
       <span className="text-[#6F59FF]">{icon}</span>
       {text}
     </div>
