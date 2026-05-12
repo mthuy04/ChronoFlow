@@ -13,6 +13,7 @@ enum PlanTier {
   PLUS
   PRO
 }
+
 enum UserRole {
   USER
   ADMIN
@@ -93,6 +94,11 @@ model User {
   targetWakeTime         String?
   image                  String?
 
+  planTier        PlanTier @default(FREE)
+  planActivatedAt DateTime?
+  planExpiresAt   DateTime?
+  planSource      String?
+  
   // Tracking for pitching / marketing / customer records
   customerType       String?
   sourceChannel      String?
