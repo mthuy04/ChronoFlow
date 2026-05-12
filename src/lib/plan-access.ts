@@ -4,19 +4,10 @@ import type { PlanTier } from "@prisma/client";
 export type AppPlanTier = "FREE" | "PLUS" | "PRO";
 
 export type PlanFeature =
-  | "BASIC_DASHBOARD"
-  | "BASIC_PLANNER"
-  | "BASIC_FOCUS"
-  | "BASIC_RHYTHM"
-  | "ENERGY_CHECKIN"
-  | "WEEKLY_INSIGHTS"
   | "FOCUS_HISTORY"
   | "SMART_RESCHEDULE"
-  | "REWARDS_ADVANCED"
+  | "WEEKLY_INSIGHTS"
   | "ADVANCED_INSIGHTS"
-  | "PLANNER_SCORE"
-  | "CORRELATION_ANALYTICS"
-  | "DEADLINE_RISK"
   | "PDF_REPORT"
   | "ADVANCED_AI_COACH";
 
@@ -29,7 +20,7 @@ export type PlanRequiredResponse = {
   ok: false;
   error: "PLAN_REQUIRED";
   code: "PLAN_REQUIRED";
-  requiredPlan: AppPlanTier;
+  requiredPlan: Exclude<AppPlanTier, "FREE">;
   feature: PlanFeature;
   message: string;
   upgradeUrl: string;
@@ -41,24 +32,24 @@ const PLAN_RANK: Record<AppPlanTier, number> = {
   PRO: 2,
 };
 
-const FEATURE_MIN_PLAN: Record<PlanFeature, AppPlanTier> = {
-  BASIC_DASHBOARD: "FREE",
-  BASIC_PLANNER: "FREE",
-  BASIC_FOCUS: "FREE",
-  BASIC_RHYTHM: "FREE",
-  ENERGY_CHECKIN: "FREE",
-
-  WEEKLY_INSIGHTS: "PLUS",
+const FEATURE_MIN_PLAN: Record<PlanFeature, Exclude<AppPlanTier, "FREE">> = {
   FOCUS_HISTORY: "PLUS",
   SMART_RESCHEDULE: "PLUS",
-  REWARDS_ADVANCED: "PLUS",
+  WEEKLY_INSIGHTS: "PLUS",
 
   ADVANCED_INSIGHTS: "PRO",
-  PLANNER_SCORE: "PRO",
-  CORRELATION_ANALYTICS: "PRO",
-  DEADLINE_RISK: "PRO",
   PDF_REPORT: "PRO",
   ADVANCED_AI_COACH: "PRO",
+};
+
+const FEATURE_LABEL: Record<PlanFeature, string> = {
+  FOCUS_HISTORY: "lịch sử focus session",
+  SMART_RESCHEDULE: "gợi ý dời lịch thông minh",
+  WEEKLY_INSIGHTS: "weekly insights",
+
+  ADVANCED_INSIGHTS: "phân tích nâng cao",
+  PDF_REPORT: "xuất báo cáo PDF",
+  ADVANCED_AI_COACH: "AI Coach nâng cao",
 };
 
 export function normalizePlanTier(plan?: string | null): AppPlanTier {
@@ -118,7 +109,9 @@ export function hasPlanAccess(
   return PLAN_RANK[currentPlan] >= PLAN_RANK[requiredPlan];
 }
 
-export function getRequiredPlanForFeature(feature: PlanFeature): AppPlanTier {
+export function getRequiredPlanForFeature(
+  feature: PlanFeature,
+): Exclude<AppPlanTier, "FREE"> {
   return FEATURE_MIN_PLAN[feature];
 }
 
@@ -126,11 +119,14 @@ export function hasFeatureAccess(
   user: UserPlanLike | null | undefined,
   feature: PlanFeature,
 ): boolean {
-  return hasPlanAccess(user, getRequiredPlanForFeature(feature));
+  const requiredPlan = getRequiredPlanForFeature(feature);
+
+  return hasPlanAccess(user, requiredPlan);
 }
 
 export function forbiddenPlanResponse(feature: PlanFeature) {
   const requiredPlan = getRequiredPlanForFeature(feature);
+  const featureLabel = FEATURE_LABEL[feature];
 
   const payload: PlanRequiredResponse = {
     ok: false,
@@ -140,8 +136,8 @@ export function forbiddenPlanResponse(feature: PlanFeature) {
     feature,
     message:
       requiredPlan === "PRO"
-        ? "Tính năng này cần gói Pro."
-        : "Tính năng này cần gói Plus hoặc Pro.",
+        ? `Tính năng ${featureLabel} cần gói Pro.`
+        : `Tính năng ${featureLabel} cần gói Plus hoặc Pro.`,
     upgradeUrl: `/pricing?highlight=${requiredPlan.toLowerCase()}`,
   };
 
