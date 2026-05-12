@@ -1,6 +1,6 @@
 "use client";
-
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Activity,
@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
+Crown,
+LockKeyhole,
   Coffee,
   Coins,
   Layers3,
@@ -128,8 +131,31 @@ type SmartSuggestion = {
   description: string;
   task: PlannerTask;
   suggestedStart: string;
+  suggestedEnd?: string;
   dateKey: string;
+  confidence?: number;
   tone: "purple" | "blue" | "orange" | "green";
+};
+
+type SmartSuggestionGate = {
+  requiredPlan: "PLUS" | "PRO";
+  message: string;
+};
+
+type SmartRescheduleResponse = {
+  success?: boolean;
+  suggestions?: SmartSuggestion[];
+  error?: string;
+  code?: string;
+  requiredPlan?: "PLUS" | "PRO";
+  message?: string;
+};
+
+type ApplySmartRescheduleResponse = {
+  success?: boolean;
+  task?: PlannerTask;
+  error?: string;
+  message?: string;
 };
 
 type DropTarget = {
@@ -670,6 +696,11 @@ export default function PlannerBoard({
   const [updatingSuggestionId, setUpdatingSuggestionId] = useState<string | null>(
     null,
   );
+  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
+const [smartSuggestionGate, setSmartSuggestionGate] =
+  useState<SmartSuggestionGate | null>(null);
+const [isLoadingSmartSuggestions, setIsLoadingSmartSuggestions] =
+  useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [isAutoScheduling, setIsAutoScheduling] = useState(false);
   const [toast, setToast] = useState<{
@@ -770,75 +801,65 @@ export default function PlannerBoard({
     return sum + (conflictMap[event.id]?.length ? 1 : 0);
   }, 0);
 
-  const smartSuggestions = useMemo<SmartSuggestion[]>(() => {
-    const suggestions: SmartSuggestion[] = [];
-
-    const misalignedFocus = scheduledEvents.filter(
-      (event) =>
-        !event.completed &&
-        isFocusType(event.type) &&
-        !isTimeInsideWindow(event.start, windows.peakStart, windows.peakEnd),
-    );
-
-    misalignedFocus.slice(0, 2).forEach((event) => {
-      suggestions.push({
-        id: `move-focus-${event.id}`,
-        title: `Dời “${event.title}” vào peak window`,
-        description:
-          "Task tập trung đang nằm ngoài khung mạnh. Đưa task về giờ tốt hơn để giảm hao năng lượng.",
-        task: event.task,
-        suggestedStart: getPrimaryStart(chronotype),
-        dateKey: event.dateKey,
-        tone: "purple",
-      });
-    });
-
-    backlogTasks
-      .filter((task) => !task.completed && isFocusType(task.type))
-      .slice(0, 2)
-      .forEach((task) => {
-        suggestions.push({
-          id: `schedule-backlog-${task.id}`,
-          title: `Gắn lịch cho “${task.name}”`,
-          description:
-            "Task quan trọng vẫn ở backlog. Hãy đưa vào calendar để tránh bị trôi việc.",
-          task,
-          suggestedStart: getPrimaryStart(chronotype),
-          dateKey: selectedDateKey,
-          tone: "blue",
+  const loadSmartSuggestions = useCallback(async () => {
+    try {
+      setIsLoadingSmartSuggestions(true);
+      setSmartSuggestionGate(null);
+  
+      const response = await fetch(
+        `/api/planner/smart-reschedule?dateKey=${encodeURIComponent(
+          selectedDateKey,
+        )}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+  
+      const payload = (await response
+        .json()
+        .catch(() => null)) as SmartRescheduleResponse | null;
+  
+      if (
+        response.status === 403 &&
+        (payload?.error === "PLAN_REQUIRED" || payload?.code === "PLAN_REQUIRED")
+      ) {
+        setSmartSuggestions([]);
+        setSmartSuggestionGate({
+          requiredPlan: payload.requiredPlan === "PRO" ? "PRO" : "PLUS",
+          message:
+            payload.message ||
+            "Smart Reschedule là tính năng dành cho gói Plus hoặc Pro.",
         });
-      });
-
-    scheduledEvents
-      .filter(
-        (event) =>
-          !event.completed &&
-          (event.type === "ADMIN" || event.type === "ROUTINE") &&
-          isTimeInsideWindow(event.start, windows.peakStart, windows.peakEnd),
-      )
-      .slice(0, 1)
-      .forEach((event) => {
-        suggestions.push({
-          id: `move-light-${event.id}`,
-          title: `Chuyển “${event.title}” sang khung phụ`,
-          description:
-            "Việc nhẹ đang chiếm peak window. Nên chuyển sang khung phụ để giữ giờ mạnh cho việc khó.",
-          task: event.task,
-          suggestedStart: getSupportStart(chronotype),
-          dateKey: event.dateKey,
-          tone: "orange",
-        });
-      });
-
-    return suggestions.slice(0, 4);
-  }, [
-    backlogTasks,
-    chronotype,
-    scheduledEvents,
-    selectedDateKey,
-    windows.peakEnd,
-    windows.peakStart,
-  ]);
+        return;
+      }
+  
+      if (!response.ok || !payload?.success) {
+        throw new Error(
+          payload?.message ||
+            payload?.error ||
+            "Không tải được Smart Reschedule.",
+        );
+      }
+  
+      setSmartSuggestions(payload.suggestions ?? []);
+    } catch (error) {
+      setSmartSuggestions([]);
+      setSmartSuggestionGate(null);
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Không tải được Smart Reschedule.",
+        "error",
+      );
+    } finally {
+      setIsLoadingSmartSuggestions(false);
+    }
+  }, [selectedDateKey]);
+  
+  useEffect(() => {
+    void loadSmartSuggestions();
+  }, [loadSmartSuggestions]);
 
   const filteredTasks = useMemo(() => {
     if (taskFilter === "TODAY") return todayEvents.map((event) => event.task);
@@ -945,23 +966,49 @@ export default function PlannerBoard({
 
   async function applySmartSuggestion(suggestion: SmartSuggestion) {
     const previousScheduledTime = suggestion.task.scheduledTime;
-
+    const suggestedEnd =
+      suggestion.suggestedEnd ??
+      addMinutesToTime(
+        suggestion.suggestedStart,
+        parseMinutesFromDuration(suggestion.task.duration),
+      );
+  
     try {
       setUpdatingSuggestionId(suggestion.id);
-
-      await updateTaskSchedule(
-        suggestion.task,
-        suggestion.dateKey,
-        suggestion.suggestedStart,
-      );
-
+  
+      const response = await fetch("/api/planner/apply-reschedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: suggestion.task.id,
+          suggestedDate: suggestion.dateKey,
+          suggestedStart: suggestion.suggestedStart,
+          suggestedEnd,
+        }),
+      });
+  
+      const payload = (await response
+        .json()
+        .catch(() => null)) as ApplySmartRescheduleResponse | null;
+  
+      if (!response.ok || !payload?.success || !payload.task) {
+        throw new Error(
+          payload?.message || payload?.error || "Không thể áp dụng gợi ý.",
+        );
+      }
+  
+      await handleUpdateTask(payload.task);
+  
       setUndoAction({
         taskId: suggestion.task.id,
         previousScheduledTime,
         message: `Đã áp dụng gợi ý cho “${suggestion.task.name}”.`,
       });
-
+  
       showToast(`Đã áp dụng gợi ý cho “${suggestion.task.name}”.`, "success");
+      await loadSmartSuggestions();
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Không thể áp dụng gợi ý.",
@@ -1394,12 +1441,15 @@ export default function PlannerBoard({
         </section>
 
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <SmartSchedulingPanel
-            suggestions={smartSuggestions}
-            updatingId={updatingSuggestionId}
-            onApply={(suggestion) => void applySmartSuggestion(suggestion)}
-            onOpenAdd={() => setIsAddOpen(true)}
-          />
+        <SmartSchedulingPanel
+  suggestions={smartSuggestions}
+  gate={smartSuggestionGate}
+  isLoading={isLoadingSmartSuggestions}
+  updatingId={updatingSuggestionId}
+  onApply={(suggestion) => void applySmartSuggestion(suggestion)}
+  onOpenAdd={() => setIsAddOpen(true)}
+  onRetry={() => void loadSmartSuggestions()}
+/>
 
           <div id="backlog" className="scroll-mt-28">
             <BacklogCard
@@ -1897,14 +1947,20 @@ function EnergyCheckinPanel({
 
 function SmartSchedulingPanel({
   suggestions,
+  gate,
+  isLoading,
   updatingId,
   onApply,
   onOpenAdd,
+  onRetry,
 }: {
   suggestions: SmartSuggestion[];
+  gate: SmartSuggestionGate | null;
+  isLoading: boolean;
   updatingId: string | null;
   onApply: (suggestion: SmartSuggestion) => void;
   onOpenAdd: () => void;
+  onRetry: () => void;
 }) {
   return (
     <PlannerSection>
@@ -1915,47 +1971,119 @@ function SmartSchedulingPanel({
         description="ChronoFlow đọc task thật trong planner để phát hiện việc quan trọng bị lệch peak window hoặc task còn nằm ở backlog."
       />
 
-      <div className="grid gap-4 p-5 md:grid-cols-2 2xl:grid-cols-3">
-        {suggestions.length > 0 ? (
-          suggestions.map((suggestion) => (
-            <SmartSuggestionCard
-              key={suggestion.id}
-              suggestion={suggestion}
-              isUpdating={updatingId === suggestion.id}
-              onApply={() => onApply(suggestion)}
+      {isLoading ? (
+        <div className="grid gap-4 p-5 md:grid-cols-2 2xl:grid-cols-3">
+          {[1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="h-[230px] animate-pulse rounded-[28px] border border-[#ECE8FF] bg-[#F8F6FF]"
             />
-          ))
-        ) : (
-          <div className="col-span-full rounded-[26px] border border-[#DAF2E5] bg-[linear-gradient(135deg,#F7FFFA_0%,#F1FFF7_100%)] p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="rounded-2xl bg-white p-3 text-[#2E9D67] shadow-sm">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
+          ))}
+        </div>
+      ) : gate ? (
+        <div className="p-5">
+          <SmartSchedulingUpgradeCard gate={gate} />
+        </div>
+      ) : (
+        <div className="grid gap-4 p-5 md:grid-cols-2 2xl:grid-cols-3">
+          {suggestions.length > 0 ? (
+            suggestions.map((suggestion) => (
+              <SmartSuggestionCard
+                key={suggestion.id}
+                suggestion={suggestion}
+                isUpdating={updatingId === suggestion.id}
+                onApply={() => onApply(suggestion)}
+              />
+            ))
+          ) : (
+            <div className="col-span-full rounded-[26px] border border-[#DAF2E5] bg-[linear-gradient(135deg,#F7FFFA_0%,#F1FFF7_100%)] p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="rounded-2xl bg-white p-3 text-[#2E9D67] shadow-sm">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
 
-              <div>
-                <h3 className="text-[1.1rem] font-black tracking-tight text-[#241F3D]">
-                  Chưa phát hiện task lệch nhịp lớn
-                </h3>
+                <div>
+                  <h3 className="text-[1.1rem] font-black tracking-tight text-[#241F3D]">
+                    Chưa phát hiện task lệch nhịp lớn
+                  </h3>
 
-                <p className="mt-2 max-w-2xl text-[13px] leading-7 text-[#615C7A]">
-                  Khi bạn thêm task hoặc có task chưa gắn lịch, phần này sẽ đưa ra
-                  gợi ý cụ thể để sắp vào khung phù hợp.
-                </p>
+                  <p className="mt-2 max-w-2xl text-[13px] leading-7 text-[#615C7A]">
+                    Khi bạn thêm task hoặc có task chưa gắn lịch, phần này sẽ đưa
+                    ra gợi ý cụ thể để sắp vào khung phù hợp.
+                  </p>
 
-                <button
-                  type="button"
-                  onClick={onOpenAdd}
-                  className="mt-4 inline-flex min-h-[42px] items-center gap-2 rounded-full bg-[#1A1528] px-5 text-[13px] font-bold text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  Thêm task để ChronoFlow gợi ý
-                </button>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={onOpenAdd}
+                      className="inline-flex min-h-[42px] items-center gap-2 rounded-full bg-[#1A1528] px-5 text-[13px] font-bold text-white"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm task để ChronoFlow gợi ý
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[#DAF2E5] bg-white px-5 text-[13px] font-bold text-[#2E9D67]"
+                    >
+                      <WandSparkles className="h-4 w-4" />
+                      Kiểm tra lại
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </PlannerSection>
+  );
+}
+
+function SmartSchedulingUpgradeCard({
+  gate,
+}: {
+  gate: SmartSuggestionGate;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-[#FFE6C7] bg-[radial-gradient(circle_at_10%_0%,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_38%),linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#F5F2FF_100%)] p-6 shadow-[0_16px_42px_rgba(26,21,40,0.06)]">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex gap-4">
+          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_12px_26px_rgba(245,158,11,0.2)]">
+            <LockKeyhole className="h-6 w-6" />
+          </div>
+
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.82] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#F59E0B]">
+              <Crown className="h-3.5 w-3.5" />
+              Cần gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+            </div>
+
+            <h3 className="mt-3 text-[1.25rem] font-black tracking-tight text-[#241F3D]">
+              Mở khóa Smart Reschedule
+            </h3>
+
+            <p className="mt-2 max-w-2xl text-[13px] font-medium leading-7 text-[#615C7A]">
+              {gate.message}
+            </p>
+
+            <p className="mt-2 max-w-2xl text-[13px] font-medium leading-7 text-[#615C7A]">
+              ChronoFlow sẽ đọc task thật, tìm task lệch peak window, task còn ở
+              backlog và gợi ý khung giờ phù hợp hơn theo chronotype của bạn.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href={`/pricing?highlight=${gate.requiredPlan.toLowerCase()}`}
+          className="inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-[13px] font-black text-white shadow-[0_14px_30px_rgba(26,21,40,0.16)] transition hover:-translate-y-0.5 hover:bg-black"
+        >
+          Xem gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+          <ArrowRight className="h-4 w-4 text-[#FBBF24]" />
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -1977,10 +2105,12 @@ function SmartSuggestionCard({
           ? "border-[#DDEBFF] bg-[#F3F8FF] text-[#4D7DDA]"
           : "border-[#E9E5FF] bg-[#F8F6FF] text-[#7C5CFA]";
 
-  const estimatedEnd = addMinutesToTime(
-    suggestion.suggestedStart,
-    parseMinutesFromDuration(suggestion.task.duration),
-  );
+          const estimatedEnd =
+          suggestion.suggestedEnd ??
+          addMinutesToTime(
+            suggestion.suggestedStart,
+            parseMinutesFromDuration(suggestion.task.duration),
+          );
 
   return (
     <div className={`rounded-[28px] border p-5 ${toneClass}`}>
@@ -1999,6 +2129,11 @@ function SmartSuggestionCard({
       <div className="mt-4 rounded-[18px] bg-white/80 px-4 py-3 text-[13px] font-black text-[#241F3D]">
         Gợi ý: {suggestion.suggestedStart} - {estimatedEnd}
       </div>
+      {typeof suggestion.confidence === "number" ? (
+  <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+    Độ phù hợp: {suggestion.confidence}%
+  </div>
+) : null}
 
       {isHeavyTask(suggestion.task.type) ? (
         <div className="mt-3 flex items-start gap-2 rounded-[18px] border border-[#E9E5FF] bg-white/70 px-4 py-3 text-[12px] font-semibold leading-6 text-[#615C7A]">
