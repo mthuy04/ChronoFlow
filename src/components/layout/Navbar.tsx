@@ -549,8 +549,11 @@ export default function Navbar({ variant: requestedVariant }: NavbarProps) {
             ) : (
               <>
                 {variant === "user" && (
-                  <CoinBadge balance={coinBalance} pulseKey={coinPulseKey} />
-                )}
+  <>
+    <CurrentPlanBadge />
+    <CoinBadge balance={coinBalance} pulseKey={coinPulseKey} />
+  </>
+)}
 
                 <div className="relative">
                   <button
@@ -1053,23 +1056,29 @@ function ProfileDropdown({
       className="absolute right-0 top-[calc(100%+12px)] z-50 w-[300px] overflow-hidden rounded-[28px] border border-white/80 bg-white/96 p-3 shadow-[0_25px_60px_rgba(97,76,197,0.14)] backdrop-blur-2xl"
     >
       <div className="rounded-[22px] bg-[linear-gradient(180deg,#FAF8FF_0%,#F3EEFF_100%)] p-4">
-        <div className="flex items-center gap-3">
-          <Avatar
-            displayName={displayName}
-            avatarLetter={avatarLetter}
-            image={image}
-            size="lg"
-          />
+      <div className="flex items-center gap-3">
+  <Avatar
+    displayName={displayName}
+    avatarLetter={avatarLetter}
+    image={image}
+    size="lg"
+  />
 
-          <div className="min-w-0">
-            <div className="truncate text-[14px] font-black text-[#241F3D]">
-              {displayName}
-            </div>
-            <div className="truncate text-[12px] text-[#6B6287]">
-              {email || "Không có email"}
-            </div>
-          </div>
-        </div>
+  <div className="min-w-0">
+    <div className="truncate text-[14px] font-black text-[#241F3D]">
+      {displayName}
+    </div>
+    <div className="truncate text-[12px] text-[#6B6287]">
+      {email || "Không có email"}
+    </div>
+  </div>
+</div>
+
+{variant === "user" && (
+  <div className="mt-4">
+    <CurrentPlanBadge />
+  </div>
+)}
 
         {variant === "user" && (
           <Link
