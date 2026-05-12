@@ -1,19 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
   useMemo,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarCheck,
   CheckCircle2,
   Clock3,
+  Crown,
   History,
   Loader2,
+  LockKeyhole,
   RotateCcw,
   Save,
   Trash2,
@@ -82,9 +87,11 @@ type TaskPatchResponse = {
 type FocusHistoryItem = {
   id: string;
   taskId: string | null;
+  status?: string;
   durationMinutes: number;
+  coinsEarned?: number;
   startedAt: string;
-  endedAt: string;
+  endedAt: string | null;
   createdAt: string;
 };
 
@@ -92,6 +99,14 @@ type FocusHistoryResponse = {
   success?: boolean;
   sessions?: FocusHistoryItem[];
   error?: string;
+  code?: string;
+  requiredPlan?: "PLUS" | "PRO";
+  message?: string;
+};
+
+type FocusHistoryGate = {
+  requiredPlan: "PLUS" | "PRO";
+  message: string;
 };
 
 type TaskDraft = {
@@ -353,6 +368,25 @@ function getTaskTypeLabel(type: PlannerTaskType) {
   return matched?.label ?? type;
 }
 
+function isPlanRequiredResponse(data: FocusHistoryResponse | null) {
+  return data?.error === "PLAN_REQUIRED" || data?.code === "PLAN_REQUIRED";
+}
+
+function formatFocusDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Không rõ thời gian";
+  }
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export default function TaskDetailDrawer({
   open,
   task,
@@ -366,6 +400,8 @@ export default function TaskDetailDrawer({
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState<TaskDraft | null>(null);
   const [focusHistory, setFocusHistory] = useState<FocusHistoryItem[]>([]);
+  const [focusHistoryGate, setFocusHistoryGate] =
+    useState<FocusHistoryGate | null>(null);
   const [isLoadingFocusHistory, setIsLoadingFocusHistory] = useState(false);
 
   const quickReschedule = useMemo(
@@ -376,22 +412,39 @@ export default function TaskDetailDrawer({
   const loadFocusHistory = useCallback(async (taskId: string) => {
     try {
       setIsLoadingFocusHistory(true);
+      setFocusHistoryGate(null);
 
       const response = await fetch(
         `/api/focus-sessions/history?taskId=${encodeURIComponent(taskId)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
       );
 
       const data = (await response
         .json()
         .catch(() => null)) as FocusHistoryResponse | null;
 
+      if (response.status === 403 && isPlanRequiredResponse(data)) {
+        setFocusHistory([]);
+        setFocusHistoryGate({
+          requiredPlan: data?.requiredPlan === "PRO" ? "PRO" : "PLUS",
+          message:
+            data?.message ||
+            "Lịch sử focus session là tính năng dành cho gói Plus hoặc Pro.",
+        });
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(data?.error || "Không thể tải lịch sử focus.");
+        throw new Error(data?.message || data?.error || "Không thể tải lịch sử focus.");
       }
 
       setFocusHistory(data?.sessions ?? []);
     } catch {
       setFocusHistory([]);
+      setFocusHistoryGate(null);
     } finally {
       setIsLoadingFocusHistory(false);
     }
@@ -401,6 +454,7 @@ export default function TaskDetailDrawer({
     if (!task) {
       setDraft(null);
       setFocusHistory([]);
+      setFocusHistoryGate(null);
       return;
     }
 
@@ -618,6 +672,7 @@ export default function TaskDetailDrawer({
     try {
       setIsSaving(true);
       setMessage("");
+
       await patchTask(buildSchedulePatchPayload("BACKLOG"));
       onClose();
     } catch (error) {
@@ -672,13 +727,13 @@ export default function TaskDetailDrawer({
     <div className="fixed inset-0 z-[130]">
       <button
         type="button"
-        className="absolute inset-0 bg-[#160F31]/38 backdrop-blur-[3px]"
+        className="absolute inset-0 bg-[#160F31]/[0.38] backdrop-blur-[3px]"
         onClick={onClose}
         aria-label="Đóng drawer"
       />
 
-      <aside className="absolute right-0 top-0 h-full w-full max-w-[620px] overflow-y-auto border-l border-white/50 bg-[#FBFAFF]/96 shadow-[-20px_0_60px_rgba(26,21,40,0.12)] backdrop-blur-2xl">
-        <div className="sticky top-0 z-10 border-b border-[rgba(124,115,150,0.10)] bg-[#FBFAFF]/95 px-5 py-5 backdrop-blur-xl">
+      <aside className="absolute right-0 top-0 h-full w-full max-w-[620px] overflow-y-auto border-l border-white/50 bg-[#FBFAFF]/[0.96] shadow-[-20px_0_60px_rgba(26,21,40,0.12)] backdrop-blur-2xl">
+        <div className="sticky top-0 z-10 border-b border-[rgba(124,115,150,0.10)] bg-[#FBFAFF]/[0.95] px-5 py-5 backdrop-blur-xl">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
@@ -713,7 +768,7 @@ export default function TaskDetailDrawer({
             </div>
           ) : null}
 
-          <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-sm">
+          <div className="rounded-[30px] border border-white/80 bg-white/[0.92] p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
@@ -771,7 +826,7 @@ export default function TaskDetailDrawer({
             ) : null}
           </div>
 
-          <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-sm">
+          <div className="rounded-[30px] border border-white/80 bg-white/[0.92] p-5 shadow-sm">
             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
               Edit task
             </div>
@@ -946,10 +1001,11 @@ export default function TaskDetailDrawer({
 
           <FocusHistoryMini
             sessions={focusHistory}
+            gate={focusHistoryGate}
             isLoading={isLoadingFocusHistory}
           />
 
-          <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-sm">
+          <div className="rounded-[30px] border border-white/80 bg-white/[0.92] p-5 shadow-sm">
             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
               Quick reschedule
             </div>
@@ -1044,13 +1100,15 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 
 function FocusHistoryMini({
   sessions,
+  gate,
   isLoading,
 }: {
   sessions: FocusHistoryItem[];
+  gate: FocusHistoryGate | null;
   isLoading: boolean;
 }) {
   return (
-    <div className="rounded-[30px] border border-white/80 bg-white/92 p-5 shadow-sm">
+    <div className="rounded-[30px] border border-white/80 bg-white/[0.92] p-5 shadow-sm">
       <div>
         <div className="inline-flex items-center gap-2 rounded-full bg-[#F4F0FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
           <History className="h-3.5 w-3.5" />
@@ -1066,6 +1124,8 @@ function FocusHistoryMini({
         <div className="mt-4 rounded-[22px] border border-[#ECE8FF] bg-[#FAF9FF] p-4 text-[13px] font-semibold text-[#615C7A]">
           Đang tải lịch sử focus...
         </div>
+      ) : gate ? (
+        <FocusHistoryUpgradeCard gate={gate} />
       ) : sessions.length > 0 ? (
         <div className="mt-4 space-y-3">
           {sessions.map((session) => (
@@ -1074,16 +1134,23 @@ function FocusHistoryMini({
               className="rounded-[22px] border border-[#ECE8FF] bg-[#FAF9FF] px-4 py-3"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="text-[13px] font-black text-[#241F3D]">
-                  {session.durationMinutes} phút focus
+                <div>
+                  <div className="text-[13px] font-black text-[#241F3D]">
+                    {session.durationMinutes} phút focus
+                  </div>
+                  <div className="mt-1 text-[11px] font-bold text-[#8A84A3]">
+                    {session.status === "COMPLETED"
+                      ? "Đã hoàn thành"
+                      : session.status ?? "Focus session"}
+                    {typeof session.coinsEarned === "number" &&
+                    session.coinsEarned > 0
+                      ? ` • +${session.coinsEarned} coins`
+                      : ""}
+                  </div>
                 </div>
-                <div className="text-[11px] font-bold text-[#8A84A3]">
-                  {new Intl.DateTimeFormat("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(session.startedAt))}
+
+                <div className="text-right text-[11px] font-bold text-[#8A84A3]">
+                  {formatFocusDate(session.startedAt)}
                 </div>
               </div>
             </div>
@@ -1095,6 +1162,41 @@ function FocusHistoryMini({
           sẽ xuất hiện ở đây.
         </div>
       )}
+    </div>
+  );
+}
+
+function FocusHistoryUpgradeCard({ gate }: { gate: FocusHistoryGate }) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-[24px] border border-[#FFE6C7] bg-[radial-gradient(circle_at_10%_0%,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_38%),linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#F5F2FF_100%)] p-4 shadow-[0_14px_34px_rgba(26,21,40,0.06)]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_12px_24px_rgba(245,158,11,0.2)]">
+          <LockKeyhole className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.8] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#F59E0B]">
+            <Crown className="h-3.5 w-3.5" />
+            Cần gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+          </div>
+
+          <h4 className="mt-3 text-[1rem] font-black tracking-tight text-[#241F3D]">
+            Mở khóa lịch sử focus session
+          </h4>
+
+          <p className="mt-2 text-[12.5px] font-medium leading-6 text-[#615C7A]">
+            {gate.message}
+          </p>
+
+          <Link
+            href={`/pricing?highlight=${gate.requiredPlan.toLowerCase()}`}
+            className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[12px] font-black text-white shadow-[0_12px_26px_rgba(26,21,40,0.15)] transition hover:-translate-y-0.5 hover:bg-black"
+          >
+            Xem gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+            <ArrowRight className="h-3.5 w-3.5 text-[#FBBF24]" />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

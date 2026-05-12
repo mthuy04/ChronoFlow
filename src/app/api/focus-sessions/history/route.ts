@@ -10,7 +10,14 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+          message: "Bạn cần đăng nhập để xem lịch sử focus.",
+        },
+        { status: 401 },
+      );
     }
 
     const url = new URL(request.url);
@@ -18,7 +25,11 @@ export async function GET(request: Request) {
 
     if (!taskId) {
       return NextResponse.json(
-        { error: "Task id is required." },
+        {
+          success: false,
+          error: "TASK_ID_REQUIRED",
+          message: "Task id is required.",
+        },
         { status: 400 },
       );
     }
@@ -33,7 +44,14 @@ export async function GET(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "USER_NOT_FOUND",
+          message: "Không tìm thấy tài khoản.",
+        },
+        { status: 404 },
+      );
     }
 
     if (!hasFeatureAccess(user, "FOCUS_HISTORY")) {
@@ -45,11 +63,20 @@ export async function GET(request: Request) {
         id: taskId,
         userId: user.id,
       },
-      select: { id: true },
+      select: {
+        id: true,
+      },
     });
 
     if (!task) {
-      return NextResponse.json({ error: "Task not found." }, { status: 404 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "TASK_NOT_FOUND",
+          message: "Không tìm thấy task.",
+        },
+        { status: 404 },
+      );
     }
 
     const sessions = await prisma.focusSession.findMany({
@@ -57,12 +84,16 @@ export async function GET(request: Request) {
         userId: user.id,
         taskId: task.id,
       },
-      orderBy: { startedAt: "desc" },
-      take: 5,
+      orderBy: {
+        startedAt: "desc",
+      },
+      take: 8,
       select: {
         id: true,
         taskId: true,
+        status: true,
         durationMinutes: true,
+        coinsEarned: true,
         startedAt: true,
         endedAt: true,
         createdAt: true,
@@ -78,7 +109,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       {
-        error: "Failed to load focus session history.",
+        success: false,
+        error: "FOCUS_HISTORY_LOAD_FAILED",
+        message: "Không tải được lịch sử focus.",
         detail: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
