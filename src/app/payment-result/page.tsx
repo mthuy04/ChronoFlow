@@ -31,24 +31,42 @@ function PaymentResultContent() {
   const searchParams = useSearchParams();
   const hasTrackedPurchase = useRef(false);
 
+  const method = searchParams.get("method");
+  const bankStatus = searchParams.get("status");
+  const bankOrderId = searchParams.get("orderId");
+  const bankTransactionId = searchParams.get("transactionId");
+  const bankAmount = searchParams.get("amount");
+  const bankItemKey = searchParams.get("itemKey");
+  const bankItemName = searchParams.get("itemName");
+  const bankItemCategory = searchParams.get("itemCategory");
+
   const responseCode = searchParams.get("vnp_ResponseCode");
   const transactionStatus = searchParams.get("vnp_TransactionStatus");
-  const amount = searchParams.get("vnp_Amount");
+  const vnpAmount = searchParams.get("vnp_Amount");
   const txnRef = searchParams.get("vnp_TxnRef");
 
-  const success = responseCode === "00" && transactionStatus === "00";
+  const isBankTransfer = method === "bank-transfer";
+  const success = isBankTransfer
+    ? bankStatus === "success" && Boolean(bankOrderId)
+    : responseCode === "00" && transactionStatus === "00";
 
   const paidAmount = useMemo(() => {
-    if (!amount) return null;
+    const rawAmount = isBankTransfer ? bankAmount : vnpAmount;
 
-    const parsedAmount = Number(amount);
+    if (!rawAmount) return null;
+
+    const parsedAmount = Number(rawAmount);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return null;
     }
 
-    return parsedAmount / 100;
-  }, [amount]);
+    return isBankTransfer ? parsedAmount : parsedAmount / 100;
+  }, [bankAmount, isBankTransfer, vnpAmount]);
+
+  const transactionId = isBankTransfer
+    ? bankTransactionId ?? bankOrderId
+    : txnRef;
 
   const displayAmount =
     typeof paidAmount === "number"
@@ -56,22 +74,30 @@ function PaymentResultContent() {
       : "Không xác định";
 
   useEffect(() => {
-    if (!success || !txnRef || typeof paidAmount !== "number") return;
+    if (!success || !transactionId || typeof paidAmount !== "number") return;
     if (hasTrackedPurchase.current) return;
 
     trackPurchase({
-      transactionId: txnRef,
+      transactionId,
       item: {
-        itemId: "chronoflow_payment_vnpay",
-        itemName: "ChronoFlow Payment",
-        itemCategory: "VNPAY",
+        itemId: bankItemKey ?? "chronoflow_payment_vnpay",
+        itemName: bankItemName ?? "ChronoFlow Payment",
+        itemCategory: bankItemCategory ?? (isBankTransfer ? "SEPAY" : "VNPAY"),
         price: paidAmount,
         quantity: 1,
       },
     });
 
     hasTrackedPurchase.current = true;
-  }, [paidAmount, success, txnRef]);
+  }, [
+    bankItemCategory,
+    bankItemKey,
+    bankItemName,
+    isBankTransfer,
+    paidAmount,
+    success,
+    transactionId,
+  ]);
 
   return (
     <main className="min-h-screen bg-[#F4F2FA] px-4 py-16 font-sans text-[#1A1528]">
@@ -104,7 +130,7 @@ function PaymentResultContent() {
           <div className="flex justify-between gap-4">
             <span>Mã giao dịch</span>
             <span className="text-right font-[900] text-[#1A1528]">
-              {txnRef ?? "N/A"}
+              {transactionId ?? "N/A"}
             </span>
           </div>
 

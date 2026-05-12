@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -37,6 +37,17 @@ type CreatedOrder = {
   };
 };
 
+type OrderStatusResponse = {
+  order?: {
+    id: string;
+    itemKey: string;
+    itemName: string;
+    amount: number;
+    status: string;
+    transactionId: string;
+  };
+};
+
 export default function CheckoutPage() {
   return (
     <Suspense fallback={<CheckoutPageFallback />}>
@@ -66,6 +77,7 @@ function CheckoutPageFallback() {
 }
 
 function CheckoutPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan");
   const product = searchParams.get("product");
@@ -74,6 +86,7 @@ function CheckoutPageContent() {
   const item = useMemo(() => getCheckoutItem(itemKey), [itemKey]);
 
   const hasTrackedViewItem = useRef(false);
+  const hasStartedRedirect = useRef(false);
 
   const ga4Item = useMemo<EcommerceItem | null>(() => {
     if (!item) return null;
@@ -94,6 +107,7 @@ function CheckoutPageContent() {
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ga4Item || hasTrackedViewItem.current) return;
@@ -109,6 +123,68 @@ function CheckoutPageContent() {
       }
     };
   }, [proofPreview]);
+
+  useEffect(() => {
+    if (!order || !item || hasStartedRedirect.current) return;
+
+    const currentOrder = order;
+    const currentItem = item;
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    async function checkOrderStatus() {
+      try {
+        const res = await fetch(`/api/checkout/orders/${currentOrder.orderId}`, {
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+
+        const data = (await res.json()) as OrderStatusResponse;
+        const paidOrder = data.order;
+
+        if (!paidOrder) return;
+
+        setPaymentStatus(paidOrder.status);
+
+        if (paidOrder.status !== "PAID" || cancelled) return;
+
+        hasStartedRedirect.current = true;
+
+        if (intervalId) {
+          window.clearInterval(intervalId);
+        }
+
+        const params = new URLSearchParams({
+          method: "bank-transfer",
+          status: "success",
+          orderId: paidOrder.id,
+          transactionId: paidOrder.transactionId,
+          amount: String(paidOrder.amount),
+          itemKey: paidOrder.itemKey,
+          itemName: paidOrder.itemName,
+          itemCategory:
+            currentItem.type === "product" ? "Planner Kit" : "Subscription",
+        });
+
+        router.replace(`/payment-result?${params.toString()}`);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    void checkOrderStatus();
+    intervalId = window.setInterval(checkOrderStatus, 3000);
+
+    return () => {
+      cancelled = true;
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [item, order, router]);
 
   async function createOrder() {
     if (!item) return;
@@ -140,6 +216,7 @@ function CheckoutPageContent() {
       }
 
       setOrder(data.order);
+      setPaymentStatus("PENDING");
 
       if (ga4Item) {
         trackAddPaymentInfo({
@@ -405,6 +482,12 @@ function CheckoutPageContent() {
                         Vui lòng chuyển đúng số tiền và giữ nguyên nội dung
                         chuyển khoản.
                       </p>
+                      {paymentStatus === "PENDING" && (
+                        <p className="mt-2 text-xs font-bold text-[#6F59FF]">
+                          Hệ thống đang chờ SePay xác nhận giao dịch để tự
+                          chuyển sang trang kết quả.
+                        </p>
+                      )}
                     </div>
                   </div>
 

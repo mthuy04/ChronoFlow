@@ -1,5 +1,8 @@
 import crypto from "crypto";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -73,6 +76,10 @@ function getTransactionContent(payload: BankWebhookPayload) {
     .join(" ");
 }
 
+function getAccountNumber(payload: BankWebhookPayload) {
+  return payload.accountNumber ?? payload.account_number ?? null;
+}
+
 function extractTransferCode(text: string) {
   const match = text.match(/CF[\s_-]+(PLUS|PRO|PLANNER-KIT)[\s_-]+[A-Z0-9]{6}/i);
 
@@ -81,6 +88,10 @@ function extractTransferCode(text: string) {
   }
 
   return match[0].replace(/[_-]+/g, " ").replace(/\s+/g, " ").toUpperCase();
+}
+
+function normalizeAccountNumber(value: string) {
+  return value.replace(/\D/g, "");
 }
 
 function getSePaySignature(req: NextRequest) {
@@ -200,6 +211,7 @@ export async function POST(req: NextRequest) {
     const amount = getIncomingAmount(payload);
     const content = getTransactionContent(payload);
     const transferCode = extractTransferCode(content);
+    const accountNumber = getAccountNumber(payload);
 
     if (!transferCode) {
       console.log("[SEPAY_WEBHOOK_IGNORED]", {
@@ -216,18 +228,101 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /**
-     * TODO phase tiếp theo:
-     * 1. Tìm PaymentOrder trong DB bằng transferCode.
-     * 2. Kiểm tra amount === order.amount.
-     * 3. Chống xử lý trùng bằng providerTxnId / SePay transaction id.
-     * 4. Update order.status = "PAID", paidAt = new Date().
-     * 5. Nếu itemKey = plus/pro -> active subscription.
-     * 6. Nếu itemKey = planner-kit -> tạo fulfillment/shipping order.
-     * 7. Gửi GA4 purchase server-side hoặc ghi flag đã track.
-     */
+    const order = await prisma.paymentOrder.findUnique({
+      where: {
+        transferCode,
+      },
+      select: {
+        id: true,
+        amount: true,
+        accountNo: true,
+        status: true,
+      },
+    });
+
+    if (!order) {
+      console.log("[SEPAY_WEBHOOK_IGNORED]", {
+        reason: "Không tìm thấy PaymentOrder cho mã chuyển khoản.",
+        transferCode,
+        amount,
+        transactionId: payload.id ?? null,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        reason: "Không tìm thấy đơn hàng.",
+      });
+    }
+
+    if (amount !== order.amount) {
+      console.warn("[SEPAY_WEBHOOK_AMOUNT_MISMATCH]", {
+        orderId: order.id,
+        transferCode,
+        expectedAmount: order.amount,
+        receivedAmount: amount,
+        transactionId: payload.id ?? null,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        reason: "Số tiền không khớp đơn hàng.",
+      });
+    }
+
+    if (
+      accountNumber &&
+      order.accountNo &&
+      normalizeAccountNumber(accountNumber) !==
+        normalizeAccountNumber(order.accountNo)
+    ) {
+      console.warn("[SEPAY_WEBHOOK_ACCOUNT_MISMATCH]", {
+        orderId: order.id,
+        transferCode,
+        expectedAccountNo: order.accountNo,
+        receivedAccountNo: accountNumber,
+        transactionId: payload.id ?? null,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        reason: "Tài khoản nhận tiền không khớp.",
+      });
+    }
+
+    if (order.status === "PAID") {
+      return NextResponse.json({
+        ok: true,
+        orderId: order.id,
+        transferCode,
+        duplicate: true,
+      });
+    }
+
+    const providerTxnId =
+      payload.id === undefined || payload.id === null ? null : String(payload.id);
+
+    const updatedOrder = await prisma.paymentOrder.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: "PAID",
+        providerTxnId,
+        rawWebhook: payload as Prisma.InputJsonValue,
+        paidAt: new Date(),
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
     console.log("[SEPAY_WEBHOOK_MATCHED]", {
+      orderId: updatedOrder.id,
+      status: updatedOrder.status,
       transferCode,
       amount,
       content,
@@ -235,11 +330,12 @@ export async function POST(req: NextRequest) {
       gateway: payload.gateway ?? null,
       transactionDate:
         payload.transactionDate ?? payload.transaction_date ?? null,
-      accountNumber: payload.accountNumber ?? payload.account_number ?? null,
+      accountNumber,
     });
 
     return NextResponse.json({
       ok: true,
+      orderId: updatedOrder.id,
       transferCode,
       amount,
     });
