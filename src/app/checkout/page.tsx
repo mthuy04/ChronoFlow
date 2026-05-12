@@ -11,7 +11,6 @@ import {
   CreditCard,
   Gift,
   Loader2,
-  Package,
   QrCode,
   RefreshCw,
   ShieldCheck,
@@ -62,23 +61,6 @@ type ReadOrderResponse = {
   message?: string;
   order?: CheckoutOrder;
 };
-
-type GtagValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | GtagValue[]
-  | {
-      [key: string]: GtagValue;
-    };
-
-declare global {
-  interface Window {
-    gtag?: (command: "event", eventName: string, params: Record<string, GtagValue>) => void;
-  }
-}
 
 const POLLING_INTERVAL_MS = 4000;
 
@@ -132,7 +114,7 @@ function CheckoutPageContent() {
       setCreating(true);
       setErrorMessage(null);
 
-      const res = await fetch("/api/checkout/bank-transfer", {
+      const response = await fetch("/api/checkout/bank-transfer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -143,15 +125,19 @@ function CheckoutPageContent() {
         }),
       });
 
-      const data = (await res.json().catch(() => null)) as CreateOrderResponse | null;
+      const data = (await response.json().catch(() => null)) as
+        | CreateOrderResponse
+        | null;
 
-      if (res.status === 401) {
+      if (response.status === 401) {
         const encodedCallback = encodeURIComponent(callbackUrl);
-        router.push(data?.loginUrl ?? `/auth/login?callbackUrl=${encodedCallback}`);
+        router.push(
+          data?.loginUrl ?? `/auth/login?callbackUrl=${encodedCallback}`,
+        );
         return;
       }
 
-      if (!res.ok || !data?.order) {
+      if (!response.ok || !data?.order) {
         throw new Error(data?.message || "Không tạo được đơn thanh toán.");
       }
 
@@ -172,16 +158,20 @@ function CheckoutPageContent() {
     try {
       setPolling(true);
 
-      const res = await fetch(`/api/checkout/orders/${orderId}`, {
+      const response = await fetch(`/api/checkout/orders/${orderId}`, {
         method: "GET",
         cache: "no-store",
         credentials: "include",
       });
 
-      const data = (await res.json().catch(() => null)) as ReadOrderResponse | null;
+      const data = (await response.json().catch(() => null)) as
+        | ReadOrderResponse
+        | null;
 
-      if (!res.ok || !data?.order) {
-        throw new Error(data?.message || "Không đọc được trạng thái thanh toán.");
+      if (!response.ok || !data?.order) {
+        throw new Error(
+          data?.message || "Không đọc được trạng thái thanh toán.",
+        );
       }
 
       setOrder(data.order);
@@ -232,24 +222,26 @@ function CheckoutPageContent() {
 
   useEffect(() => {
     if (!order || order.status !== "PAID") return;
-
     if (trackedPurchaseRef.current === order.orderId) return;
+
     trackedPurchaseRef.current = order.orderId;
 
-    window.gtag?.("event", "purchase", {
-      transaction_id: order.orderId,
-      value: order.amount,
-      currency: order.currency || "VND",
-      items: [
-        {
-          item_id: order.itemKey,
-          item_name: order.itemName,
-          item_category: order.itemType,
-          price: order.amount,
-          quantity: 1,
-        },
-      ],
-    });
+    if (typeof window !== "undefined" && typeof window.gtag === "function") {
+      window.gtag("event", "purchase", {
+        transaction_id: order.orderId,
+        value: order.amount,
+        currency: order.currency || "VND",
+        items: [
+          {
+            item_id: order.itemKey,
+            item_name: order.itemName,
+            item_category: order.itemType,
+            price: order.amount,
+            quantity: 1,
+          },
+        ],
+      });
+    }
   }, [order]);
 
   if (!item) {
@@ -300,7 +292,8 @@ function CheckoutPageContent() {
             </h1>
 
             <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#6B647C] md:text-base">
-              Quét QR và giữ đúng nội dung chuyển khoản. Hệ thống sẽ tự xác nhận khi SePay ghi nhận tiền vào.
+              Quét QR và giữ đúng nội dung chuyển khoản. Hệ thống sẽ tự xác nhận
+              khi SePay ghi nhận tiền vào.
             </p>
           </div>
 
@@ -471,7 +464,8 @@ function SuccessPanel({ order }: { order: CheckoutOrder }) {
         Thanh toán thành công
       </h3>
       <p className="mt-2 max-w-md text-sm font-semibold leading-relaxed text-[#047857]/80">
-        SePay đã ghi nhận giao dịch của bạn. Đơn {order.orderId} đã được xác nhận tự động.
+        SePay đã ghi nhận giao dịch của bạn. Đơn {order.orderId} đã được xác
+        nhận tự động.
       </p>
 
       <Link
@@ -505,7 +499,11 @@ function ExpiredPanel({
         disabled={creating}
         className="mt-6 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-sm font-bold text-white disabled:opacity-70"
       >
-        {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+        {creating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <QrCode className="h-4 w-4" />
+        )}
         Tạo QR mới
       </button>
     </div>
@@ -520,7 +518,8 @@ function AmountMismatchPanel({ order }: { order: CheckoutOrder }) {
         Số tiền chưa khớp
       </h3>
       <p className="mt-2 max-w-md text-sm font-semibold leading-relaxed text-[#B91C1C]/80">
-        Hệ thống đã nhận giao dịch nhưng số tiền không khớp đơn hàng. Vui lòng liên hệ hỗ trợ kèm mã đơn {order.orderId}.
+        Hệ thống đã nhận giao dịch nhưng số tiền không khớp đơn hàng. Vui lòng
+        liên hệ hỗ trợ kèm mã đơn {order.orderId}.
       </p>
 
       <Link
@@ -555,12 +554,17 @@ function PendingPaymentPanel({
           </div>
           <h3 className="text-2xl font-[900]">Quét QR để thanh toán</h3>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-[#6B647C]">
-            Sau khi tiền vào tài khoản, SePay sẽ tự xác nhận. Không cần upload bill.
+            Sau khi tiền vào tài khoản, SePay sẽ tự xác nhận. Không cần upload
+            bill.
           </p>
         </div>
 
         <div className="inline-flex items-center gap-2 rounded-full bg-[#FFF7ED] px-3 py-2 text-xs font-black text-[#F59E0B]">
-          {polling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TimerReset className="h-3.5 w-3.5" />}
+          {polling ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <TimerReset className="h-3.5 w-3.5" />
+          )}
           Đang chờ
         </div>
       </div>
@@ -603,7 +607,11 @@ function PendingPaymentPanel({
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#F59E0B] shadow-sm"
                 title="Copy nội dung"
               >
-                {copied ? <CheckCircle2 className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                {copied ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <Clipboard className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>
@@ -618,7 +626,8 @@ function PendingPaymentPanel({
           <div>
             <h4 className="font-[900]">Hệ thống đang tự động kiểm tra</h4>
             <p className="mt-1 text-xs font-semibold leading-6 text-[#8A84A3]">
-              Vui lòng chuyển đúng số tiền và đúng nội dung. Trang này sẽ tự cập nhật sau vài giây khi SePay gửi webhook.
+              Vui lòng chuyển đúng số tiền và đúng nội dung. Trang này sẽ tự cập
+              nhật sau vài giây khi SePay gửi webhook.
             </p>
           </div>
         </div>
@@ -628,7 +637,11 @@ function PendingPaymentPanel({
           onClick={onCopyBankInfo}
           className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1A1528] px-5 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-black"
         >
-          {copied ? <CheckCircle2 className="h-4 w-4 text-[#10B981]" /> : <Clipboard className="h-4 w-4 text-[#4DA8FF]" />}
+          {copied ? (
+            <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
+          ) : (
+            <Clipboard className="h-4 w-4 text-[#4DA8FF]" />
+          )}
           Copy toàn bộ thông tin chuyển khoản
         </button>
       </div>
