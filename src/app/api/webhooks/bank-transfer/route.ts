@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { sendGa4PurchaseEvent } from "@/lib/analytics/ga4-server";
+import { activateUserPlanFromPayment } from "@/lib/activate-plan";
 
 import { prisma } from "@/lib/prisma";
 
@@ -377,6 +378,13 @@ export async function POST(req: NextRequest) {
             quantity: 1,
           },
         ],
+      });
+    }
+    if (updatedOrder.status === "PAID" && updatedOrder.userId) {
+      await activateUserPlanFromPayment({
+        userId: updatedOrder.userId,
+        itemKey: updatedOrder.itemKey,
+        sourceOrderId: updatedOrder.id,
       });
     }
 

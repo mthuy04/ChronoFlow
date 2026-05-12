@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-
+import { forbiddenPlanResponse, hasFeatureAccess } from "@/lib/plan-access";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -974,6 +974,8 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        planTier: true,
+        planExpiresAt: true,
         chronotypeResults: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -997,6 +999,9 @@ export async function GET() {
         { success: false, error: "User not found." },
         { status: 404 },
       );
+    }
+    if (!hasFeatureAccess(user, "ADVANCED_INSIGHTS")) {
+      return forbiddenPlanResponse("ADVANCED_INSIGHTS");
     }
 
     const tasks = await prisma.task.findMany({

@@ -8,10 +8,15 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum PlanTier {
+  FREE
+  PLUS
+  PRO
+}
 enum UserRole {
   USER
   ADMIN
-}
+}enum
 
 enum TaskType {
   DEEP_WORK
