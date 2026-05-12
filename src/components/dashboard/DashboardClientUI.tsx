@@ -12,6 +12,8 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
+  Crown,
+LockKeyhole,
   CheckCircle2,
   Coins,
   Coffee,
@@ -231,6 +233,7 @@ type DashboardData = {
     recommendation?: string;
     summary?: string;
   } | null;
+  weeklyInsightGate?: PlanRequiredGate | null;
 };
 
 type TaskTone = {
@@ -287,6 +290,14 @@ type FinishFocusResponse = {
 type BasicApiResponse = {
   message?: string;
   nextCoinBalance?: number;
+};
+type PlanRequiredGate = {
+  error?: "PLAN_REQUIRED";
+  code?: "PLAN_REQUIRED";
+  requiredPlan: "PLUS" | "PRO";
+  feature?: string;
+  message: string;
+  upgradeUrl?: string;
 };
 
 const taskToneMap: Record<string, TaskTone> = {
@@ -2097,6 +2108,7 @@ function RecentFocus({ sessions }: { sessions: FocusSession[] }) {
 
 function WeeklyInsightPanel({ data }: { data: DashboardData | null }) {
   const insight = data?.weeklyInsight;
+  const gate = data?.weeklyInsightGate ?? null;
 
   return (
     <Panel className="p-5">
@@ -2107,9 +2119,10 @@ function WeeklyInsightPanel({ data }: { data: DashboardData | null }) {
         <h2 className="mt-3 text-[22px] font-[900] text-[#1A1528]">
           Nhìn lại dữ liệu tuần
         </h2>
+        {gate ? <DashboardWeeklyInsightUpgradeCard gate={gate} /> : null}
       </div>
 
-      {insight ? (
+      {!gate && insight ? (
         <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-[24px] border border-[#EEF0F6] bg-[#F8F9FE] p-5">
             <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
@@ -2141,6 +2154,44 @@ function WeeklyInsightPanel({ data }: { data: DashboardData | null }) {
         />
       )}
     </Panel>
+  );
+}
+function DashboardWeeklyInsightUpgradeCard({
+  gate,
+}: {
+  gate: PlanRequiredGate;
+}) {
+  return (
+    <div className="mt-5 overflow-hidden rounded-[24px] border border-[#FFE6C7] bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_52%,#F5F2FF_100%)] p-5 shadow-[0_14px_34px_rgba(26,21,40,0.06)]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_10px_24px_rgba(245,158,11,0.2)]">
+          <LockKeyhole className="h-5 w-5" />
+        </div>
+
+        <div>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.82] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#F59E0B]">
+            <Crown className="h-3.5 w-3.5" />
+            Cần gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+          </div>
+
+          <h3 className="mt-3 text-[1rem] font-black tracking-tight text-[#241F3D]">
+            Mở khóa tổng kết tuần
+          </h3>
+
+          <p className="mt-2 text-[13px] font-medium leading-6 text-[#615C7A]">
+            {gate.message}
+          </p>
+
+          <Link
+            href={gate.upgradeUrl ?? `/pricing?highlight=${gate.requiredPlan.toLowerCase()}`}
+            className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[12px] font-black text-white shadow-[0_12px_26px_rgba(26,21,40,0.15)] transition hover:-translate-y-0.5 hover:bg-black"
+          >
+            Xem gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+            <ArrowRight className="h-3.5 w-3.5 text-[#FBBF24]" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

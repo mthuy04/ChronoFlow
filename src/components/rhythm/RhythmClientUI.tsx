@@ -9,6 +9,8 @@ import {
   ArrowRight,
   BarChart3,
   Brain,
+  Crown,
+LockKeyhole,
   CalendarClock,
   CheckCircle2,
   Clock3,
@@ -180,6 +182,7 @@ type RhythmData = {
     recommendation?: string;
     summary?: string;
   } | null;
+  weeklyInsightGate?: PlanRequiredGate | null;
   lastUpdated?: string | null;
 };
 
@@ -192,6 +195,14 @@ type BasicApiResponse = {
   message?: string;
 };
 
+type PlanRequiredGate = {
+  error?: "PLAN_REQUIRED";
+  code?: "PLAN_REQUIRED";
+  requiredPlan: "PLUS" | "PRO";
+  feature?: string;
+  message: string;
+  upgradeUrl?: string;
+};
 export default function RhythmClientUI() {
   const [data, setData] = useState<RhythmData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -425,9 +436,10 @@ export default function RhythmClientUI() {
           <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
             <AssessmentPanel assessment={data?.assessment} />
             <WeeklyInsightPanel
-              insight={data?.weeklyInsight}
-              comparison={data?.weekComparison ?? null}
-            />
+  insight={data?.weeklyInsight}
+  gate={data?.weeklyInsightGate ?? null}
+  comparison={data?.weekComparison ?? null}
+/>
           </div>
 
           <div className="mt-6">
@@ -1560,9 +1572,11 @@ function AssessmentPanel({ assessment }: { assessment?: RhythmData["assessment"]
 
 function WeeklyInsightPanel({
   insight,
+  gate,
   comparison,
 }: {
   insight?: RhythmData["weeklyInsight"];
+  gate?: PlanRequiredGate | null;
   comparison: RhythmData["weekComparison"];
 }) {
   return (
@@ -1574,8 +1588,8 @@ function WeeklyInsightPanel({
       <h2 className="mt-5 text-[32px] font-[900] leading-tight tracking-[-0.04em] md:text-[36px]">
         Nhìn lại tuần gần nhất
       </h2>
-
-      {insight ? (
+      {gate ? <WeeklyInsightUpgradeCard gate={gate} /> : null}
+      {!gate && insight ? (
         <div className="mt-6 grid gap-4 md:grid-cols-[1fr_0.75fr]">
           <div className="rounded-[24px] border border-[#ECEAF4] bg-[#F8F7FC] p-5">
             <div className="text-[12px] font-black uppercase tracking-[0.16em] text-[#8A84A3]">
@@ -1622,7 +1636,7 @@ function WeeklyInsightPanel({
         />
       )}
 
-      {comparison ? (
+{!gate && comparison ? (
         <div className="mt-5 rounded-[24px] border border-[#DDEEFF] bg-[#F8FCFF] p-4">
           <h3 className="text-[15px] font-[900] text-[#1A1528]">
             So sánh với tuần trước
@@ -1652,6 +1666,41 @@ function WeeklyInsightPanel({
         </div>
       )}
     </Card>
+  );
+}
+
+function WeeklyInsightUpgradeCard({ gate }: { gate: PlanRequiredGate }) {
+  return (
+    <div className="mt-6 overflow-hidden rounded-[26px] border border-[#FFE6C7] bg-[radial-gradient(circle_at_10%_0%,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0)_38%),linear-gradient(135deg,#FFF7ED_0%,#FFFFFF_48%,#F5F2FF_100%)] p-5 shadow-[0_16px_42px_rgba(26,21,40,0.06)]">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_12px_26px_rgba(245,158,11,0.2)]">
+          <LockKeyhole className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.82] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#F59E0B]">
+            <Crown className="h-3.5 w-3.5" />
+            Cần gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+          </div>
+
+          <h3 className="mt-3 text-[1.08rem] font-black tracking-tight text-[#241F3D]">
+            Mở khóa Weekly Insights
+          </h3>
+
+          <p className="mt-2 text-[13px] font-medium leading-6 text-[#615C7A]">
+            {gate.message}
+          </p>
+
+          <Link
+            href={gate.upgradeUrl ?? `/pricing?highlight=${gate.requiredPlan.toLowerCase()}`}
+            className="mt-4 inline-flex min-h-[42px] items-center gap-2 rounded-2xl bg-[#1A1528] px-4 text-[12px] font-black text-white shadow-[0_12px_26px_rgba(26,21,40,0.15)] transition hover:-translate-y-0.5 hover:bg-black"
+          >
+            Xem gói {gate.requiredPlan === "PRO" ? "Pro" : "Plus"}
+            <ArrowRight className="h-3.5 w-3.5 text-[#FBBF24]" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

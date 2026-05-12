@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasFeatureAccess } from "@/lib/plan-access";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +17,8 @@ type UserRecord = {
   chronotype: string | null;
   hasCompletedAssessment: boolean;
   coinBalance: number;
+  planTier: string | null;
+  planExpiresAt: Date | null;
 };
 
 type TaskRecord = {
@@ -751,6 +754,8 @@ export async function GET() {
         chronotype: true,
         hasCompletedAssessment: true,
         coinBalance: true,
+        planTier: true,
+        planExpiresAt: true,
       },
     });
 
@@ -765,7 +770,11 @@ export async function GET() {
       chronotype: user.chronotype,
       hasCompletedAssessment: user.hasCompletedAssessment,
       coinBalance: user.coinBalance ?? 0,
+      planTier: user.planTier,
+      planExpiresAt: user.planExpiresAt,
     };
+    
+    const canUseWeeklyInsights = hasFeatureAccess(safeUser, "WEEKLY_INSIGHTS");
 
     const fourteenDaysAgo = addDays(new Date(), -14);
 
@@ -1179,7 +1188,20 @@ const [
         recentRedemptions: rewardRedemptions,
       },
       smartSuggestions,
-      weeklyInsight: typedWeeklyInsights[0] || updatedWeeklyInsight,
+      weeklyInsight: canUseWeeklyInsights
+      ? typedWeeklyInsights[0] || updatedWeeklyInsight
+      : null,
+    weeklyInsightGate: canUseWeeklyInsights
+      ? null
+      : {
+          error: "PLAN_REQUIRED",
+          code: "PLAN_REQUIRED",
+          requiredPlan: "PLUS",
+          feature: "WEEKLY_INSIGHTS",
+          message:
+            "Weekly Insights là tính năng Plus. Nâng cấp để xem tổng kết tuần theo task, focus session và nhịp năng lượng.",
+          upgradeUrl: "/pricing?highlight=plus",
+        },
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

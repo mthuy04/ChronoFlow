@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { hasFeatureAccess } from "@/lib/plan-access";
 import type {
   ChronotypeResult,
   Task,
@@ -207,6 +208,7 @@ export async function GET() {
         { status: 404 },
       );
     }
+    const canUseWeeklyInsights = hasFeatureAccess(user, "WEEKLY_INSIGHTS");
 
     const todayKey = getVietnamDateKey(new Date());
     const weekRange = getCurrentWeekRange();
@@ -349,10 +351,9 @@ export async function GET() {
       windows: buildRhythmWindows(personalWindows),
       dailyTimeline: buildDailyTimeline(personalWindows),
       suggestedReschedules,
-      weekComparison: buildWeekComparison(
-        currentWeeklyInsight,
-        previousWeeklyInsight,
-      ),
+      weekComparison: canUseWeeklyInsights
+      ? buildWeekComparison(currentWeeklyInsight, previousWeeklyInsight)
+      : null,
       recoveryWarning: buildRecoveryWarning(user),
       weekly,
       recommendations: buildRecommendations({
@@ -373,8 +374,21 @@ export async function GET() {
         scores: buildAssessmentScores(latestResult),
         createdAt: latestResult?.createdAt.toISOString() ?? null,
       },
-      weeklyInsight: buildWeeklyInsightResponse(currentWeeklyInsight),
-      lastUpdated: new Date().toISOString(),
+      weeklyInsight: canUseWeeklyInsights
+      ? buildWeeklyInsightResponse(currentWeeklyInsight)
+      : null,
+    weeklyInsightGate: canUseWeeklyInsights
+      ? null
+      : {
+          error: "PLAN_REQUIRED",
+          code: "PLAN_REQUIRED",
+          requiredPlan: "PLUS",
+          feature: "WEEKLY_INSIGHTS",
+          message:
+            "Weekly Insights là tính năng Plus. Nâng cấp để xem tổng kết tuần theo nhịp năng lượng, task hoàn thành và deep work.",
+          upgradeUrl: "/pricing?highlight=plus",
+        },
+    lastUpdated: new Date().toISOString(),
     });
   } catch (error) {
     console.error("[RHYTHM_GET]", error);
