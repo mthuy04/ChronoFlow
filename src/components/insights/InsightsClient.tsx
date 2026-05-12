@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+import PlanRequiredCard from "@/components/common/PlanRequiredCard";
+import type { AppPlanTier, PlanFeature } from "@/lib/plan-access";
+
 type Tone = "purple" | "blue" | "orange" | "green" | "red";
 
 type DailyInsightPoint = {
@@ -111,6 +114,16 @@ type PlannerScoreBreakdown = {
   completion: number;
   overload: number;
   consistency: number;
+};
+
+type PlanRequiredError = {
+  ok?: false;
+  error?: string;
+  code?: string;
+  requiredPlan?: AppPlanTier;
+  feature?: PlanFeature;
+  message?: string;
+  upgradeUrl?: string;
 };
 
 type InsightsResponse = {
@@ -231,13 +244,31 @@ function getCorrelationLabel(points: EnergyFocusPoint[]) {
   return "Energy và focus khá cân bằng";
 }
 
+function isPlanRequiredPayload(payload: unknown): payload is PlanRequiredError {
+  if (!payload || typeof payload !== "object") return false;
+
+  const candidate = payload as PlanRequiredError;
+
+  return candidate.error === "PLAN_REQUIRED" || candidate.code === "PLAN_REQUIRED";
+}
+
+function normalizeRequiredPlan(plan?: AppPlanTier): Exclude<AppPlanTier, "FREE"> {
+  if (plan === "PLUS") return "PLUS";
+  return "PRO";
+}
+
 export default function InsightsClient() {
   const [data, setData] = useState<InsightsResponse | null>(null);
+  const [planRequired, setPlanRequired] = useState<PlanRequiredError | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   async function loadInsights() {
     try {
       setIsLoading(true);
+      setPlanRequired(null);
+      setData(null);
 
       const response = await fetch("/api/insights", {
         method: "GET",
@@ -246,11 +277,21 @@ export default function InsightsClient() {
 
       const payload = (await response.json().catch(() => null)) as
         | InsightsResponse
+        | PlanRequiredError
         | null;
 
-      if (!response.ok || !payload?.success) {
+      if (response.status === 403 && isPlanRequiredPayload(payload)) {
+        setPlanRequired(payload);
+        return;
+      }
+
+      if (!response.ok || !payload || !("success" in payload) || !payload.success) {
+        const errorPayload = payload as InsightsResponse | null;
+
         throw new Error(
-          payload?.detail || payload?.error || "Không thể tải insights.",
+          errorPayload?.detail ||
+            errorPayload?.error ||
+            "Không thể tải insights.",
         );
       }
 
@@ -258,7 +299,10 @@ export default function InsightsClient() {
     } catch (error) {
       setData({
         success: false,
-        error: error instanceof Error ? error.message : "Không thể tải insights.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Không thể tải insights. Vui lòng thử lại sau.",
       });
     } finally {
       setIsLoading(false);
@@ -293,7 +337,7 @@ export default function InsightsClient() {
     return (
       <InsightsShell>
         <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="rounded-[34px] border border-white/80 bg-white/82 p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+          <div className="rounded-[34px] border border-white/80 bg-white/[0.82] p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#6F59FF]" />
             <div className="mt-4 text-[18px] font-[900] text-[#1A1528]">
               Đang đọc dữ liệu insights...
@@ -308,11 +352,37 @@ export default function InsightsClient() {
     );
   }
 
+  if (planRequired) {
+    const requiredPlan = normalizeRequiredPlan(planRequired.requiredPlan);
+
+    return (
+      <InsightsShell>
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          className="pt-10"
+        >
+          <PlanRequiredCard
+            requiredPlan={requiredPlan}
+            featureLabel="Advanced Insights"
+            title="Insights nâng cao cần gói"
+            description={
+              planRequired.message && planRequired.message !== "PLAN_REQUIRED"
+                ? planRequired.message
+                : "Nâng cấp Pro để mở khóa Planner Score, Energy ↔ Focus correlation, Deadline Risk, Peak vs Off-peak comparison và các gợi ý task-level dựa trên dữ liệu thật của bạn."
+            }
+          />
+        </motion.div>
+      </InsightsShell>
+    );
+  }
+
   if (!data?.summary || !data.charts || !data.user || !data.advanced) {
     return (
       <InsightsShell>
         <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="max-w-[620px] rounded-[40px] border border-white/80 bg-white/85 p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
+          <div className="max-w-[620px] rounded-[40px] border border-white/80 bg-white/[0.85] p-8 text-center shadow-[0_24px_80px_rgba(26,21,40,0.08)] backdrop-blur-xl">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#FECACA] bg-[#FFF7F7] text-[#C55454]">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -597,7 +667,7 @@ export default function InsightsClient() {
                   </p>
                 </div>
 
-                <div className="relative grid h-34 w-34 place-items-center rounded-full border-[16px] border-[#EEE9FF] bg-white p-2 shadow-sm">
+                <div className="grid h-34 w-34 place-items-center rounded-full border-[16px] border-[#EEE9FF] bg-white p-2 shadow-sm">
                   <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-[#6F59FF] to-[#4DA8FF] text-[1.35rem] font-[900] text-white shadow-[0_16px_35px_rgba(111,89,255,0.18)]">
                     {advanced.peakComparison.peakTasks}/
                     {advanced.peakComparison.peakTasks +
@@ -668,7 +738,7 @@ export default function InsightsClient() {
             {charts.dailySeries.map((day) => (
               <div
                 key={day.dateKey}
-                className="rounded-[24px] border border-[#EEF0F6] bg-white/82 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(26,21,40,0.07)]"
+                className="rounded-[24px] border border-[#EEF0F6] bg-white/[0.82] p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(26,21,40,0.07)]"
               >
                 <div
                   className={`h-20 rounded-[20px] shadow-inner ${getLoadClass(
@@ -767,7 +837,7 @@ function SectionWrapper({
   return (
     <section
       id={id}
-      className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/62 px-5 py-8 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:px-8 md:py-10"
+      className="relative overflow-hidden rounded-[36px] border border-white/80 bg-white/[0.62] px-5 py-8 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:px-8 md:py-10"
     >
       {children}
     </section>
@@ -846,7 +916,7 @@ function HeroSection({
 
 function HeroPill({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/84 px-5 py-3 text-[13.5px] font-bold text-[#5B566E] shadow-[0_10px_24px_rgba(95,90,119,0.05)] backdrop-blur-md">
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/[0.84] px-5 py-3 text-[13.5px] font-bold text-[#5B566E] shadow-[0_10px_24px_rgba(95,90,119,0.05)] backdrop-blur-md">
       <span className="text-[#6F59FF]">{icon}</span>
       <span>{label}</span>
     </div>
@@ -933,7 +1003,7 @@ function PlannerScoreCard({
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/55 blur-3xl" />
 
-      <div className="relative z-10 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/78 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
+      <div className="relative z-10 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/[0.78] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
         <Gauge className="h-3.5 w-3.5" />
         Planner score
       </div>
@@ -994,7 +1064,7 @@ function ChartShell({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[32px] border border-white/80 bg-white/82 p-5 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:p-6">
+    <section className="rounded-[32px] border border-white/80 bg-white/[0.82] p-5 shadow-[0_20px_60px_rgba(26,21,40,0.06)] backdrop-blur-xl md:p-6">
       <div className="inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F3F0FF] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
         {icon}
         {eyebrow}
@@ -1091,7 +1161,7 @@ function DeadlineRiskCard({ item }: { item: DeadlineRisk }) {
             {item.taskName}
           </h3>
         </div>
-        <div className="rounded-full bg-white/76 px-3 py-1.5 text-[12px] font-black text-[#1A1528] shadow-sm">
+        <div className="rounded-full bg-white/[0.76] px-3 py-1.5 text-[12px] font-black text-[#1A1528] shadow-sm">
           {item.daysLeft < 0
             ? `Quá ${Math.abs(item.daysLeft)} ngày`
             : item.daysLeft === 0
@@ -1103,7 +1173,7 @@ function DeadlineRiskCard({ item }: { item: DeadlineRisk }) {
       <p className="relative z-10 mt-3 text-[13px] font-medium leading-relaxed text-[#5B566E]">
         {item.reason}
       </p>
-      <div className="relative z-10 mt-3 rounded-[18px] bg-white/72 px-4 py-3 text-[12px] font-bold text-[#5B566E] shadow-sm">
+      <div className="relative z-10 mt-3 rounded-[18px] bg-white/[0.72] px-4 py-3 text-[12px] font-bold text-[#5B566E] shadow-sm">
         Deadline: {item.deadline}
       </div>
     </div>
@@ -1125,7 +1195,7 @@ function PatternCard({ item }: { item: PatternInsight }) {
       <p className="relative z-10 mt-2 text-[13px] font-medium leading-relaxed text-[#5B566E]">
         {item.description}
       </p>
-      <div className="relative z-10 mt-4 rounded-[18px] bg-white/72 px-4 py-3 text-[12px] font-black text-[#1A1528] shadow-sm">
+      <div className="relative z-10 mt-4 rounded-[18px] bg-white/[0.72] px-4 py-3 text-[12px] font-black text-[#1A1528] shadow-sm">
         {item.evidence}
       </div>
     </div>
@@ -1177,7 +1247,7 @@ function RecommendationCard({ item }: { item: Recommendation }) {
 
 function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[18px] bg-white/76 px-4 py-3 shadow-sm">
+    <div className="rounded-[18px] bg-white/[0.76] px-4 py-3 shadow-sm">
       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
         {label}
       </div>
