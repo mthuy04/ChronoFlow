@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
-  BarChart3,
   BookOpen,
   CheckCircle2,
   Coins,
@@ -29,7 +28,10 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import FinalCTASection from "@/components/home/FinalCTASection";
 
+type PlanTier = "FREE" | "PLUS" | "PRO";
+
 type Plan = {
+  tier: PlanTier;
   name: string;
   badge: string;
   price: string;
@@ -54,11 +56,38 @@ type Note = {
   icon: LucideIcon;
 };
 
+type AccountPlanResponse = {
+  ok: boolean;
+  plan?: {
+    tier: PlanTier;
+    rawTier?: PlanTier;
+    activatedAt?: string | null;
+    expiresAt?: string | null;
+    source?: string | null;
+    isActive?: boolean;
+  };
+};
+
+type PlanButtonState = {
+  label: string;
+  disabled: boolean;
+  muted: boolean;
+  isCurrent: boolean;
+  isUpgrade: boolean;
+};
+
 const gradientText =
   "bg-gradient-to-r from-[#6F59FF] via-[#6B7CFF] to-[#4DA8FF] bg-clip-text text-transparent";
 
+const PLAN_RANK: Record<PlanTier, number> = {
+  FREE: 0,
+  PLUS: 1,
+  PRO: 2,
+};
+
 const plans: Plan[] = [
   {
+    tier: "FREE",
     name: "Free",
     badge: "Bắt đầu miễn phí",
     price: "0đ",
@@ -82,6 +111,7 @@ const plans: Plan[] = [
     ],
   },
   {
+    tier: "PLUS",
     name: "Plus",
     badge: "Phổ biến nhất",
     price: "29.000đ",
@@ -108,6 +138,7 @@ const plans: Plan[] = [
     ],
   },
   {
+    tier: "PRO",
     name: "Pro",
     badge: "Phân tích chuyên sâu",
     price: "59.000đ",
@@ -218,7 +249,100 @@ const faqs = [
   },
 ];
 
+function getPlanButtonState(
+  currentPlan: PlanTier,
+  cardPlan: PlanTier,
+): PlanButtonState {
+  const currentRank = PLAN_RANK[currentPlan];
+  const cardRank = PLAN_RANK[cardPlan];
+
+  if (currentRank === cardRank) {
+    return {
+      label: "Gói hiện tại",
+      disabled: true,
+      muted: false,
+      isCurrent: true,
+      isUpgrade: false,
+    };
+  }
+
+  if (currentRank > cardRank) {
+    return {
+      label:
+        currentPlan === "PRO"
+          ? "Đã bao gồm trong Pro"
+          : "Đã vượt qua gói này",
+      disabled: true,
+      muted: true,
+      isCurrent: false,
+      isUpgrade: false,
+    };
+  }
+
+  if (cardPlan === "PLUS") {
+    return {
+      label: currentPlan === "FREE" ? "Dùng thử Plus" : "Nâng cấp Plus",
+      disabled: false,
+      muted: false,
+      isCurrent: false,
+      isUpgrade: true,
+    };
+  }
+
+  if (cardPlan === "PRO") {
+    return {
+      label: currentPlan === "FREE" ? "Dùng thử Pro" : "Nâng cấp Pro",
+      disabled: false,
+      muted: false,
+      isCurrent: false,
+      isUpgrade: true,
+    };
+  }
+
+  return {
+    label: "Bắt đầu miễn phí",
+    disabled: false,
+    muted: false,
+    isCurrent: false,
+    isUpgrade: false,
+  };
+}
+
 export default function PricingPage() {
+  const [currentPlan, setCurrentPlan] = useState<PlanTier>("FREE");
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadCurrentPlan() {
+      try {
+        const response = await fetch("/api/account/plan", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const payload = (await response.json().catch(() => null)) as
+          | AccountPlanResponse
+          | null;
+
+        if (!ignore && response.ok && payload?.ok && payload.plan?.tier) {
+          setCurrentPlan(payload.plan.tier);
+        }
+      } finally {
+        if (!ignore) {
+          setIsPlanLoading(false);
+        }
+      }
+    }
+
+    void loadCurrentPlan();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F4F2FA] text-[#1A1528]">
       <Navbar />
@@ -260,12 +384,33 @@ export default function PricingPage() {
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.16 }}
-                    className="mx-auto mb-8 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]"
+                    className="mx-auto mb-5 max-w-[760px] text-[15px] font-medium leading-relaxed text-[#5B566E] md:text-[16px]"
                   >
                     Bắt đầu miễn phí với bài test chronotype, dùng thử Plus/Pro
                     trong 7 ngày và chỉ nâng cấp khi bạn thật sự cần planner
                     thông minh hơn, insight sâu hơn hoặc báo cáo đầy đủ hơn.
                   </motion.p>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45, delay: 0.2 }}
+                    className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-4 py-2 text-[12px] font-black text-[#5B566E] shadow-[0_10px_24px_rgba(26,21,40,0.06)] backdrop-blur-xl"
+                  >
+                    <Crown className="h-4 w-4 text-[#6F59FF]" />
+                    Gói hiện tại:{" "}
+                    {isPlanLoading ? (
+                      <span className="inline-block h-3 w-12 animate-pulse rounded-full bg-[#E9E5FF]" />
+                    ) : (
+                      <span className="text-[#6F59FF]">
+                        {currentPlan === "FREE"
+                          ? "Free"
+                          : currentPlan === "PLUS"
+                            ? "Plus"
+                            : "Pro"}
+                      </span>
+                    )}
+                  </motion.div>
 
                   <motion.div
                     initial={{ opacity: 0, y: 14 }}
@@ -377,7 +522,13 @@ export default function PricingPage() {
 
             <div className="mt-14 grid gap-6 lg:grid-cols-3">
               {plans.map((plan, index) => (
-                <PlanCard key={plan.name} plan={plan} index={index} />
+                <PlanCard
+                  key={plan.name}
+                  plan={plan}
+                  index={index}
+                  currentPlan={currentPlan}
+                  isPlanLoading={isPlanLoading}
+                />
               ))}
             </div>
           </SectionWrapper>
@@ -562,8 +713,21 @@ export default function PricingPage() {
   );
 }
 
-function PlanCard({ plan, index }: { plan: Plan; index: number }) {
+function PlanCard({
+  plan,
+  index,
+  currentPlan,
+  isPlanLoading,
+}: {
+  plan: Plan;
+  index: number;
+  currentPlan: PlanTier;
+  isPlanLoading: boolean;
+}) {
   const Icon = plan.icon;
+  const buttonState = getPlanButtonState(currentPlan, plan.tier);
+  const shouldDim = !isPlanLoading && buttonState.muted;
+  const isCurrent = !isPlanLoading && buttonState.isCurrent;
 
   return (
     <motion.article
@@ -571,13 +735,23 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.5, delay: index * 0.08, ease: "easeOut" }}
-      whileHover={{ y: -8, scale: 1.01 }}
-      className={`group relative flex flex-col rounded-[32px] border ${plan.border} bg-gradient-to-br ${plan.cardGradient} p-[1px] transition-all duration-300 hover:shadow-[0_25px_50px_rgba(26,21,40,0.08)] ${
-        plan.featured ? "shadow-[0_25px_60px_rgba(245,158,11,0.14)]" : ""
+      whileHover={shouldDim || isCurrent ? undefined : { y: -8, scale: 1.01 }}
+      className={`group relative flex flex-col rounded-[32px] border ${plan.border} bg-gradient-to-br ${plan.cardGradient} p-[1px] transition-all duration-300 ${
+        shouldDim ? "opacity-60 grayscale-[0.2]" : ""
+      } ${
+        isCurrent
+          ? "shadow-[0_26px_70px_rgba(111,89,255,0.14)] ring-2 ring-[#6F59FF]/20"
+          : plan.featured
+            ? "shadow-[0_25px_60px_rgba(245,158,11,0.14)] hover:shadow-[0_25px_50px_rgba(26,21,40,0.08)]"
+            : "hover:shadow-[0_25px_50px_rgba(26,21,40,0.08)]"
       }`}
     >
-      <div className="h-full rounded-[31px] bg-white/88 p-6 backdrop-blur-xl">
-        {plan.featured ? (
+      <div className="h-full rounded-[31px] bg-white/[0.88] p-6 backdrop-blur-xl">
+        {isCurrent ? (
+          <div className="absolute right-5 top-5 rounded-full bg-[#6F59FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-md">
+            Gói hiện tại
+          </div>
+        ) : plan.featured ? (
           <div className="absolute right-5 top-5 rounded-full bg-[#F59E0B] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-md">
             Phổ biến nhất
           </div>
@@ -585,12 +759,16 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
 
         <div className="mb-5 flex items-center justify-between">
           <div
-            className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-br ${plan.gradient} text-white shadow-[0_10px_24px_rgba(26,21,40,0.08)] transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}
+            className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-br ${plan.gradient} text-white shadow-[0_10px_24px_rgba(26,21,40,0.08)] transition-transform duration-300 ${
+              shouldDim || isCurrent
+                ? ""
+                : "group-hover:scale-110 group-hover:rotate-3"
+            }`}
           >
             <Icon className="h-6 w-6" />
           </div>
           <div className="rounded-full border border-[#ECE8FF] bg-[#F8F6FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#7A70A0]">
-            {plan.badge}
+            {isCurrent ? "Đang sử dụng" : plan.badge}
           </div>
         </div>
 
@@ -604,7 +782,7 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
           {plan.description}
         </p>
 
-        <div className="my-6 rounded-[24px] border border-white/80 bg-white/76 p-4 shadow-sm">
+        <div className="my-6 rounded-[24px] border border-white/80 bg-white/[0.76] p-4 shadow-sm">
           <div className="flex items-end gap-1">
             <span className="text-[38px] font-[900] leading-none tracking-tight text-[#1A1528]">
               {plan.price}
@@ -614,10 +792,20 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
             </span>
           </div>
 
-          {plan.trial ? (
+          {isCurrent ? (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#F3F0FF] px-3 py-1.5 text-[11px] font-black text-[#6F59FF]">
+              <BadgeCheck className="h-3.5 w-3.5" />
+              Đang sử dụng
+            </div>
+          ) : plan.trial && !shouldDim ? (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1.5 text-[11px] font-black text-[#10B981]">
               <Zap className="h-3.5 w-3.5" />
               {plan.trial}
+            </div>
+          ) : shouldDim ? (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#F4F4F7] px-3 py-1.5 text-[11px] font-black text-[#8A84A3]">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Đã bao gồm
             </div>
           ) : (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#F3F0FF] px-3 py-1.5 text-[11px] font-black text-[#6F59FF]">
@@ -627,17 +815,12 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
           )}
         </div>
 
-        <Link
+        <PricingCTAButton
           href={plan.href}
-          className={`group mb-5 flex min-h-[50px] items-center justify-center gap-2 rounded-2xl px-5 text-[13px] font-bold shadow-lg transition hover:-translate-y-0.5 ${
-            plan.featured
-              ? "bg-[#F59E0B] text-white hover:bg-[#EA8D05]"
-              : "bg-[#1A1528] text-white hover:bg-black"
-          }`}
-        >
-          {plan.cta}
-          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-        </Link>
+          plan={plan}
+          buttonState={buttonState}
+          isPlanLoading={isPlanLoading}
+        />
 
         <div className="mb-5 rounded-[22px] border border-white/80 bg-white/70 px-4 py-3">
           <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
@@ -658,6 +841,59 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
   );
 }
 
+function PricingCTAButton({
+  href,
+  plan,
+  buttonState,
+  isPlanLoading,
+}: {
+  href: string;
+  plan: Plan;
+  buttonState: PlanButtonState;
+  isPlanLoading: boolean;
+}) {
+  if (isPlanLoading) {
+    return (
+      <div className="mb-5 flex min-h-[50px] w-full animate-pulse items-center justify-center rounded-2xl bg-[#E9E5FF]" />
+    );
+  }
+
+  if (buttonState.disabled) {
+    return (
+      <button
+        type="button"
+        disabled
+        className={`mb-5 flex min-h-[50px] w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border px-5 text-[13px] font-black shadow-none ${
+          buttonState.isCurrent
+            ? "border-[#DCD5FF] bg-[#F5F2FF] text-[#6F59FF]"
+            : "border-[#E5E7EB] bg-[#F4F4F7] text-[#8A84A3]"
+        }`}
+      >
+        {buttonState.isCurrent ? (
+          <BadgeCheck className="h-4 w-4" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4" />
+        )}
+        {buttonState.label}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={`group mb-5 flex min-h-[50px] items-center justify-center gap-2 rounded-2xl px-5 text-[13px] font-bold shadow-lg transition hover:-translate-y-0.5 ${
+        plan.featured
+          ? "bg-[#F59E0B] text-white hover:bg-[#EA8D05]"
+          : "bg-[#1A1528] text-white hover:bg-black"
+      }`}
+    >
+      {buttonState.label}
+      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+    </Link>
+  );
+}
+
 function PricingMiniCard({
   plan,
   featured = false,
@@ -669,7 +905,7 @@ function PricingMiniCard({
 
   return (
     <div
-      className={`rounded-[32px] border border-white/80 bg-white/88 p-4 backdrop-blur-xl ${
+      className={`rounded-[32px] border border-white/80 bg-white/[0.88] p-4 backdrop-blur-xl ${
         featured ? "scale-105 shadow-[0_25px_60px_rgba(26,21,40,0.18)]" : ""
       }`}
     >
@@ -768,7 +1004,7 @@ function InsightBox({
   bg: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-sm">
+    <div className="rounded-[24px] border border-white/80 bg-white/[0.85] p-5 shadow-sm">
       <div className="flex items-start gap-3">
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg}`}
