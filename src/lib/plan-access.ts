@@ -61,27 +61,39 @@ export function isPlanActive(user: UserPlanLike | null | undefined) {
   if (!user) return false;
 
   const tier = normalizePlanTier(user.planTier ?? null);
-  if (tier === "FREE") return true;
 
-  if (!user.planExpiresAt) return true;
+  if (tier === "FREE") {
+    return true;
+  }
+
+  if (!user.planExpiresAt) {
+    return true;
+  }
 
   const expiresAt =
     user.planExpiresAt instanceof Date
       ? user.planExpiresAt
       : new Date(user.planExpiresAt);
 
-  if (Number.isNaN(expiresAt.getTime())) return false;
+  if (Number.isNaN(expiresAt.getTime())) {
+    return false;
+  }
 
   return expiresAt.getTime() > Date.now();
 }
 
-export function getEffectivePlan(user: UserPlanLike | null | undefined) {
+export function getEffectivePlan(
+  user: UserPlanLike | null | undefined,
+): AppPlanTier {
   if (!user) return "FREE";
 
   const tier = normalizePlanTier(user.planTier ?? null);
 
   if (tier === "FREE") return "FREE";
-  if (!isPlanActive(user)) return "FREE";
+
+  if (!isPlanActive(user)) {
+    return "FREE";
+  }
 
   return tier;
 }
@@ -91,6 +103,7 @@ export function hasPlanAccess(
   requiredPlan: AppPlanTier,
 ) {
   const currentPlan = getEffectivePlan(user);
+
   return PLAN_RANK[currentPlan] >= PLAN_RANK[requiredPlan];
 }
 
