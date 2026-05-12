@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { sendGa4PurchaseEvent } from "@/lib/analytics/ga4-server";
 
 import { prisma } from "@/lib/prisma";
 
@@ -332,9 +333,14 @@ export async function POST(req: NextRequest) {
       },
       select: {
         id: true,
+        userId: true,
+        itemKey: true,
+        itemName: true,
+        itemType: true,
         status: true,
         amount: true,
         paidAmount: true,
+        currency: true,
       },
     });
 
@@ -356,6 +362,23 @@ export async function POST(req: NextRequest) {
       transferCode,
       providerTxnId,
     });
+    if (updatedOrder.status === "PAID") {
+      await sendGa4PurchaseEvent({
+        transactionId: updatedOrder.id,
+        userId: updatedOrder.userId,
+        value: updatedOrder.amount,
+        currency: updatedOrder.currency,
+        items: [
+          {
+            item_id: updatedOrder.itemKey,
+            item_name: updatedOrder.itemName,
+            item_category: updatedOrder.itemType,
+            price: updatedOrder.amount,
+            quantity: 1,
+          },
+        ],
+      });
+    }
 
     return NextResponse.json({
       ok: true,
