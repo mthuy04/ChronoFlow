@@ -52,8 +52,9 @@ enum PaymentProvider {
 enum PaymentOrderStatus {
   PENDING
   PAID
-  CANCELLED
   EXPIRED
+  CANCELLED
+  AMOUNT_MISMATCH
   FAILED
   REFUNDED
 }
@@ -393,31 +394,46 @@ model Order {
 }
 
 model PaymentOrder {
-  id       String             @id @default(cuid())
-  userId   String?
+  id     String  @id @default(cuid())
+  userId String?
+
   itemKey  String
   itemName String
+  itemType String @default("subscription")
+
   amount   Int
-  currency String             @default("VND")
-  provider PaymentProvider    @default(BANK_TRANSFER)
+  currency String @default("VND")
+
+  provider PaymentProvider    @default(SEPAY)
   status   PaymentOrderStatus @default(PENDING)
 
   transferCode String  @unique
   qrUrl        String?
-  bankId       String?
-  accountNo    String?
-  accountName  String?
 
-  providerTxnId String?   @unique
-  rawWebhook    Json?
-  paidAt        DateTime?
-  expiresAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  bankId      String?
+  accountNo   String?
+  accountName String?
+
+  paidAmount Int?
+  paidAt     DateTime?
+
+  providerTxnId      String? @unique
+  sepayTransactionId String?
+  sepayReferenceCode String?
+  sepayGateway       String?
+  sepayAccountNumber String?
+  sepayContent       String?
+
+  rawWebhook Json?
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([itemKey])
   @@index([provider])
   @@index([status])
