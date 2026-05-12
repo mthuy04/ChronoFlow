@@ -16,7 +16,7 @@ enum PlanTier {
 enum UserRole {
   USER
   ADMIN
-}enum
+}
 
 enum TaskType {
   DEEP_WORK
