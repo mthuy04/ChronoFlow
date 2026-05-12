@@ -160,12 +160,19 @@ function verifySePaySignature(params: {
     .update(signedPayload, "utf8")
     .digest("hex");
 
-  const isValid = safeCompareHex(expectedSignature, receivedSignature);
+    const isValid = safeCompareHex(expectedSignature, receivedSignature);
 
-  return {
-    ok: isValid,
-    reason: isValid ? null : "Invalid webhook signature.",
-  };
+    if (isValid) {
+      return {
+        ok: true,
+        reason: null,
+      };
+    }
+    
+    return {
+      ok: false,
+      reason: "Invalid webhook signature.",
+    };
 }
 
 function getProviderTransactionId(payload: BankWebhookPayload) {
