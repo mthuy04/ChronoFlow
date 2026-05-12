@@ -6,6 +6,7 @@ import {
 } from "@/lib/coin-reward-events";
 import Image from "next/image";
 import Link from "next/link";
+import CurrentPlanBadge from "@/components/common/CurrentPlanBadge";
 import {
   BarChart3,
   BookOpen,
@@ -805,6 +806,7 @@ function MobileNavigation({
       {variant !== "guest" && variant !== "loading" && (
         <div className="mb-4 rounded-[24px] bg-[linear-gradient(180deg,#FAF8FF_0%,#F3EEFF_100%)] p-4">
           <div className="flex items-center gap-3">
+          <CurrentPlanBadge />
             <Avatar
               displayName={displayName}
               avatarLetter={avatarLetter}
