@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -32,11 +31,21 @@ type BankWebhookPayload = {
   account_number?: string;
 };
 
+type VerificationResult =
+  | {
+      ok: true;
+      reason: null;
+    }
+  | {
+      ok: false;
+      reason: string;
+    };
+
 const MAX_TIMESTAMP_DRIFT_SECONDS = 5 * 60;
 
 function normalizeAmount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
+    return Math.round(value);
   }
 
   if (typeof value === "string") {
@@ -44,7 +53,7 @@ function normalizeAmount(value: unknown): number | null {
     const parsed = Number(normalized);
 
     if (Number.isFinite(parsed)) {
-      return parsed;
+      return Math.round(parsed);
     }
   }
 
@@ -94,14 +103,6 @@ function normalizeAccountNumber(value: string) {
   return value.replace(/\D/g, "");
 }
 
-function getSePaySignature(req: NextRequest) {
-  return req.headers.get("x-sepay-signature") ?? "";
-}
-
-function getSePayTimestamp(req: NextRequest) {
-  return req.headers.get("x-sepay-timestamp") ?? "";
-}
-
 function stripSignaturePrefix(signature: string) {
   return signature.startsWith("sha256=")
     ? signature.slice("sha256=".length)
@@ -124,7 +125,7 @@ function verifySePaySignature(params: {
   signatureHeader: string;
   timestampHeader: string;
   secret: string;
-}) {
+}): VerificationResult {
   const timestamp = Number(params.timestampHeader);
 
   if (!Number.isFinite(timestamp)) {
@@ -154,7 +155,6 @@ function verifySePaySignature(params: {
   }
 
   const signedPayload = `${params.timestampHeader}.${params.rawBody}`;
-
   const expectedSignature = crypto
     .createHmac("sha256", params.secret)
     .update(signedPayload, "utf8")
@@ -166,6 +166,14 @@ function verifySePaySignature(params: {
     ok: isValid,
     reason: isValid ? null : "Invalid webhook signature.",
   };
+}
+
+function getProviderTransactionId(payload: BankWebhookPayload) {
+  if (payload.id === undefined || payload.id === null) {
+    return null;
+  }
+
+  return String(payload.id);
 }
 
 export async function POST(req: NextRequest) {
@@ -182,9 +190,8 @@ export async function POST(req: NextRequest) {
     }
 
     const rawBody = await req.text();
-
-    const signatureHeader = getSePaySignature(req);
-    const timestampHeader = getSePayTimestamp(req);
+    const signatureHeader = req.headers.get("x-sepay-signature") ?? "";
+    const timestampHeader = req.headers.get("x-sepay-timestamp") ?? "";
 
     const verification = verifySePaySignature({
       rawBody,
@@ -208,17 +215,18 @@ export async function POST(req: NextRequest) {
 
     const payload = JSON.parse(rawBody) as BankWebhookPayload;
 
-    const amount = getIncomingAmount(payload);
+    const paidAmount = getIncomingAmount(payload);
     const content = getTransactionContent(payload);
     const transferCode = extractTransferCode(content);
     const accountNumber = getAccountNumber(payload);
+    const providerTxnId = getProviderTransactionId(payload);
 
     if (!transferCode) {
       console.log("[SEPAY_WEBHOOK_IGNORED]", {
         reason: "Không tìm thấy mã ChronoFlow trong nội dung chuyển khoản.",
-        amount,
+        paidAmount,
         content,
-        transactionId: payload.id ?? null,
+        providerTxnId,
       });
 
       return NextResponse.json({
@@ -229,115 +237,125 @@ export async function POST(req: NextRequest) {
     }
 
     const order = await prisma.paymentOrder.findUnique({
-      where: {
-        transferCode,
-      },
+      where: { transferCode },
       select: {
         id: true,
         amount: true,
         accountNo: true,
         status: true,
+        providerTxnId: true,
       },
     });
 
     if (!order) {
-      console.log("[SEPAY_WEBHOOK_IGNORED]", {
-        reason: "Không tìm thấy PaymentOrder cho mã chuyển khoản.",
+      console.warn("[SEPAY_WEBHOOK_ORDER_NOT_FOUND]", {
         transferCode,
-        amount,
-        transactionId: payload.id ?? null,
+        paidAmount,
+        providerTxnId,
       });
 
       return NextResponse.json({
         ok: true,
         ignored: true,
-        reason: "Không tìm thấy đơn hàng.",
+        reason: "Không tìm thấy order tương ứng với mã chuyển khoản.",
       });
     }
 
-    if (amount !== order.amount) {
-      console.warn("[SEPAY_WEBHOOK_AMOUNT_MISMATCH]", {
-        orderId: order.id,
-        transferCode,
-        expectedAmount: order.amount,
-        receivedAmount: amount,
-        transactionId: payload.id ?? null,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        ignored: true,
-        reason: "Số tiền không khớp đơn hàng.",
-      });
-    }
+    const receivedAccount = accountNumber
+      ? normalizeAccountNumber(accountNumber)
+      : null;
+    const expectedAccount = order.accountNo
+      ? normalizeAccountNumber(order.accountNo)
+      : null;
 
     if (
-      accountNumber &&
-      order.accountNo &&
-      normalizeAccountNumber(accountNumber) !==
-        normalizeAccountNumber(order.accountNo)
+      receivedAccount &&
+      expectedAccount &&
+      receivedAccount !== expectedAccount
     ) {
       console.warn("[SEPAY_WEBHOOK_ACCOUNT_MISMATCH]", {
         orderId: order.id,
         transferCode,
-        expectedAccountNo: order.accountNo,
-        receivedAccountNo: accountNumber,
-        transactionId: payload.id ?? null,
+        receivedAccount,
+        expectedAccount,
       });
 
       return NextResponse.json({
         ok: true,
         ignored: true,
-        reason: "Tài khoản nhận tiền không khớp.",
+        reason: "Giao dịch không thuộc tài khoản nhận tiền của ChronoFlow.",
+      });
+    }
+
+    if (providerTxnId && order.providerTxnId === providerTxnId) {
+      return NextResponse.json({
+        ok: true,
+        duplicated: true,
+        orderId: order.id,
+        status: order.status,
       });
     }
 
     if (order.status === "PAID") {
       return NextResponse.json({
         ok: true,
+        duplicated: true,
         orderId: order.id,
-        transferCode,
-        duplicate: true,
+        status: "PAID",
       });
     }
 
-    const providerTxnId =
-      payload.id === undefined || payload.id === null ? null : String(payload.id);
+    const isAmountMatched = paidAmount === order.amount;
+    const nextStatus = isAmountMatched ? "PAID" : "AMOUNT_MISMATCH";
 
     const updatedOrder = await prisma.paymentOrder.update({
-      where: {
-        id: order.id,
-      },
+      where: { id: order.id },
       data: {
-        status: "PAID",
-        providerTxnId,
-        rawWebhook: payload as Prisma.InputJsonValue,
-        paidAt: new Date(),
+        status: nextStatus,
+        paidAmount,
+        paidAt: isAmountMatched ? new Date() : null,
+        providerTxnId: providerTxnId ?? undefined,
+        sepayTransactionId: providerTxnId ?? undefined,
+        sepayReferenceCode:
+          payload.referenceCode ?? payload.reference_code ?? undefined,
+        sepayGateway: payload.gateway ?? undefined,
+        sepayAccountNumber: accountNumber ?? undefined,
+        sepayContent: content,
+        rawWebhook: payload,
       },
       select: {
         id: true,
         status: true,
+        amount: true,
+        paidAmount: true,
       },
     });
 
-    console.log("[SEPAY_WEBHOOK_MATCHED]", {
+    if (!isAmountMatched) {
+      console.warn("[SEPAY_WEBHOOK_AMOUNT_MISMATCH]", {
+        orderId: updatedOrder.id,
+        expectedAmount: order.amount,
+        paidAmount,
+        transferCode,
+        providerTxnId,
+      });
+    }
+
+    console.log("[SEPAY_WEBHOOK_UPDATED]", {
       orderId: updatedOrder.id,
       status: updatedOrder.status,
+      expectedAmount: updatedOrder.amount,
+      paidAmount: updatedOrder.paidAmount,
       transferCode,
-      amount,
-      content,
-      transactionId: payload.id ?? null,
-      gateway: payload.gateway ?? null,
-      transactionDate:
-        payload.transactionDate ?? payload.transaction_date ?? null,
-      accountNumber,
+      providerTxnId,
     });
 
     return NextResponse.json({
       ok: true,
       orderId: updatedOrder.id,
+      status: updatedOrder.status,
       transferCode,
-      amount,
+      paidAmount,
     });
   } catch (error) {
     console.error("[SEPAY_WEBHOOK_ERROR]", error);
