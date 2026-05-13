@@ -966,6 +966,7 @@ const [
   }),
 ]);
 
+
     const typedTasks: TaskRecord[] = allTasksRaw.map((task) => ({
       id: task.id,
       userId: task.userId,
@@ -1059,67 +1060,65 @@ const [
     const coinsToday = todayFocusSessions.reduce((sum: number, item: FocusSessionRecord) => {
       return sum + item.coinsEarned;
     }, 0);
-const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
-const currentCoinBalance = safeUser.coinBalance;
-const streak = computeStreak({ tasks: typedTasks, focusSessions });
+    const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
+    const currentCoinBalance = safeUser.coinBalance;
+    const streak = computeStreak({ tasks: typedTasks, focusSessions });
 
-const weekDateKeysForSummary = Array.from({ length: 7 }).map((_: unknown, index: number) => {
-  const date = addDays(weekStart, index);
-  return toDateKey(date);
-});
+    const weekDateKeysForSummary = Array.from({ length: 7 }).map(
+      (_: unknown, index: number) => {
+        const date = addDays(weekStart, index);
+        return toDateKey(date);
+      },
+    );
 
-const streakSummary = buildStreakSummary({
-  currentStreak: streak,
-  focusSessions: completedFocusSessions,
-  energyCheckins,
-  weekDateKeys: weekDateKeysForSummary,
-});
-
-const habitBadges = buildHabitBadges(streak);
-
-const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
-  const currentCoinBalance = safeUser.coinBalance;
-  const streak = computeStreak({ tasks: typedTasks, focusSessions });
-  
-  const weekDateKeysForSummary = Array.from({ length: 7 }).map((_: unknown, index: number) => {
-    const date = addDays(weekStart, index);
-    return toDateKey(date);
-  });
-  
-  const streakSummary = buildStreakSummary({
-    currentStreak: streak,
-    focusSessions: completedFocusSessions,
-    energyCheckins,
-    weekDateKeys: weekDateKeysForSummary,
-  });
-  
-  const habitBadges = buildHabitBadges(streak);
-  
-  const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {
-      const date = addDays(weekStart, index);
-      const key = toDateKey(date);
-
-      const daySessions = completedFocusSessions.filter((item) => toDateKey(item.startedAt) === key);
-      const dayTasks = typedTasks.filter((task) => getTaskDate(task) === key && !task.isBacklog);
-      const completedTasks = dayTasks.filter((task) => task.completed);
-
-      return {
-        date: key,
-        label: new Intl.DateTimeFormat("vi-VN", {
-          timeZone: "Asia/Ho_Chi_Minh",
-          weekday: "short",
-        })
-          .format(date)
-          .replace(".", "")
-          .toUpperCase(),
-        focusMinutes: daySessions.reduce((sum: number, item: FocusSessionRecord) => sum + item.durationMinutes, 0),
-        completedTasks: completedTasks.length,
-        totalTasks: dayTasks.length,
-        coins: daySessions.reduce((sum: number, item: FocusSessionRecord) => sum + item.coinsEarned, 0),
-        energyScore: null,
-        isToday: key === todayDateKey,
-      };
+    const streakSummary = buildStreakSummary({
+      currentStreak: streak,
+      focusSessions: completedFocusSessions,
+      energyCheckins,
+      weekDateKeys: weekDateKeysForSummary,
     });
+
+    const habitBadges = buildHabitBadges(streak);
+
+    const weekDates = Array.from({ length: 7 }).map(
+      (_: unknown, index: number) => {
+        const date = addDays(weekStart, index);
+        const key = toDateKey(date);
+
+        const daySessions = completedFocusSessions.filter(
+          (item) => toDateKey(item.startedAt) === key,
+        );
+        const dayTasks = typedTasks.filter(
+          (task) => getTaskDate(task) === key && !task.isBacklog,
+        );
+        const completedTasks = dayTasks.filter((task) => task.completed);
+
+        return {
+          date: key,
+          label: new Intl.DateTimeFormat("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            weekday: "short",
+          })
+            .format(date)
+            .replace(".", "")
+            .toUpperCase(),
+          focusMinutes: daySessions.reduce(
+            (sum: number, item: FocusSessionRecord) =>
+              sum + item.durationMinutes,
+            0,
+          ),
+          completedTasks: completedTasks.length,
+          totalTasks: dayTasks.length,
+          coins: daySessions.reduce(
+            (sum: number, item: FocusSessionRecord) =>
+              sum + item.coinsEarned,
+            0,
+          ),
+          energyScore: null,
+          isToday: key === todayDateKey,
+        };
+      },
+    );
 
     const priorityQueue = [...pendingToday]
       .sort((a, b) => {
