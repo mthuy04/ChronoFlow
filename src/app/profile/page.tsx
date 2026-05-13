@@ -10,6 +10,7 @@ import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
+  Trophy,
   Coins,
   Database,
   Flame,
@@ -88,6 +89,33 @@ type ProfileCoinTransactionRow = {
   balanceAfter: number;
   description: string;
   createdAt: Date;
+};
+type ProfileEnergyCheckinRow = {
+  id: string;
+  checkedAt: Date;
+};
+
+type ProfileHabitBadgeTone = "purple" | "blue" | "orange" | "green";
+
+type ProfileHabitBadge = {
+  id: string;
+  title: string;
+  description: string;
+  milestone: number;
+  unlocked: boolean;
+  progress: number;
+  remainingDays: number;
+  tone: ProfileHabitBadgeTone;
+  icon: "sparkles" | "flame" | "zap" | "trophy";
+};
+
+type ProfileStreakSummary = {
+  currentStreak: number;
+  nextMilestone: number | null;
+  progress: number;
+  remainingDays: number;
+  focusDaysThisWeek: number;
+  energyCheckinDaysThisWeek: number;
 };
 
 type ChronotypeMeta = {
@@ -359,6 +387,141 @@ function computeCurrentStreak(params: {
   return streak;
 }
 
+function getStartOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+
+  next.setDate(next.getDate() + diff);
+  next.setHours(0, 0, 0, 0);
+
+  return next;
+}
+
+const PROFILE_HABIT_MILESTONES = [3, 7, 14, 30] as const;
+
+function getNextProfileHabitMilestone(currentStreak: number) {
+  return (
+    PROFILE_HABIT_MILESTONES.find((milestone) => milestone > currentStreak) ??
+    null
+  );
+}
+
+function getProfileMilestoneProgress(
+  currentStreak: number,
+  nextMilestone: number | null,
+) {
+  if (!nextMilestone) return 100;
+
+  const previousMilestone =
+    [...PROFILE_HABIT_MILESTONES]
+      .reverse()
+      .find((milestone) => milestone <= currentStreak) ?? 0;
+
+  const range = nextMilestone - previousMilestone;
+  const current = currentStreak - previousMilestone;
+
+  if (range <= 0) return 100;
+
+  return Math.min(100, Math.max(0, Math.round((current / range) * 100)));
+}
+
+function buildProfileStreakSummary({
+  currentStreak,
+  focusSessions,
+  energyCheckins,
+}: {
+  currentStreak: number;
+  focusSessions: ProfileFocusSessionRow[];
+  energyCheckins: ProfileEnergyCheckinRow[];
+}): ProfileStreakSummary {
+  const weekStart = getStartOfWeek(new Date());
+  const weekDateKeys = new Set(
+    Array.from({ length: 7 }).map((_, index) =>
+      toVietnamDateKey(addDays(weekStart, index)),
+    ),
+  );
+
+  const focusDaysThisWeek = new Set(
+    focusSessions
+      .filter((session) => session.status === "COMPLETED")
+      .map((session) => toVietnamDateKey(session.startedAt))
+      .filter((dateKey) => weekDateKeys.has(dateKey)),
+  ).size;
+
+  const energyCheckinDaysThisWeek = new Set(
+    energyCheckins
+      .map((checkin) => toVietnamDateKey(checkin.checkedAt))
+      .filter((dateKey) => weekDateKeys.has(dateKey)),
+  ).size;
+
+  const nextMilestone = getNextProfileHabitMilestone(currentStreak);
+  const progress = getProfileMilestoneProgress(currentStreak, nextMilestone);
+
+  return {
+    currentStreak,
+    nextMilestone,
+    progress,
+    remainingDays: nextMilestone ? Math.max(nextMilestone - currentStreak, 0) : 0,
+    focusDaysThisWeek,
+    energyCheckinDaysThisWeek,
+  };
+}
+
+function buildProfileHabitBadges(
+  currentStreak: number,
+): ProfileHabitBadge[] {
+  return [
+    {
+      id: "rhythm-starter",
+      title: "Khởi động nhịp",
+      description:
+        "Duy trì streak 3 ngày để bắt đầu hình thành nhịp học/làm đều hơn.",
+      milestone: 3,
+      unlocked: currentStreak >= 3,
+      progress: Math.min(100, Math.round((currentStreak / 3) * 100)),
+      remainingDays: Math.max(3 - currentStreak, 0),
+      tone: "purple",
+      icon: "sparkles",
+    },
+    {
+      id: "focus-builder",
+      title: "Giữ nhịp 7 ngày",
+      description:
+        "Duy trì streak 7 ngày để mở khóa thói quen planner bền hơn.",
+      milestone: 7,
+      unlocked: currentStreak >= 7,
+      progress: Math.min(100, Math.round((currentStreak / 7) * 100)),
+      remainingDays: Math.max(7 - currentStreak, 0),
+      tone: "blue",
+      icon: "flame",
+    },
+    {
+      id: "energy-keeper",
+      title: "Bền bỉ 14 ngày",
+      description:
+        "Duy trì streak 14 ngày để chứng minh bạn đang thật sự giữ nhịp.",
+      milestone: 14,
+      unlocked: currentStreak >= 14,
+      progress: Math.min(100, Math.round((currentStreak / 14) * 100)),
+      remainingDays: Math.max(14 - currentStreak, 0),
+      tone: "orange",
+      icon: "zap",
+    },
+    {
+      id: "chrono-master",
+      title: "Chrono Master 30 ngày",
+      description: "Duy trì streak 30 ngày để đạt mốc thói quen mạnh nhất.",
+      milestone: 30,
+      unlocked: currentStreak >= 30,
+      progress: Math.min(100, Math.round((currentStreak / 30) * 100)),
+      remainingDays: Math.max(30 - currentStreak, 0),
+      tone: "green",
+      icon: "trophy",
+    },
+  ];
+}
+
 function getTaskTypeLabel(type: string) {
   const labels: Record<string, string> = {
     DEEP_WORK: "Deep work",
@@ -600,6 +763,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     rewardRedemptionsRaw,
     latestStreakRows,
     coinTransactionsRaw,
+    energyCheckinsRaw,
   ] = await Promise.all([
     safeQuery(
       "tasks",
@@ -706,6 +870,25 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         }),
       [],
     ),
+    safeQuery(
+      "energyCheckins",
+      () =>
+        prisma.energyCheckin.findMany({
+          where: {
+            userId: user.id,
+            checkedAt: {
+              gte: addDays(new Date(), -14),
+            },
+          },
+          orderBy: { checkedAt: "desc" },
+          take: 100,
+          select: {
+            id: true,
+            checkedAt: true,
+          },
+        }),
+      [],
+    ),
   ]);
 
   const allTasks: ProfileTaskRow[] = allTasksRaw.map((task) => ({
@@ -754,6 +937,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       createdAt: item.createdAt,
     }),
   );
+  const energyCheckins: ProfileEnergyCheckinRow[] = energyCheckinsRaw.map(
+    (item) => ({
+      id: item.id,
+      checkedAt: item.checkedAt,
+    }),
+  );
+
 
   const totalTasks = allTasks.length;
   const completedTasks = allTasks.filter((task) => task.completed).length;
@@ -793,6 +983,13 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     tasks: allTasks,
     focusSessions,
   });
+  const profileStreakSummary = buildProfileStreakSummary({
+    currentStreak,
+    focusSessions,
+    energyCheckins,
+  });
+
+  const profileHabitBadges = buildProfileHabitBadges(currentStreak);
 
   const recentTasks = allTasks.slice(0, 6);
   const chronotype = normalizeChronotype(user.chronotype);
@@ -879,14 +1076,16 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
         {activeTab === "rewards" ? (
           <RewardsTab
-            coinBalance={coinBalance}
-            totalRedemptions={totalRedemptions}
-            pendingRedemptions={pendingRedemptions}
-            fulfilledRedemptions={fulfilledRedemptions}
-            latestRedemption={latestRedemption}
-            latestStreakReward={latestStreakReward}
-            coinTransactions={coinTransactions}
-          />
+          coinBalance={coinBalance}
+          totalRedemptions={totalRedemptions}
+          pendingRedemptions={pendingRedemptions}
+          fulfilledRedemptions={fulfilledRedemptions}
+          latestRedemption={latestRedemption}
+          latestStreakReward={latestStreakReward}
+          coinTransactions={coinTransactions}
+          streakSummary={profileStreakSummary}
+          habitBadges={profileHabitBadges}
+        />
         ) : null}
 
         {activeTab === "privacy" ? (
@@ -1388,6 +1587,8 @@ function RewardsTab({
   latestRedemption,
   latestStreakReward,
   coinTransactions,
+  streakSummary,
+  habitBadges,
 }: {
   coinBalance: number;
   totalRedemptions: number;
@@ -1396,6 +1597,8 @@ function RewardsTab({
   latestRedemption: ProfileRewardRedemptionRow | null;
   latestStreakReward: ProfileStreakRewardRow | null;
   coinTransactions: ProfileCoinTransactionRow[];
+  streakSummary: ProfileStreakSummary;
+  habitBadges: ProfileHabitBadge[];
 }) {
   return (
     <SectionWrapper>
@@ -1487,6 +1690,10 @@ function RewardsTab({
             </div>
           </SidePanel>
         </div>
+        <ProfileHabitBadgesPanel
+          streakSummary={streakSummary}
+          habitBadges={habitBadges}
+        />
 
         <SidePanel
           eyebrow="Lịch sử coin"
@@ -1505,6 +1712,133 @@ function RewardsTab({
         </SidePanel>
       </div>
     </SectionWrapper>
+  );
+}
+function ProfileHabitBadgesPanel({
+  streakSummary,
+  habitBadges,
+}: {
+  streakSummary: ProfileStreakSummary;
+  habitBadges: ProfileHabitBadge[];
+}) {
+  return (
+    <SidePanel
+      eyebrow="Habit badges"
+      title="Huy hiệu duy trì"
+      icon={<Trophy className="h-5 w-5" />}
+    >
+      <div className="rounded-[28px] border border-[#E9E5FF] bg-[linear-gradient(135deg,#F8F6FF_0%,#EEF6FF_100%)] p-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+              Current streak
+            </div>
+
+            <div className="mt-2 text-[42px] font-[900] leading-none tracking-[-0.06em] text-[#1A1528]">
+              {streakSummary.currentStreak}
+              <span className="ml-1 text-[15px] font-black text-[#8A84A3]">
+                ngày
+              </span>
+            </div>
+          </div>
+
+          <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_16px_34px_rgba(245,158,11,0.22)]">
+            <Flame className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#EEE9FF]">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
+            style={{ width: `${streakSummary.progress}%` }}
+          />
+        </div>
+
+        <p className="mt-3 text-[12px] font-bold leading-6 text-[#615C7A]">
+          {streakSummary.nextMilestone
+            ? `Còn ${streakSummary.remainingDays} ngày để tới mốc ${streakSummary.nextMilestone} ngày.`
+            : "Bạn đã mở khóa toàn bộ mốc streak hiện tại."}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <SmallStat
+            label="Focus days"
+            value={formatNumber(streakSummary.focusDaysThisWeek)}
+          />
+          <SmallStat
+            label="Check-in"
+            value={formatNumber(streakSummary.energyCheckinDaysThisWeek)}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {habitBadges.map((badge) => (
+          <ProfileHabitBadgeCard key={badge.id} badge={badge} />
+        ))}
+      </div>
+    </SidePanel>
+  );
+}
+
+function ProfileHabitBadgeCard({ badge }: { badge: ProfileHabitBadge }) {
+  const toneClass = {
+    purple:
+      "border-[#D6CBFF] bg-gradient-to-br from-[#F5F3FF] via-[#EBE4FF] to-[#DED6FF] text-[#6F59FF]",
+    blue:
+      "border-[#BFDDFF] bg-gradient-to-br from-[#F0F7FF] via-[#E0EFFF] to-[#CBE4FF] text-[#4DA8FF]",
+    orange:
+      "border-[#FCD34D] bg-gradient-to-br from-[#FFF8F0] via-[#FFEDD6] to-[#FFE0B2] text-[#F59E0B]",
+    green:
+      "border-[#6EE7B7] bg-gradient-to-br from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] text-[#10B981]",
+  }[badge.tone];
+
+  const icon =
+    badge.icon === "flame" ? (
+      <Flame className="h-4 w-4" />
+    ) : badge.icon === "zap" ? (
+      <Zap className="h-4 w-4" />
+    ) : badge.icon === "trophy" ? (
+      <Trophy className="h-4 w-4" />
+    ) : (
+      <Sparkles className="h-4 w-4" />
+    );
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[24px] border p-4 shadow-sm ${toneClass} ${
+        badge.unlocked ? "" : "opacity-70"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-sm">
+          {badge.unlocked ? icon : <Lock className="h-4 w-4" />}
+        </div>
+
+        <div className="rounded-full bg-white/76 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-[#5B566E]">
+          {badge.unlocked ? "Đã mở" : `${badge.remainingDays} ngày`}
+        </div>
+      </div>
+
+      <h4 className="mt-3 text-[14px] font-black leading-tight text-[#1A1528]">
+        {badge.title}
+      </h4>
+
+      <p className="mt-2 min-h-[54px] text-[11.5px] font-medium leading-5 text-[#5B566E]">
+        {badge.description}
+      </p>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/72 shadow-inner">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
+          style={{ width: `${badge.progress}%` }}
+        />
+      </div>
+
+      <div className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+        Mốc {badge.milestone} ngày • {badge.progress}%
+      </div>
+    </div>
   );
 }
 
