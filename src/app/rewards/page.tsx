@@ -80,6 +80,39 @@ type CoinTransactionRow = {
   description: string;
   createdAt: Date;
 };
+type HabitBadgeTone = "purple" | "blue" | "orange" | "green";
+
+type HabitBadge = {
+  id: string;
+  title: string;
+  description: string;
+  milestone: number;
+  unlocked: boolean;
+  progress: number;
+  remainingDays: number;
+  tone: HabitBadgeTone;
+  icon: "sparkles" | "flame" | "zap" | "trophy";
+};
+
+type StreakSummary = {
+  currentStreak: number;
+  nextMilestone: number | null;
+  progress: number;
+  remainingDays: number;
+  focusDaysThisWeek: number;
+  energyCheckinDaysThisWeek: number;
+};
+
+type FocusSessionMiniRow = {
+  id: string;
+  status: string;
+  startedAt: Date;
+};
+
+type EnergyCheckinMiniRow = {
+  id: string;
+  checkedAt: Date;
+};
 
 type RewardFilter = "all" | "available" | "near" | "locked";
 type RewardSort = "cost-asc" | "cost-desc" | "newest";
@@ -166,6 +199,180 @@ function formatDateTime(value: Date) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(value);
+}
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function toDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function getStartOfWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+const HABIT_MILESTONES = [3, 7, 14, 30] as const;
+
+function getNextHabitMilestone(currentStreak: number) {
+  return HABIT_MILESTONES.find((milestone) => milestone > currentStreak) ?? null;
+}
+
+function getProgressToNextMilestone(
+  currentStreak: number,
+  nextMilestone: number | null,
+) {
+  if (!nextMilestone) return 100;
+
+  const previousMilestone =
+    [...HABIT_MILESTONES]
+      .reverse()
+      .find((milestone) => milestone <= currentStreak) ?? 0;
+
+  const range = nextMilestone - previousMilestone;
+  const current = currentStreak - previousMilestone;
+
+  if (range <= 0) return 100;
+
+  return Math.min(100, Math.max(0, Math.round((current / range) * 100)));
+}
+
+function computeActivityStreak({
+  focusSessions,
+  energyCheckins,
+}: {
+  focusSessions: FocusSessionMiniRow[];
+  energyCheckins: EnergyCheckinMiniRow[];
+}) {
+  let streak = 0;
+  const today = new Date();
+
+  for (let offset = 0; offset < 365; offset += 1) {
+    const dateKey = toDateKey(addDays(today, -offset));
+
+    const hasCompletedFocus = focusSessions.some(
+      (session) =>
+        session.status === "COMPLETED" && toDateKey(session.startedAt) === dateKey,
+    );
+
+    const hasEnergyCheckin = energyCheckins.some(
+      (checkin) => toDateKey(checkin.checkedAt) === dateKey,
+    );
+
+    if (hasCompletedFocus || hasEnergyCheckin) {
+      streak += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
+}
+
+function buildStreakSummary({
+  currentStreak,
+  focusSessions,
+  energyCheckins,
+}: {
+  currentStreak: number;
+  focusSessions: FocusSessionMiniRow[];
+  energyCheckins: EnergyCheckinMiniRow[];
+}): StreakSummary {
+  const weekStart = getStartOfWeek(new Date());
+  const weekDateKeys = new Set(
+    Array.from({ length: 7 }).map((_, index) =>
+      toDateKey(addDays(weekStart, index)),
+    ),
+  );
+
+  const focusDaysThisWeek = new Set(
+    focusSessions
+      .filter((session) => session.status === "COMPLETED")
+      .map((session) => toDateKey(session.startedAt))
+      .filter((dateKey) => weekDateKeys.has(dateKey)),
+  ).size;
+
+  const energyCheckinDaysThisWeek = new Set(
+    energyCheckins
+      .map((checkin) => toDateKey(checkin.checkedAt))
+      .filter((dateKey) => weekDateKeys.has(dateKey)),
+  ).size;
+
+  const nextMilestone = getNextHabitMilestone(currentStreak);
+  const progress = getProgressToNextMilestone(currentStreak, nextMilestone);
+
+  return {
+    currentStreak,
+    nextMilestone,
+    progress,
+    remainingDays: nextMilestone ? Math.max(nextMilestone - currentStreak, 0) : 0,
+    focusDaysThisWeek,
+    energyCheckinDaysThisWeek,
+  };
+}
+
+function buildHabitBadges(currentStreak: number): HabitBadge[] {
+  return [
+    {
+      id: "rhythm-starter",
+      title: "Khởi động nhịp",
+      description: "Duy trì streak 3 ngày để bắt đầu hình thành nhịp học/làm đều hơn.",
+      milestone: 3,
+      unlocked: currentStreak >= 3,
+      progress: Math.min(100, Math.round((currentStreak / 3) * 100)),
+      remainingDays: Math.max(3 - currentStreak, 0),
+      tone: "purple",
+      icon: "sparkles",
+    },
+    {
+      id: "focus-builder",
+      title: "Giữ nhịp 7 ngày",
+      description: "Duy trì streak 7 ngày để mở khóa thói quen planner bền hơn.",
+      milestone: 7,
+      unlocked: currentStreak >= 7,
+      progress: Math.min(100, Math.round((currentStreak / 7) * 100)),
+      remainingDays: Math.max(7 - currentStreak, 0),
+      tone: "blue",
+      icon: "flame",
+    },
+    {
+      id: "energy-keeper",
+      title: "Bền bỉ 14 ngày",
+      description: "Duy trì streak 14 ngày để chứng minh bạn đang thật sự giữ nhịp.",
+      milestone: 14,
+      unlocked: currentStreak >= 14,
+      progress: Math.min(100, Math.round((currentStreak / 14) * 100)),
+      remainingDays: Math.max(14 - currentStreak, 0),
+      tone: "orange",
+      icon: "zap",
+    },
+    {
+      id: "chrono-master",
+      title: "Chrono Master 30 ngày",
+      description: "Duy trì streak 30 ngày để đạt mốc thói quen mạnh nhất.",
+      milestone: 30,
+      unlocked: currentStreak >= 30,
+      progress: Math.min(100, Math.round((currentStreak / 30) * 100)),
+      remainingDays: Math.max(30 - currentStreak, 0),
+      tone: "green",
+      icon: "trophy",
+    },
+  ];
 }
 
 function normalizeActive(value: boolean) {
@@ -534,6 +741,7 @@ export default async function RewardsPage({
     },
   });
 
+
   const coinTransactions: CoinTransactionRow[] = coinTransactionsRaw.map(
     (item) => ({
       id: item.id,
@@ -546,6 +754,69 @@ export default async function RewardsPage({
       createdAt: item.createdAt,
     }),
   );
+  const fourteenDaysAgo = addDays(new Date(), -14);
+
+  const [focusSessionsRaw, energyCheckinsRaw] = await Promise.all([
+    prisma.focusSession.findMany({
+      where: {
+        userId: user.id,
+        startedAt: {
+          gte: fourteenDaysAgo,
+        },
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
+      take: 100,
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+      },
+    }),
+    prisma.energyCheckin.findMany({
+      where: {
+        userId: user.id,
+        checkedAt: {
+          gte: fourteenDaysAgo,
+        },
+      },
+      orderBy: {
+        checkedAt: "desc",
+      },
+      take: 100,
+      select: {
+        id: true,
+        checkedAt: true,
+      },
+    }),
+  ]);
+
+  const focusSessions: FocusSessionMiniRow[] = focusSessionsRaw.map((item) => ({
+    id: item.id,
+    status: String(item.status),
+    startedAt: item.startedAt,
+  }));
+
+  const energyCheckins: EnergyCheckinMiniRow[] = energyCheckinsRaw.map(
+    (item) => ({
+      id: item.id,
+      checkedAt: item.checkedAt,
+    }),
+  );
+
+  const activityStreak = computeActivityStreak({
+    focusSessions,
+    energyCheckins,
+  });
+
+  const streakSummary = buildStreakSummary({
+    currentStreak: activityStreak,
+    focusSessions,
+    energyCheckins,
+  });
+
+  const habitBadges = buildHabitBadges(activityStreak);
 
   const activeRewards = rewardItems.filter((item) =>
     normalizeActive(item.active),
@@ -716,6 +987,80 @@ export default async function RewardsPage({
                     label="Đã đổi"
                     value={formatNumber(redemptions.length)}
                   />
+                </div>
+              </div>
+            </section>
+
+            <section className="mt-8 rounded-[36px] border border-white/80 bg-white/[0.86] p-5 shadow-[0_20px_60px_rgba(97,76,197,0.08)] backdrop-blur-xl md:p-6">
+              <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#F4F0FF] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#7C5CFA]">
+                    <Trophy className="h-3.5 w-3.5" />
+                    Habit badges
+                  </div>
+
+                  <h2 className="mt-4 text-[clamp(1.65rem,3vw,2.35rem)] font-black leading-tight tracking-[-0.04em] text-[#241F3D]">
+                    Huy hiệu duy trì{" "}
+                    <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B6DFF] to-[#4DA8FF] bg-clip-text text-transparent">
+                      thói quen
+                    </span>
+                  </h2>
+
+                  <p className="mt-3 text-[14px] font-medium leading-7 text-[#615C7A]">
+                    Streak được tính khi bạn có focus session hoàn thành hoặc
+                    energy check-in trong ngày. Đây là vòng lặp giúp bạn giữ
+                    nhịp học/làm đều hơn.
+                  </p>
+
+                  <div className="mt-5 rounded-[28px] border border-[#E9E5FF] bg-[#F8F6FF] p-5">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+                          Current streak
+                        </div>
+                        <div className="mt-2 text-[44px] font-black leading-none tracking-[-0.06em] text-[#241F3D]">
+                          {streakSummary.currentStreak}
+                          <span className="ml-1 text-[15px] font-black text-[#8A84A3]">
+                            ngày
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-[linear-gradient(135deg,#FFB703_0%,#FFD166_100%)] text-white shadow-[0_16px_34px_rgba(255,183,3,0.22)]">
+                        <Flame className="h-6 w-6" />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#EEE9FF]">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#7C5CFA_0%,#4DA8FF_100%)]"
+                        style={{ width: `${streakSummary.progress}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-3 text-[12px] font-bold leading-6 text-[#615C7A]">
+                      {streakSummary.nextMilestone
+                        ? `Còn ${streakSummary.remainingDays} ngày để tới mốc ${streakSummary.nextMilestone} ngày.`
+                        : "Bạn đã mở khóa toàn bộ mốc streak hiện tại."}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <MiniRewardMetric
+                        label="Focus days"
+                        value={String(streakSummary.focusDaysThisWeek)}
+                      />
+                      <MiniRewardMetric
+                        label="Check-in days"
+                        value={String(streakSummary.energyCheckinDaysThisWeek)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {habitBadges.map((badge) => (
+                    <HabitRewardBadgeCard key={badge.id} badge={badge} />
+                  ))}
                 </div>
               </div>
             </section>
@@ -1204,6 +1549,79 @@ function RewardImage({
     </div>
   );
 }
+function MiniRewardMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/80 bg-white/80 px-4 py-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-1 text-[20px] font-black text-[#241F3D]">{value}</div>
+    </div>
+  );
+}
+
+function HabitRewardBadgeCard({ badge }: { badge: HabitBadge }) {
+  const toneClass = {
+    purple:
+      "from-[#F5F3FF] via-[#EBE4FF] to-[#DED6FF] border-[#D6CBFF] text-[#6F59FF]",
+    blue:
+      "from-[#F0F7FF] via-[#E0EFFF] to-[#CBE4FF] border-[#BFDDFF] text-[#4DA8FF]",
+    orange:
+      "from-[#FFF8F0] via-[#FFEDD6] to-[#FFE0B2] border-[#FCD34D] text-[#F59E0B]",
+    green:
+      "from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] border-[#6EE7B7] text-[#10B981]",
+  }[badge.tone];
+
+  const icon =
+    badge.icon === "flame" ? (
+      <Flame className="h-5 w-5" />
+    ) : badge.icon === "zap" ? (
+      <Zap className="h-5 w-5" />
+    ) : badge.icon === "trophy" ? (
+      <Trophy className="h-5 w-5" />
+    ) : (
+      <Sparkles className="h-5 w-5" />
+    );
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 shadow-[0_16px_38px_rgba(26,21,40,0.05)] ${toneClass} ${
+        badge.unlocked ? "" : "opacity-70"
+      }`}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/55 blur-3xl" />
+
+      <div className="relative z-10 flex items-start justify-between gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/82 shadow-sm">
+          {badge.unlocked ? icon : <Lock className="h-5 w-5" />}
+        </div>
+
+        <div className="rounded-full bg-white/76 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#5B566E]">
+          {badge.unlocked ? "Đã mở khóa" : `${badge.remainingDays} ngày nữa`}
+        </div>
+      </div>
+
+      <h3 className="relative z-10 mt-4 text-[1rem] font-black tracking-tight text-[#241F3D]">
+        {badge.title}
+      </h3>
+
+      <p className="relative z-10 mt-2 min-h-[66px] text-[12.5px] font-medium leading-6 text-[#615C7A]">
+        {badge.description}
+      </p>
+
+      <div className="relative z-10 mt-4 h-2.5 overflow-hidden rounded-full bg-white/72 shadow-inner">
+        <div
+          className="h-full rounded-full bg-[linear-gradient(90deg,#7C5CFA_0%,#4DA8FF_100%)]"
+          style={{ width: `${badge.progress}%` }}
+        />
+      </div>
+
+      <div className="relative z-10 mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+        Mốc {badge.milestone} ngày • {badge.progress}%
+      </div>
+    </div>
+  );
+}
 
 function WalletStatCard({
   icon,
@@ -1227,6 +1645,8 @@ function WalletStatCard({
     </div>
   );
 }
+
+
 
 function HowToEarnItem({
   icon,
