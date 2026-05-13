@@ -14,6 +14,7 @@ import {
   CalendarDays,
   Crown,
 LockKeyhole,
+Trophy,
   CheckCircle2,
   Coins,
   Coffee,
@@ -176,6 +177,26 @@ type DashboardData = {
     tone: string;
     currentTime?: string;
   };
+  streakSummary?: {
+    currentStreak: number;
+    nextMilestone: number | null;
+    progress: number;
+    remainingDays: number;
+    focusDaysThisWeek: number;
+    energyCheckinDaysThisWeek: number;
+  } | null;
+  
+  habitBadges?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    milestone: number;
+    unlocked: boolean;
+    progress: number;
+    remainingDays: number;
+    tone: "purple" | "blue" | "orange" | "green";
+    icon: "sparkles" | "flame" | "zap" | "crown";
+  }>;
   energyInsight?: {
     currentTime?: string;
     summary?: string;
@@ -915,6 +936,7 @@ export default function DashboardClientUI() {
 
       <SectionWrapper>
         <div className="grid items-start gap-6 xl:grid-cols-2">
+        <HabitBadgesPanel data={data} />
           <WeeklyInsightPanel data={data} />
           <AttentionPanel alerts={data?.alerts ?? []} tasks={tasks} />
         </div>
@@ -3025,4 +3047,163 @@ function translateRedemptionStatus(status: string) {
   };
 
   return map[status] || status;
+}
+function HabitBadgesPanel({ data }: { data: DashboardData | null }) {
+  const summary = data?.streakSummary;
+  const badges = data?.habitBadges ?? [];
+
+  if (!summary && badges.length === 0) return null;
+
+  return (
+    <section className="rounded-[34px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(246,247,255,0.72)_100%)] p-5 shadow-[0_22px_70px_rgba(26,21,40,0.07)] backdrop-blur-2xl md:p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-[520px]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#E9E5FF] bg-[#F3F0FF] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#6F59FF] shadow-sm">
+            <Trophy className="h-3.5 w-3.5" />
+            Habit streak
+          </div>
+
+          <h2 className="mt-4 text-[clamp(1.6rem,3vw,2.3rem)] font-[950] leading-tight tracking-[-0.04em] text-[#1A1528]">
+            Chuỗi duy trì{" "}
+            <span className="bg-gradient-to-r from-[#6F59FF] via-[#6B7CFF] to-[#4DA8FF] bg-clip-text text-transparent">
+              thói quen
+            </span>
+          </h2>
+
+          <p className="mt-3 text-[14px] font-medium leading-7 text-[#615C7A]">
+            Theo dõi streak, focus day và energy check-in để biến ChronoFlow
+            thành một vòng lặp duy trì nhịp học/làm mỗi ngày.
+          </p>
+        </div>
+
+        {summary ? (
+          <div className="w-full rounded-[28px] border border-[#E9E5FF] bg-white/[0.82] p-5 shadow-sm lg:max-w-[360px]">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+                  Current streak
+                </div>
+                <div className="mt-2 text-[46px] font-[950] leading-none tracking-[-0.06em] text-[#1A1528]">
+                  {summary.currentStreak}
+                  <span className="ml-1 text-[16px] font-black text-[#8A84A3]">
+                    ngày
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#F59E0B] to-[#FBBF24] text-white shadow-[0_16px_34px_rgba(245,158,11,0.22)]">
+                <Flame className="h-6 w-6" />
+              </div>
+            </div>
+
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#EEE9FF]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
+                style={{ width: `${summary.progress}%` }}
+              />
+            </div>
+
+            <div className="mt-3 text-[12px] font-bold leading-6 text-[#5B566E]">
+              {summary.nextMilestone
+                ? `Còn ${summary.remainingDays} ngày để tới mốc ${summary.nextMilestone} ngày.`
+                : "Bạn đã mở khóa toàn bộ mốc streak hiện tại."}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <MiniHabitMetric
+                label="Focus days"
+                value={String(summary.focusDaysThisWeek)}
+              />
+              <MiniHabitMetric
+                label="Check-in days"
+                value={String(summary.energyCheckinDaysThisWeek)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {badges.map((badge) => (
+          <HabitBadgeCard key={badge.id} badge={badge} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MiniHabitMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#EEF0F6] bg-[#F8F9FE] px-4 py-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A84A3]">
+        {label}
+      </div>
+      <div className="mt-1 text-[20px] font-[950] text-[#1A1528]">{value}</div>
+    </div>
+  );
+}
+
+function HabitBadgeCard({
+  badge,
+}: {
+  badge: NonNullable<DashboardData["habitBadges"]>[number];
+}) {
+  const toneClass = {
+    purple: "from-[#F5F3FF] via-[#EBE4FF] to-[#DED6FF] border-[#D6CBFF] text-[#6F59FF]",
+    blue: "from-[#F0F7FF] via-[#E0EFFF] to-[#CBE4FF] border-[#BFDDFF] text-[#4DA8FF]",
+    orange: "from-[#FFF8F0] via-[#FFEDD6] to-[#FFE0B2] border-[#FCD34D] text-[#F59E0B]",
+    green: "from-[#ECFDF5] via-[#D1FAE5] to-[#A7F3D0] border-[#6EE7B7] text-[#10B981]",
+  }[badge.tone];
+
+  const Icon =
+    badge.icon === "flame"
+      ? Flame
+      : badge.icon === "zap"
+        ? Zap
+        : badge.icon === "crown"
+          ? Crown
+          : Sparkles;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[26px] border bg-gradient-to-br p-5 shadow-[0_16px_38px_rgba(26,21,40,0.05)] ${toneClass} ${
+        badge.unlocked ? "" : "opacity-70"
+      }`}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/55 blur-3xl" />
+
+      <div className="relative z-10 flex items-start justify-between gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/[0.82] shadow-sm">
+          {badge.unlocked ? (
+            <Icon className="h-5 w-5" />
+          ) : (
+            <LockKeyhole className="h-5 w-5" />
+          )}
+        </div>
+
+        <div className="rounded-full bg-white/[0.76] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#5B566E]">
+          {badge.unlocked ? "Đã mở khóa" : `${badge.remainingDays} ngày nữa`}
+        </div>
+      </div>
+
+      <h3 className="relative z-10 mt-4 text-[1rem] font-[950] tracking-tight text-[#1A1528]">
+        {badge.title}
+      </h3>
+
+      <p className="relative z-10 mt-2 min-h-[66px] text-[12.5px] font-medium leading-6 text-[#5B566E]">
+        {badge.description}
+      </p>
+
+      <div className="relative z-10 mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.72] shadow-inner">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#6F59FF] to-[#4DA8FF]"
+          style={{ width: `${badge.progress}%` }}
+        />
+      </div>
+
+      <div className="relative z-10 mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#8A84A3]">
+        Mốc {badge.milestone} ngày • {badge.progress}%
+      </div>
+    </div>
+  );
 }

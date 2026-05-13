@@ -56,6 +56,29 @@ type WeeklyInsightRecord = {
   createdAt: Date;
 };
 
+type HabitBadgeTone = "purple" | "blue" | "orange" | "green";
+
+type HabitBadge = {
+  id: string;
+  title: string;
+  description: string;
+  milestone: number;
+  unlocked: boolean;
+  progress: number;
+  remainingDays: number;
+  tone: HabitBadgeTone;
+  icon: "sparkles" | "flame" | "zap" | "crown";
+};
+
+type StreakSummary = {
+  currentStreak: number;
+  nextMilestone: number | null;
+  progress: number;
+  remainingDays: number;
+  focusDaysThisWeek: number;
+  energyCheckinDaysThisWeek: number;
+};
+
 type FocusSessionRawRow = {
   id: string;
   userId: string;
@@ -627,6 +650,112 @@ function computeStreak(params: {
 
   return streak;
 }
+const HABIT_MILESTONES = [3, 7, 14, 30] as const;
+
+function getNextHabitMilestone(currentStreak: number) {
+  return HABIT_MILESTONES.find((milestone) => milestone > currentStreak) ?? null;
+}
+
+function getProgressToNextMilestone(currentStreak: number, nextMilestone: number | null) {
+  if (!nextMilestone) return 100;
+
+  const previousMilestone =
+    [...HABIT_MILESTONES].reverse().find((milestone) => milestone <= currentStreak) ??
+    0;
+
+  const range = nextMilestone - previousMilestone;
+  const current = currentStreak - previousMilestone;
+
+  if (range <= 0) return 100;
+
+  return Math.min(100, Math.max(0, Math.round((current / range) * 100)));
+}
+
+function buildStreakSummary({
+  currentStreak,
+  focusSessions,
+  energyCheckins,
+  weekDateKeys,
+}: {
+  currentStreak: number;
+  focusSessions: Array<{ startedAt: Date }>;
+  energyCheckins: Array<{ checkedAt: Date }>;
+  weekDateKeys: string[];
+}): StreakSummary {
+  const weekDateKeySet = new Set(weekDateKeys);
+
+  const focusDaysThisWeek = new Set(
+    focusSessions
+      .map((session) => toDateKey(session.startedAt))
+      .filter((dateKey) => weekDateKeySet.has(dateKey)),
+  ).size;
+
+  const energyCheckinDaysThisWeek = new Set(
+    energyCheckins
+      .map((checkin) => toDateKey(checkin.checkedAt))
+      .filter((dateKey) => weekDateKeySet.has(dateKey)),
+  ).size;
+
+  const nextMilestone = getNextHabitMilestone(currentStreak);
+  const progress = getProgressToNextMilestone(currentStreak, nextMilestone);
+
+  return {
+    currentStreak,
+    nextMilestone,
+    progress,
+    remainingDays: nextMilestone ? Math.max(nextMilestone - currentStreak, 0) : 0,
+    focusDaysThisWeek,
+    energyCheckinDaysThisWeek,
+  };
+}
+function buildHabitBadges(currentStreak: number): HabitBadge[] {
+  return [
+    {
+      id: "rhythm-starter",
+      title: "Khởi động nhịp",
+      description: "Duy trì streak 3 ngày để bắt đầu hình thành nhịp học/làm đều hơn.",
+      milestone: 3,
+      unlocked: currentStreak >= 3,
+      progress: Math.min(100, Math.round((currentStreak / 3) * 100)),
+      remainingDays: Math.max(3 - currentStreak, 0),
+      tone: "purple",
+      icon: "sparkles",
+    },
+    {
+      id: "focus-builder",
+      title: "Giữ nhịp 7 ngày",
+      description: "Duy trì streak 7 ngày để mở khóa thói quen planner bền hơn.",
+      milestone: 7,
+      unlocked: currentStreak >= 7,
+      progress: Math.min(100, Math.round((currentStreak / 7) * 100)),
+      remainingDays: Math.max(7 - currentStreak, 0),
+      tone: "blue",
+      icon: "flame",
+    },
+    {
+      id: "energy-keeper",
+      title: "Bền bỉ 14 ngày",
+      description: "Duy trì streak 14 ngày để chứng minh bạn đang thật sự giữ nhịp.",
+      milestone: 14,
+      unlocked: currentStreak >= 14,
+      progress: Math.min(100, Math.round((currentStreak / 14) * 100)),
+      remainingDays: Math.max(14 - currentStreak, 0),
+      tone: "orange",
+      icon: "zap",
+    },
+    {
+      id: "chrono-master",
+      title: "Chrono Master 30 ngày",
+      description: "Duy trì streak 30 ngày để đạt mốc thói quen mạnh nhất.",
+      milestone: 30,
+      unlocked: currentStreak >= 30,
+      progress: Math.min(100, Math.round((currentStreak / 30) * 100)),
+      remainingDays: Math.max(30 - currentStreak, 0),
+      tone: "green",
+      icon: "crown",
+    },
+  ];
+}
 
 function formatTimeRange(start?: string | null, end?: string | null) {
   if (!start && !end) return "Chưa đặt giờ";
@@ -930,12 +1059,43 @@ const [
     const coinsToday = todayFocusSessions.reduce((sum: number, item: FocusSessionRecord) => {
       return sum + item.coinsEarned;
     }, 0);
+const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
+const currentCoinBalance = safeUser.coinBalance;
+const streak = computeStreak({ tasks: typedTasks, focusSessions });
 
-    const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
-    const currentCoinBalance = safeUser.coinBalance;
-    const streak = computeStreak({ tasks: typedTasks, focusSessions });
+const weekDateKeysForSummary = Array.from({ length: 7 }).map((_: unknown, index: number) => {
+  const date = addDays(weekStart, index);
+  return toDateKey(date);
+});
 
-    const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {
+const streakSummary = buildStreakSummary({
+  currentStreak: streak,
+  focusSessions: completedFocusSessions,
+  energyCheckins,
+  weekDateKeys: weekDateKeysForSummary,
+});
+
+const habitBadges = buildHabitBadges(streak);
+
+const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {const pointSummary = getPointSummary(focusSessions, rewardRedemptions);
+  const currentCoinBalance = safeUser.coinBalance;
+  const streak = computeStreak({ tasks: typedTasks, focusSessions });
+  
+  const weekDateKeysForSummary = Array.from({ length: 7 }).map((_: unknown, index: number) => {
+    const date = addDays(weekStart, index);
+    return toDateKey(date);
+  });
+  
+  const streakSummary = buildStreakSummary({
+    currentStreak: streak,
+    focusSessions: completedFocusSessions,
+    energyCheckins,
+    weekDateKeys: weekDateKeysForSummary,
+  });
+  
+  const habitBadges = buildHabitBadges(streak);
+  
+  const weekDates = Array.from({ length: 7 }).map((_: unknown, index: number) => {
       const date = addDays(weekStart, index);
       const key = toDateKey(date);
 
@@ -1130,6 +1290,8 @@ const [
         completionRate,
         alignmentScore,
       },
+      streakSummary,
+      habitBadges,
       nowStatus: getLatestEnergyStatus(latestCheckin),
       energyInsight: {
         currentTime: getCurrentTime(),
@@ -1189,19 +1351,19 @@ const [
       },
       smartSuggestions,
       weeklyInsight: canUseWeeklyInsights
-      ? typedWeeklyInsights[0] || updatedWeeklyInsight
-      : null,
-    weeklyInsightGate: canUseWeeklyInsights
-      ? null
-      : {
-          error: "PLAN_REQUIRED",
-          code: "PLAN_REQUIRED",
-          requiredPlan: "PLUS",
-          feature: "WEEKLY_INSIGHTS",
-          message:
-            "Weekly Insights là tính năng Plus. Nâng cấp để xem tổng kết tuần theo task, focus session và nhịp năng lượng.",
-          upgradeUrl: "/pricing?highlight=plus",
-        },
+        ? typedWeeklyInsights[0] || updatedWeeklyInsight
+        : null,
+      weeklyInsightGate: canUseWeeklyInsights
+        ? null
+        : {
+            error: "PLAN_REQUIRED",
+            code: "PLAN_REQUIRED",
+            requiredPlan: "PLUS",
+            feature: "WEEKLY_INSIGHTS",
+            message:
+              "Weekly Insights là tính năng Plus. Nâng cấp để xem tổng kết tuần theo task, focus session và nhịp năng lượng.",
+            upgradeUrl: "/pricing?highlight=plus",
+          },
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
