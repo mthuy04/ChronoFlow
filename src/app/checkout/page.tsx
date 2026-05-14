@@ -1,7 +1,6 @@
 "use client";
-
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -210,30 +209,22 @@ function CheckoutPageContent() {
 
   useEffect(() => {
     if (!order || order.status !== "PENDING") return;
-  
+
     const intervalId = window.setInterval(() => {
       void refreshOrderStatus(order.orderId);
     }, POLLING_INTERVAL_MS);
-  
+
     return () => {
       window.clearInterval(intervalId);
     };
   }, [order?.orderId, order?.status]);
-  
+
   useEffect(() => {
     if (!order || order.status !== "PAID") return;
     if (trackedPurchaseRef.current === order.orderId) return;
-  
-    const storageKey = `chronoflow_ga4_purchase_${order.orderId}`;
-  
-    try {
-      if (window.localStorage.getItem(storageKey) === "tracked") return;
-    } catch {
-      // Ignore localStorage errors.
-    }
-  
+
     trackedPurchaseRef.current = order.orderId;
-  
+
     if (typeof window !== "undefined" && typeof window.gtag === "function") {
       window.gtag("event", "purchase", {
         transaction_id: order.orderId,
@@ -249,15 +240,8 @@ function CheckoutPageContent() {
           },
         ],
       });
-  
-      try {
-        window.localStorage.setItem(storageKey, "tracked");
-      } catch {
-        // Ignore localStorage errors.
-      }
     }
   }, [order]);
-  
 
   if (!item) {
     return (
