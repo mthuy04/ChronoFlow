@@ -1,6 +1,5 @@
 "use client";
-
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -100,7 +99,6 @@ function CheckoutPageContent() {
   const [polling, setPolling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const trackedPurchaseRef = useRef<string | null>(null);
 
   const callbackUrl = useMemo(() => {
     const query = searchParams.toString();
@@ -220,29 +218,7 @@ function CheckoutPageContent() {
     };
   }, [order?.orderId, order?.status]);
 
-  useEffect(() => {
-    if (!order || order.status !== "PAID") return;
-    if (trackedPurchaseRef.current === order.orderId) return;
-
-    trackedPurchaseRef.current = order.orderId;
-
-    if (typeof window !== "undefined" && typeof window.gtag === "function") {
-      window.gtag("event", "purchase", {
-        transaction_id: order.orderId,
-        value: order.amount,
-        currency: order.currency || "VND",
-        items: [
-          {
-            item_id: order.itemKey,
-            item_name: order.itemName,
-            item_category: order.itemType,
-            price: order.amount,
-            quantity: 1,
-          },
-        ],
-      });
-    }
-  }, [order]);
+  
 
   if (!item) {
     return (

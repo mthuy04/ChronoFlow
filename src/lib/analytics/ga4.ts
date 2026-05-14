@@ -80,16 +80,12 @@ type GtagItem = {
     });
   }
   
-  export function trackPurchase(params: {
+  export function trackPurchase(_params: {
     transactionId: string;
     item: EcommerceItem;
-  }) {
-    if (!canTrack()) return;
+  }): void {
+    void _params;
   
-    window.gtag?.("event", "purchase", {
-      transaction_id: params.transactionId,
-      currency: "VND",
-      value: params.item.price,
-      items: [toGa4Item(params.item)],
-    });
+    // Purchase is tracked server-side only via SePay webhook.
+    // Do not send frontend purchase events to avoid duplicate GA4 revenue.
   }
